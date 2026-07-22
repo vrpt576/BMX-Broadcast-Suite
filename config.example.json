@@ -1,0 +1,20 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 1433,
+    "user": "username",
+    "password": "password",
+    "database": "RaceManager"
+  },
+  "exporter": {
+    "outputPath": "./exports",
+    "format": "json"
+  },
+  "overlay": {
+    "url": "http://localhost:3000/overlay",
+    "refreshIntervalMs": 1000
+  },
+  "theme": {
+    "name": "bend-bmx"
+  }
+}
