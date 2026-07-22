@@ -24,3 +24,16 @@ Coming soon.
 ## License
 
 MIT
+
+## Project Status
+
+- [x] Reverse engineered RaceManager database
+- [x] SQL queries complete
+- [ ] Python exporter
+- [ ] JSON generator
+- [ ] OBS overlay
+- [ ] Hotkey controller
+- [ ] Auto current moto detection
+- [ ] ProStart integration
+- [ ] Timing integration
+- [ ] Multi-track themes
