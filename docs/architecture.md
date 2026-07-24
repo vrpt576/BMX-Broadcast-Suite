@@ -6,7 +6,7 @@ This document describes the planned architecture for BMX Broadcast Suite and the
 
 ### BBS Connector
 
-The BBS Connector is responsible for connecting to the USABMX RaceManager data source. It translates the external database structure into a normalized internal representation of events, motos, riders, heats, and lane assignments.
+The BBS Connector is responsible for connecting to the USABMX RaceManager data source. The low-level SQL client and validated queries live in `database/`; the API, services, and normalized models live in `connector/`. Together they translate the external database structure into a stable representation of events, motos, riders, lane assignments, and results.
 
 Responsibilities:
 - Connect securely to the RaceManager SQL Server database
@@ -69,3 +69,24 @@ Why use a common JSON/API layer?
 - Avoid direct database-to-overlay connections.
 - Use the common JSON/API layer as the single source of truth for broadcast data.
 - Design for future extensibility and third-party integration.
+
+
+## Implemented v0.1 flow
+
+```text
+USABMX RaceManager SQL Server
+        |
+        v
+database/ (read-only SQL and pyodbc client)
+        |
+        v
+connector/ (FastAPI services and normalized models)
+        |
+        v
+JSON API for the future broadcast engine and OBS overlays
+```
+
+The connector currently treats `Round_Type_ID = 123` as RaceManager's staged
+lineup branch. It derives each moto's `staged`, `scoring`, or `scored` state
+from `Finish_1` and exposes the maximum rider `Date_Maintenance` timestamp as a
+change marker.

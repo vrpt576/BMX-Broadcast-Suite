@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-pending-lightgrey)](https://github.com/your-org/bmx-broadcast-suite/actions)
+[![Build Status](https://img.shields.io/badge/build-v0.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -19,21 +19,23 @@ We aim to make BMX event streaming accessible, flexible, and community-driven. T
 
 ## Current status
 
-This repository currently provides the project scaffold and initial documentation for BMX broadcast tooling. Core implementation components are planned and are being developed in stages.
+The first BBS Connector implementation is now available. It provides a read-only FastAPI service over the validated USABMX RaceManager SQL Server relationships, including events, staged motos, rider lineups, lane assignments, and entered results.
 
 ## Features
 
 ### Implemented
 
-- Repository structure with clear modules for database, exporter, overlay, controller, and themes
+- Read-only SQL Server integration with the USABMX RaceManager `RACE` database
+- FastAPI connector with health, current-event, moto-list, and single-moto endpoints
+- Normalized rider lineups, lane assignments, results, and moto scoring state
+- Environment-based configuration and Docker support
+- Unit tests that run without a RaceManager installation
 - Theme package scaffolding for Bend BMX operations
-- Documentation and example folder placeholders
-- Example configuration template for future integration
 
 ### Planned
 
-- SQL Server integration with USABMX RaceManager
-- Live race and moto data export pipeline
+- Broader RaceManager round, transfer, and main-event coverage
+- Live race data export and broadcast-state pipeline
 - OBS browser-source overlays for live graphics
 - Broadcaster controller UI and hotkey support
 - Event theme management and multi-track support
@@ -43,7 +45,8 @@ This repository currently provides the project scaffold and initial documentatio
 
 The project is organized into the following top-level areas:
 
-- `database/` — RaceManager schema notes, SQL connector scaffolding, and sample data
+- `database/` — validated RaceManager SQL queries and read-only database client
+- `connector/` — FastAPI JSON service and normalized broadcast models
 - `exporter/` — Data export and bridge logic for overlays
 - `overlay/` — Browser-source overlay templates, layouts, and assets for OBS
 - `controller/` — Broadcast control interface and hotkey management
@@ -56,7 +59,7 @@ The project is organized into the following top-level areas:
 
 ## Installation
 
-Coming soon.
+See [connector/README.md](connector/README.md) for local, Windows, and Docker setup instructions.
 
 ## Roadmap
 
