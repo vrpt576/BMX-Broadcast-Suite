@@ -92,10 +92,11 @@ class RacePhase(StrEnum):
 
 
 class CurrentMoto(ApiModel):
-    """Operator-selected moto and race phase used by broadcast controls."""
+    """Operator-selected moto, race phase, and class used by broadcast controls."""
 
     moto_number: int
     race_phase: RacePhase = RacePhase.ROUND_1
+    class_name: str | None = None
     minimum_moto: int = 1
     maximum_moto: int | None = None
     updated_at: datetime | None = None
@@ -105,5 +106,6 @@ class CurrentMoto(ApiModel):
 class CurrentMotoUpdate(ApiModel):
     moto_number: int
     race_phase: RacePhase | None = None
+    class_name: str | None = None
     minimum_moto: int | None = None
     maximum_moto: int | None = None

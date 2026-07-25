@@ -57,6 +57,7 @@ class CurrentMotoService:
             result = CurrentMoto(
                 moto_number=update.moto_number,
                 race_phase=update.race_phase or current.race_phase,
+                class_name=self._normalize_class_name(update.class_name) if update.class_name is not None else current.class_name,
                 minimum_moto=minimum,
                 maximum_moto=maximum,
                 updated_at=datetime.now(timezone.utc),
@@ -75,6 +76,7 @@ class CurrentMotoService:
                 CurrentMotoUpdate(
                     moto_number=target,
                     race_phase=current.race_phase,
+                    class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
                 )
@@ -88,6 +90,7 @@ class CurrentMotoService:
                 CurrentMotoUpdate(
                     moto_number=target,
                     race_phase=current.race_phase,
+                    class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
                 )
@@ -108,6 +111,7 @@ class CurrentMotoService:
                 CurrentMotoUpdate(
                     moto_number=current.moto_number,
                     race_phase=PHASE_ORDER[target_index],
+                    class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
                 )
@@ -118,6 +122,7 @@ class CurrentMotoService:
             CurrentMotoUpdate(
                 moto_number=self.default_moto,
                 race_phase=RacePhase.ROUND_1,
+                class_name="",
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
             )
@@ -128,6 +133,7 @@ class CurrentMotoService:
             return CurrentMoto(
                 moto_number=self.default_moto,
                 race_phase=RacePhase.ROUND_1,
+                class_name=None,
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
                 updated_at=None,
@@ -142,6 +148,7 @@ class CurrentMotoService:
             return CurrentMoto(
                 moto_number=self.default_moto,
                 race_phase=RacePhase.ROUND_1,
+                class_name=None,
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
                 updated_at=None,
@@ -156,6 +163,17 @@ class CurrentMotoService:
             encoding="utf-8",
         )
         os.replace(temporary, self.state_file)
+
+    @staticmethod
+    def _normalize_class_name(class_name: str | None) -> str | None:
+        if class_name is None:
+            return None
+        normalized = " ".join(class_name.strip().split())
+        if not normalized:
+            return None
+        if len(normalized) > 100:
+            raise CurrentMotoValidationError("class_name must be 100 characters or fewer.")
+        return normalized
 
     @staticmethod
     def _validate_bounds(moto_number: int, minimum: int, maximum: int | None) -> None:

@@ -104,3 +104,7 @@ Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
 ## Race phases
 
 The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.
+
+## Manual class name
+
+The controller can attach a class name such as `17-20 Expert`, `5 & Under Novice`, or `51-55 Cruiser` to the current broadcast state. Enter the class name and select **Apply**. The value is saved alongside the moto and race phase and appears on `/overlay/current`. A future RaceManager integration can populate this field automatically while retaining manual override support.
