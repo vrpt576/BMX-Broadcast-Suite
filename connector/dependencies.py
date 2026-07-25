@@ -5,6 +5,7 @@ from database.racemanager import RaceManagerDatabase
 from connector.config import get_settings
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
+from connector.services.current_moto_service import CurrentMotoService
 
 
 @lru_cache
@@ -23,3 +24,12 @@ def get_event_service() -> EventService:
 
 def get_motoboard_service() -> MotoboardService:
     return MotoboardService(get_database())
+
+
+@lru_cache
+def get_current_moto_service() -> CurrentMotoService:
+    settings = get_settings()
+    return CurrentMotoService(
+        settings.current_moto_state_file,
+        default_moto=settings.current_moto_default,
+    )

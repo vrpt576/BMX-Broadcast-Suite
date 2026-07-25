@@ -78,3 +78,19 @@ class MotoList(ApiModel):
     motoboard_id: UUID
     count: int
     motos: list[Moto]
+
+
+class CurrentMoto(ApiModel):
+    """Operator-selected moto used by overlays and broadcast controls."""
+
+    moto_number: int
+    minimum_moto: int = 1
+    maximum_moto: int | None = None
+    updated_at: datetime | None = None
+    source: str = "manual"
+
+
+class CurrentMotoUpdate(ApiModel):
+    moto_number: int
+    minimum_moto: int | None = None
+    maximum_moto: int | None = None

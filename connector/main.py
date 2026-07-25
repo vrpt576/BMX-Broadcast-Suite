@@ -4,12 +4,12 @@ import logging
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
-from connector.routes import event, health, motos
+from connector.routes import current, event, health, motos
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level.upper())
@@ -23,13 +23,18 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 
 app.include_router(health.router)
 app.include_router(event.router, prefix=settings.api_prefix)
 app.include_router(motos.router, prefix=settings.api_prefix)
+app.include_router(current.router, prefix=settings.api_prefix)
+
+# Human-facing pages live outside /api.
+app.add_api_route("/controller", current.controller_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
+app.add_api_route("/overlay/current", current.current_moto_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 
 
 @app.exception_handler(RaceManagerDatabaseError)

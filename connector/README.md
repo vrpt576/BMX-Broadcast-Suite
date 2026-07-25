@@ -63,3 +63,39 @@ From the repository root:
 docker build -f connector/Dockerfile -t bbs-connector .
 docker run --rm -p 8000:8000 --env-file .env bbs-connector
 ```
+
+## Manual current-moto control
+
+The current-moto feature is deliberately independent of RaceManager. It can be
+used immediately, including while the SQL database is unavailable.
+
+Start the connector, then open:
+
+- Operator controller: `http://localhost:8000/controller`
+- OBS browser overlay: `http://localhost:8000/overlay/current`
+- JSON state: `http://localhost:8000/api/current`
+
+Keyboard controls on the operator page:
+
+- Right arrow, up arrow, space, or Page Down: next moto
+- Left arrow, down arrow, or Page Up: previous moto
+- Type a moto number and press Enter: jump directly
+- Optionally enter the final moto to prevent advancing past it
+
+The selection is saved to `data/current_moto.json`, so it survives service
+restarts. The controller and overlay may be opened on different computers as
+long as both can reach the connector.
+
+Manual API endpoints:
+
+- `GET /api/current`
+- `PUT /api/current`
+- `POST /api/current/next`
+- `POST /api/current/previous`
+- `POST /api/current/reset`
+
+Example:
+
+```powershell
+Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
+```

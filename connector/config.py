@@ -1,6 +1,7 @@
 """Environment-based configuration for the BBS Connector."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "BMX Broadcast Suite Connector"
-    app_version: str = "0.1.0"
+    app_version: str = "0.2.0"
     api_prefix: str = "/api"
     log_level: str = "INFO"
 
@@ -31,7 +32,10 @@ class Settings(BaseSettings):
     sql_connect_timeout: int = 5
     sql_query_timeout: int = 10
 
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    cors_origins: str = "*"
+
+    current_moto_state_file: Path = Path("data/current_moto.json")
+    current_moto_default: int = 1
 
     @property
     def sql_server(self) -> str:
