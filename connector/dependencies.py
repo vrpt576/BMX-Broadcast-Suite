@@ -6,6 +6,7 @@ from connector.config import get_settings
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
 from connector.services.current_moto_service import CurrentMotoService
+from connector.services.current_lineup_service import CurrentLineupService
 
 
 @lru_cache
@@ -32,4 +33,12 @@ def get_current_moto_service() -> CurrentMotoService:
     return CurrentMotoService(
         settings.current_moto_state_file,
         default_moto=settings.current_moto_default,
+    )
+
+
+def get_current_lineup_service() -> CurrentLineupService:
+    return CurrentLineupService(
+        get_current_moto_service(),
+        get_event_service(),
+        get_motoboard_service(),
     )

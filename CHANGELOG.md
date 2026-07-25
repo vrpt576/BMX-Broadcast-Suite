@@ -21,3 +21,10 @@
 - Manual class-name control stored with the current moto and race phase.
 - Class name displayed in both the race controller and OBS overlay.
 - Backward-compatible loading of existing v0.3 state files.
+
+## 0.5.0
+
+- Added a current rider/gate assignment API.
+- Added an OBS-ready rider lineup lower-third overlay.
+- Added bundled verified demo data from the 2026-07-23 Thursday Night Racing moto.
+- Connected the lineup overlay to the existing keyboard/mouse current-moto controller.

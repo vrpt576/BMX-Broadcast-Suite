@@ -109,3 +109,24 @@ class CurrentMotoUpdate(ApiModel):
     class_name: str | None = None
     minimum_moto: int | None = None
     maximum_moto: int | None = None
+
+
+class LineupRider(ApiModel):
+    """One rider row formatted for a gate-assignment graphic."""
+
+    gate: int | None = None
+    bike_number: str | int | None = None
+    first_name: str
+    last_name: str
+    nickname: str | None = None
+
+
+class CurrentLineup(ApiModel):
+    """Broadcast-ready lineup for the operator-selected moto."""
+
+    moto_number: int
+    race_phase: RacePhase
+    class_name: str
+    riders: list[LineupRider]
+    source: str
+    updated_at: datetime | None = None

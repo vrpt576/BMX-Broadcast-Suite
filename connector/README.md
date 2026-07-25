@@ -108,3 +108,17 @@ The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Se
 ## Manual class name
 
 The controller can attach a class name such as `17-20 Expert`, `5 & Under Novice`, or `51-55 Cruiser` to the current broadcast state. Enter the class name and select **Apply**. The value is saved alongside the moto and race phase and appears on `/overlay/current`. A future RaceManager integration can populate this field automatically while retaining manual override support.
+
+## Rider lineup lower third
+
+- Live API: `GET /api/lineup/current`
+- Demo API: `GET /api/lineup/current?demo=true`
+- Live OBS overlay: `/overlay/lineup`
+- Demo OBS overlay: `/overlay/lineup?demo=true`
+
+The overlay follows the current moto selected at `/controller`, so the existing
+keyboard, mouse, and direct-jump controls advance both graphics together. Round
+1, 2, and 3 use RaceManager's verified `Lane_1`, `Lane_2`, and `Lane_3` fields.
+Quarterfinal, semifinal, and main lane storage still requires track-side
+validation; until then BBS uses the first available lane rather than leaving the
+lower third blank.

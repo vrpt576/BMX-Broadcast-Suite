@@ -14,3 +14,11 @@ per second. A 900 × 180 browser source is a practical starting size.
 The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.
 
 - The current-moto overlay now shows race phase, class name, and moto number.
+
+## Rider lineup overlay
+
+Use `/overlay/lineup` as an OBS Browser Source. It follows the operator-selected
+moto and reads live class, rider, bike-number, and lane data from RaceManager.
+
+Away from the track, use `/overlay/lineup?demo=true` to preview verified sample
+data from Moto 1 of the 2026-07-23 Thursday Night Racing event.
