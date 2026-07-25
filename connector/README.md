@@ -99,3 +99,8 @@ Example:
 ```powershell
 Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
 ```
+
+
+## Race phases
+
+The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.

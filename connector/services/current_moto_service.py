@@ -8,11 +8,21 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-from connector.models import CurrentMoto, CurrentMotoUpdate
+from connector.models import CurrentMoto, CurrentMotoUpdate, RacePhase
 
 
 class CurrentMotoValidationError(ValueError):
     """Raised when a requested manual moto value is invalid."""
+
+
+PHASE_ORDER: tuple[RacePhase, ...] = (
+    RacePhase.ROUND_1,
+    RacePhase.ROUND_2,
+    RacePhase.ROUND_3,
+    RacePhase.QUARTERFINAL,
+    RacePhase.SEMIFINAL,
+    RacePhase.MAIN,
+)
 
 
 class CurrentMotoService:
@@ -46,6 +56,7 @@ class CurrentMotoService:
             self._validate_bounds(update.moto_number, minimum, maximum)
             result = CurrentMoto(
                 moto_number=update.moto_number,
+                race_phase=update.race_phase or current.race_phase,
                 minimum_moto=minimum,
                 maximum_moto=maximum,
                 updated_at=datetime.now(timezone.utc),
@@ -63,6 +74,7 @@ class CurrentMotoService:
             return self.set(
                 CurrentMotoUpdate(
                     moto_number=target,
+                    race_phase=current.race_phase,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
                 )
@@ -75,6 +87,27 @@ class CurrentMotoService:
             return self.set(
                 CurrentMotoUpdate(
                     moto_number=target,
+                    race_phase=current.race_phase,
+                    minimum_moto=current.minimum_moto,
+                    maximum_moto=current.maximum_moto,
+                )
+            )
+
+    def next_phase(self) -> CurrentMoto:
+        return self._step_phase(1)
+
+    def previous_phase(self) -> CurrentMoto:
+        return self._step_phase(-1)
+
+    def _step_phase(self, direction: int) -> CurrentMoto:
+        with self._lock:
+            current = self._read_or_default()
+            index = PHASE_ORDER.index(current.race_phase)
+            target_index = max(0, min(index + direction, len(PHASE_ORDER) - 1))
+            return self.set(
+                CurrentMotoUpdate(
+                    moto_number=current.moto_number,
+                    race_phase=PHASE_ORDER[target_index],
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
                 )
@@ -84,6 +117,7 @@ class CurrentMotoService:
         return self.set(
             CurrentMotoUpdate(
                 moto_number=self.default_moto,
+                race_phase=RacePhase.ROUND_1,
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
             )
@@ -93,6 +127,7 @@ class CurrentMotoService:
         if not self.state_file.exists():
             return CurrentMoto(
                 moto_number=self.default_moto,
+                race_phase=RacePhase.ROUND_1,
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
                 updated_at=None,
@@ -106,6 +141,7 @@ class CurrentMotoService:
             # from the safe default; the next operator action rewrites the file.
             return CurrentMoto(
                 moto_number=self.default_moto,
+                race_phase=RacePhase.ROUND_1,
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
                 updated_at=None,

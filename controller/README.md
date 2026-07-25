@@ -7,3 +7,8 @@ This folder is for the broadcaster control interface and hotkey controller that 
 The first controller is served directly by the Connector at `/controller`.
 It supports keyboard operation and updates the shared `/api/current` state.
 This provides an SCR-ready fallback before automatic moto detection is complete.
+
+
+## Race phases
+
+The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.

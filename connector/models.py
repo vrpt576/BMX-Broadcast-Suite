@@ -80,10 +80,22 @@ class MotoList(ApiModel):
     motos: list[Moto]
 
 
+class RacePhase(StrEnum):
+    """Broadcast-friendly race progression independent of RaceManager IDs."""
+
+    ROUND_1 = "round_1"
+    ROUND_2 = "round_2"
+    ROUND_3 = "round_3"
+    QUARTERFINAL = "quarterfinal"
+    SEMIFINAL = "semifinal"
+    MAIN = "main"
+
+
 class CurrentMoto(ApiModel):
-    """Operator-selected moto used by overlays and broadcast controls."""
+    """Operator-selected moto and race phase used by broadcast controls."""
 
     moto_number: int
+    race_phase: RacePhase = RacePhase.ROUND_1
     minimum_moto: int = 1
     maximum_moto: int | None = None
     updated_at: datetime | None = None
@@ -92,5 +104,6 @@ class CurrentMoto(ApiModel):
 
 class CurrentMotoUpdate(ApiModel):
     moto_number: int
+    race_phase: RacePhase | None = None
     minimum_moto: int | None = None
     maximum_moto: int | None = None
