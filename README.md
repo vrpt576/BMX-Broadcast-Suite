@@ -76,3 +76,8 @@ BMX Broadcast Suite is released under the MIT License. See [LICENSE](LICENSE) fo
 ## Acknowledgements
 
 Thank you to the BMX community and live production contributors for inspiring this project.
+
+
+### Overlay themes
+
+BBS overlays are track-agnostic. Select a theme in the browser-source URL, such as `?theme=default` or `?theme=bend-bmx`. Custom themes live in `themes/<slug>/theme.json`; no Python changes are required.

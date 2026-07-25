@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Added track-agnostic JSON overlay themes selectable with `?theme=<slug>`.
+- Added `/api/themes` and `/api/themes/{slug}` theme discovery endpoints.
+- Added Lane, Plate Number, and Rider column labels to the lineup lower third.
+- Added bundled `default` and `bend-bmx` theme examples.
+
 ## Unreleased
 
 - Initial repository scaffolding created.

@@ -22,3 +22,18 @@ moto and reads live class, rider, bike-number, and lane data from RaceManager.
 
 Away from the track, use `/overlay/lineup?demo=true` to preview verified sample
 data from Moto 1 of the 2026-07-23 Thursday Night Racing event.
+
+
+## Themes
+
+Both overlays accept a `theme` query parameter:
+
+```text
+/overlay/current?theme=default
+/overlay/lineup?theme=bend-bmx
+/overlay/lineup?demo=true&theme=default
+```
+
+Themes are JSON files stored at `themes/<slug>/theme.json`. Copy the `themes/default` folder, choose a new slug, and change the color and typography values to create a track-specific package without changing connector code.
+
+The rider lineup includes labeled columns for **Lane**, **Plate Number**, and **Rider**.
