@@ -44,3 +44,10 @@
 - Current-moto and lineup overlays now show only when selected by the Race Director.
 - Added `?preview=true` to force an overlay visible while positioning it in OBS.
 - Added `?demo=true` support to the Race Director for at-home lineup testing.
+
+## 0.8.0
+
+- Added `/diagnostics` installation and RaceManager readiness screen.
+- Added `/api/diagnostics` machine-readable diagnostics.
+- Added Windows and Linux one-command installer scripts.
+- Added Windows launcher and a sample Linux systemd service.

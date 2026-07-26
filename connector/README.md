@@ -149,3 +149,13 @@ While positioning an overlay in OBS, append `?preview=true` to force it visible:
 /overlay/current?preview=true&theme=default
 /overlay/lineup?preview=true&theme=default
 ```
+
+## Diagnostics
+
+Open `/diagnostics` to check Python, pyodbc, the configured SQL Server ODBC driver, `.env`, network reachability, database authentication, and current event discovery. The same data is available as JSON at `/api/diagnostics`.
+
+## Assisted installation
+
+- Windows: `scripts/install-windows.ps1`
+- Linux: `scripts/install-linux.sh`
+- Linux service template: `scripts/bbs-connector.service.example`
