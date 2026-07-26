@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "BMX Broadcast Suite Connector"
-    app_version: str = "0.6.0"
+    app_version: str = "0.7.0"
     api_prefix: str = "/api"
     log_level: str = "INFO"
 

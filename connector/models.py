@@ -91,6 +91,14 @@ class RacePhase(StrEnum):
     MAIN = "main"
 
 
+class ActiveGraphic(StrEnum):
+    """Graphic selected by the race director."""
+
+    HIDDEN = "hidden"
+    CURRENT_MOTO = "current_moto"
+    LINEUP = "lineup"
+
+
 class CurrentMoto(ApiModel):
     """Operator-selected moto, race phase, and class used by broadcast controls."""
 
@@ -101,6 +109,7 @@ class CurrentMoto(ApiModel):
     maximum_moto: int | None = None
     updated_at: datetime | None = None
     source: str = "manual"
+    active_graphic: ActiveGraphic = ActiveGraphic.CURRENT_MOTO
 
 
 class CurrentMotoUpdate(ApiModel):
@@ -109,6 +118,7 @@ class CurrentMotoUpdate(ApiModel):
     class_name: str | None = None
     minimum_moto: int | None = None
     maximum_moto: int | None = None
+    active_graphic: ActiveGraphic | None = None
 
 
 class LineupRider(ApiModel):

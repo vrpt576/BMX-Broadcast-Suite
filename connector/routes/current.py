@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 
 from connector.dependencies import get_current_moto_service
-from connector.models import CurrentMoto, CurrentMotoUpdate
+from connector.models import ActiveGraphic, CurrentMoto, CurrentMotoUpdate
 from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
@@ -57,6 +57,14 @@ def previous_phase(
     service: CurrentMotoService = Depends(get_current_moto_service),
 ) -> CurrentMoto:
     return service.previous_phase()
+
+
+@router.post("/current/graphic/{graphic}", response_model=CurrentMoto)
+def select_graphic(
+    graphic: ActiveGraphic,
+    service: CurrentMotoService = Depends(get_current_moto_service),
+) -> CurrentMoto:
+    return service.set_graphic(graphic)
 
 
 @router.post("/current/reset", response_model=CurrentMoto)
@@ -230,6 +238,7 @@ const phaseLabels = {
 };
 const params = new URLSearchParams(location.search);
 const themeName = (params.get('theme') || 'default').toLowerCase();
+const preview = ['1','true','yes'].includes((params.get('preview') || '').toLowerCase());
 const number = document.querySelector('#number');
 const phase = document.querySelector('#phase');
 const className = document.querySelector('#class-name');
@@ -260,6 +269,7 @@ async function refresh() {
       number.textContent = state.moto_number;
       phase.textContent = phaseLabels[state.race_phase] || state.race_phase;
       className.textContent = (state.class_name || 'CLASS NOT SET').toUpperCase();
+      document.body.style.visibility = (preview || state.active_graphic === 'current_moto') ? 'visible' : 'hidden';
     }
   } catch (_) {}
 }

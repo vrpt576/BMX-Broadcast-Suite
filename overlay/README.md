@@ -37,3 +37,10 @@ Both overlays accept a `theme` query parameter:
 Themes are JSON files stored at `themes/<slug>/theme.json`. Copy the `themes/default` folder, choose a new slug, and change the color and typography values to create a track-specific package without changing connector code.
 
 The rider lineup includes labeled columns for **Lane**, **Plate Number**, and **Rider**.
+
+## Race Director visibility
+
+Both browser sources may stay active in one OBS scene. `/director` selects
+which graphic is visible: rider lineup, current-moto bug, or hidden. Add
+`preview=true` to an overlay URL while arranging it in OBS; remove that query
+parameter before going live so Race Director visibility takes effect.

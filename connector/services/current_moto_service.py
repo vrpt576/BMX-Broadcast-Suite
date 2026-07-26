@@ -8,7 +8,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-from connector.models import CurrentMoto, CurrentMotoUpdate, RacePhase
+from connector.models import ActiveGraphic, CurrentMoto, CurrentMotoUpdate, RacePhase
 
 
 class CurrentMotoValidationError(ValueError):
@@ -62,6 +62,7 @@ class CurrentMotoService:
                 maximum_moto=maximum,
                 updated_at=datetime.now(timezone.utc),
                 source="manual",
+                active_graphic=update.active_graphic or current.active_graphic,
             )
             self._write(result)
             return result
@@ -117,6 +118,21 @@ class CurrentMotoService:
                 )
             )
 
+    def set_graphic(self, graphic: ActiveGraphic) -> CurrentMoto:
+        """Select the OBS graphic that should currently be visible."""
+        with self._lock:
+            current = self._read_or_default()
+            return self.set(
+                CurrentMotoUpdate(
+                    moto_number=current.moto_number,
+                    race_phase=current.race_phase,
+                    class_name=current.class_name,
+                    minimum_moto=current.minimum_moto,
+                    maximum_moto=current.maximum_moto,
+                    active_graphic=graphic,
+                )
+            )
+
     def reset(self) -> CurrentMoto:
         return self.set(
             CurrentMotoUpdate(
@@ -125,6 +141,7 @@ class CurrentMotoService:
                 class_name="",
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
+                active_graphic=ActiveGraphic.CURRENT_MOTO,
             )
         )
 
@@ -138,6 +155,7 @@ class CurrentMotoService:
                 maximum_moto=None,
                 updated_at=None,
                 source="manual",
+                active_graphic=ActiveGraphic.CURRENT_MOTO,
             )
         try:
             payload = json.loads(self.state_file.read_text(encoding="utf-8"))
@@ -153,6 +171,7 @@ class CurrentMotoService:
                 maximum_moto=None,
                 updated_at=None,
                 source="manual",
+                active_graphic=ActiveGraphic.CURRENT_MOTO,
             )
 
     def _write(self, state: CurrentMoto) -> None:

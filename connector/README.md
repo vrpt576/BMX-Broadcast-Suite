@@ -122,3 +122,30 @@ keyboard, mouse, and direct-jump controls advance both graphics together. Round
 Quarterfinal, semifinal, and main lane storage still requires track-side
 validation; until then BBS uses the first available lane rather than leaving the
 lower third blank.
+
+## Race Director
+
+Open `http://localhost:8000/director` for the unified live control surface. At
+the track use the connector hostname, for example
+`http://bmxServer01:8000/director`.
+
+Hotkeys:
+
+- `Space` or Right Arrow: next moto
+- `Backspace` or Left Arrow: previous moto
+- `[` / `]`: previous or next race round
+- `L`: put the rider lineup on air
+- `M`: put the current-moto bug on air
+- `H`: hide all BBS graphics
+
+The selected on-air graphic is persisted in `data/current_moto.json`. Both OBS
+browser sources can remain enabled in the scene; the Race Director decides
+which source renders visibly. Use `/director?demo=true` away from the track to
+preview the bundled historic lineup.
+
+While positioning an overlay in OBS, append `?preview=true` to force it visible:
+
+```text
+/overlay/current?preview=true&theme=default
+/overlay/lineup?preview=true&theme=default
+```

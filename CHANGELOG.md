@@ -35,3 +35,12 @@
 - Added an OBS-ready rider lineup lower-third overlay.
 - Added bundled verified demo data from the 2026-07-23 Thursday Night Racing moto.
 - Connected the lineup overlay to the existing keyboard/mouse current-moto controller.
+
+## 0.7.0
+
+- Added the unified Race Director control surface at `/director`.
+- Added hotkeys for next/previous moto, round changes, lineup, current-moto bug, and hiding graphics.
+- Added persistent on-air graphic state shared by OBS browser sources.
+- Current-moto and lineup overlays now show only when selected by the Race Director.
+- Added `?preview=true` to force an overlay visible while positioning it in OBS.
+- Added `?demo=true` support to the Race Director for at-home lineup testing.

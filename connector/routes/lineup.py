@@ -73,6 +73,7 @@ const phaseLabels = {
 const params = new URLSearchParams(location.search);
 const demo = ['1', 'true', 'yes'].includes((params.get('demo') || '').toLowerCase());
 const themeName = (params.get('theme') || 'default').toLowerCase();
+const preview = ['1', 'true', 'yes'].includes((params.get('preview') || '').toLowerCase());
 const endpoint = `/api/lineup/current${demo ? '?demo=true' : ''}`;
 const graphic = document.querySelector('#graphic');
 const offline = document.querySelector('#offline');
@@ -123,9 +124,14 @@ function render(state) {
 }
 async function refresh() {
   try {
-    const response = await fetch(endpoint, {cache: 'no-store'});
-    if (!response.ok) throw new Error(String(response.status));
-    render(await response.json());
+    const [lineupResponse, currentResponse] = await Promise.all([
+      fetch(endpoint, {cache: 'no-store'}),
+      fetch('/api/current', {cache: 'no-store'})
+    ]);
+    if (!lineupResponse.ok || !currentResponse.ok) throw new Error('unavailable');
+    const [lineupState, currentState] = await Promise.all([lineupResponse.json(), currentResponse.json()]);
+    document.body.style.visibility = (preview || currentState.active_graphic === 'lineup') ? 'visible' : 'hidden';
+    render(lineupState);
   } catch (_) {
     if (!demo) { graphic.style.display = 'none'; offline.style.display = 'block'; }
   }

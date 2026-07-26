@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from connector.models import CurrentMotoUpdate, RacePhase
+from connector.models import ActiveGraphic, CurrentMotoUpdate, RacePhase
 from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
@@ -110,3 +110,27 @@ def test_reset_clears_class_name(tmp_path: Path) -> None:
     assert state.moto_number == 1
     assert state.race_phase == RacePhase.ROUND_1
     assert state.class_name is None
+
+
+def test_graphic_selection_persists_and_moto_steps_preserve_it(tmp_path: Path) -> None:
+    current = service(tmp_path)
+    state = current.set_graphic(ActiveGraphic.LINEUP)
+    assert state.active_graphic == ActiveGraphic.LINEUP
+    assert current.next().active_graphic == ActiveGraphic.LINEUP
+    assert service(tmp_path).get().active_graphic == ActiveGraphic.LINEUP
+
+
+def test_reset_restores_current_moto_graphic(tmp_path: Path) -> None:
+    current = service(tmp_path)
+    current.set_graphic(ActiveGraphic.HIDDEN)
+    assert current.reset().active_graphic == ActiveGraphic.CURRENT_MOTO
+
+
+def test_old_state_without_active_graphic_remains_compatible(tmp_path: Path) -> None:
+    state_file = tmp_path / "current.json"
+    state_file.write_text(
+        '{"moto_number": 9, "race_phase": "main", "minimum_moto": 1, "maximum_moto": null, "updated_at": null, "source": "manual"}',
+        encoding="utf-8",
+    )
+    state = CurrentMotoService(state_file).get()
+    assert state.active_graphic == ActiveGraphic.CURRENT_MOTO
