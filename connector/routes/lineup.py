@@ -72,7 +72,7 @@ const phaseLabels = {
 };
 const params = new URLSearchParams(location.search);
 const demo = ['1', 'true', 'yes'].includes((params.get('demo') || '').toLowerCase());
-const themeName = (params.get('theme') || 'default').toLowerCase();
+let themeName = (params.get('theme') || '').toLowerCase();
 const preview = ['1', 'true', 'yes'].includes((params.get('preview') || '').toLowerCase());
 const endpoint = `/api/lineup/current${demo ? '?demo=true' : ''}`;
 const graphic = document.querySelector('#graphic');
@@ -82,6 +82,8 @@ const ridersBox = document.querySelector('#riders');
 
 async function applyTheme() {
   try {
+    if (!themeName) { const cfg = await fetch('/api/configuration',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
+    if (!themeName) themeName='default';
     const response = await fetch(`/api/themes/${encodeURIComponent(themeName)}`, {cache:'no-store'});
     if (!response.ok) return;
     const theme = await response.json();

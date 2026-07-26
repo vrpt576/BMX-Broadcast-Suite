@@ -26,12 +26,7 @@ Copy-Item connector\.env.example .env
 uvicorn connector.main:app --reload
 ```
 
-The connector defaults to the known RaceManager layout:
-
-- SQL host `192.168.2.52`
-- instance `USABMX`
-- database `RACE`
-- read-only login `bbs_connector`
+The connector ships with neutral placeholders. Each track configures its own SQL host, optional instance or TCP port, database, read-only login, password, and ODBC driver through `.env` or `/configuration`.
 
 Credentials are never committed. The `.env` file is ignored by Git.
 

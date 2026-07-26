@@ -10,6 +10,6 @@ if [[ ! -f .env ]]; then cp connector/.env.example .env; echo "Created .env; con
 mkdir -p data
 cat <<EOF
 BBS installed in $ROOT
-Start: $ROOT/.venv/bin/python -m uvicorn connector.main:app --host 0.0.0.0 --port 8000
+Start: $ROOT/.venv/bin/python -m connector.run
 Diagnostics: http://localhost:8000/diagnostics
 EOF

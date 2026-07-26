@@ -89,3 +89,7 @@ BBS stores the latest valid rider lineup in `data/last_known_lineup.json`. If SQ
 Live overlay updates are delivered through `/ws/broadcast`, with slow HTTP refreshes retained as a fallback.
 
 An experimental results overlay is available at `/overlay/results`. Round 1–3 finish fields are implemented from the known RaceManager schema; elimination and main result selection must still be validated at a live event.
+
+## Track configuration
+
+BBS contains no track-specific network address or credentials. Open `/configuration` after installation to set the track name, default theme, connector host/port, and all RaceManager SQL settings. These values are saved in the local `.env` file, which is excluded from Git. The SQL password is never returned by the configuration API.

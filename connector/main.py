@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
-from connector.routes import broadcast_ws, current, diagnostics, director, event, health, lineup, motos, results, themes
+from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, motos, results, themes
 
 settings = get_settings()
 logging.basicConfig(level=settings.log_level.upper())
@@ -35,9 +35,11 @@ app.include_router(lineup.router, prefix=settings.api_prefix)
 app.include_router(themes.router, prefix=settings.api_prefix)
 app.include_router(diagnostics.router, prefix=settings.api_prefix)
 app.include_router(results.router, prefix=settings.api_prefix)
+app.include_router(configuration.router, prefix=settings.api_prefix)
 app.include_router(broadcast_ws.router)
 
 # Human-facing pages live outside /api.
+app.add_api_route("/configuration", configuration.configuration_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/diagnostics", diagnostics.diagnostics_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/director", director.race_director_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/controller", current.controller_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)

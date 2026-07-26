@@ -237,7 +237,7 @@ const phaseLabels = {
   quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAINS'
 };
 const params = new URLSearchParams(location.search);
-const themeName = (params.get('theme') || 'default').toLowerCase();
+let themeName = (params.get('theme') || '').toLowerCase();
 const preview = ['1','true','yes'].includes((params.get('preview') || '').toLowerCase());
 const number = document.querySelector('#number');
 const phase = document.querySelector('#phase');
@@ -245,6 +245,8 @@ const className = document.querySelector('#class-name');
 
 async function applyTheme() {
   try {
+    if (!themeName) { const cfg = await fetch('/api/configuration',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
+    if (!themeName) themeName='default';
     const response = await fetch(`/api/themes/${encodeURIComponent(themeName)}`, {cache:'no-store'});
     if (!response.ok) return;
     const theme = await response.json();

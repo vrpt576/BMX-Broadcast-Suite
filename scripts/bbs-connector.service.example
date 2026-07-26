@@ -8,7 +8,7 @@ Type=simple
 User=bbs
 WorkingDirectory=/opt/bmx-broadcast-suite
 EnvironmentFile=/opt/bmx-broadcast-suite/.env
-ExecStart=/opt/bmx-broadcast-suite/.venv/bin/python -m uvicorn connector.main:app --host 0.0.0.0 --port 8000
+ExecStart=/opt/bmx-broadcast-suite/.venv/bin/python -m connector.run
 Restart=on-failure
 RestartSec=5
 

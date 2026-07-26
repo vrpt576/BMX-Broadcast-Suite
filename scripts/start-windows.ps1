@@ -1,4 +1,5 @@
-param([int]$Port = 8000)
-$ErrorActionPreference = 'Stop'
-Set-Location (Resolve-Path "$PSScriptRoot\..").Path
-& .\.venv\Scripts\python.exe -m uvicorn connector.main:app --host 0.0.0.0 --port $Port
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent $PSScriptRoot
+Set-Location $Root
+if (-not (Test-Path ".venv\Scripts\python.exe")) { throw "Virtual environment missing. Run scripts\install-windows.ps1 first." }
+& ".venv\Scripts\python.exe" -m connector.run
