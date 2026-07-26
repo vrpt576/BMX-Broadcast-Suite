@@ -97,6 +97,7 @@ class ActiveGraphic(StrEnum):
     HIDDEN = "hidden"
     CURRENT_MOTO = "current_moto"
     LINEUP = "lineup"
+    RESULTS = "results"
 
 
 class CurrentMoto(ApiModel):
@@ -140,3 +141,25 @@ class CurrentLineup(ApiModel):
     riders: list[LineupRider]
     source: str
     updated_at: datetime | None = None
+    cached_at: datetime | None = None
+    is_stale: bool = False
+    warning: str | None = None
+
+
+class ResultRider(ApiModel):
+    finish: int | None = None
+    bike_number: str | int | None = None
+    first_name: str
+    last_name: str
+
+
+class CurrentResults(ApiModel):
+    moto_number: int
+    race_phase: RacePhase
+    class_name: str
+    riders: list[ResultRider]
+    source: str
+    updated_at: datetime | None = None
+    is_stale: bool = False
+    warning: str | None = None
+    experimental: bool = True

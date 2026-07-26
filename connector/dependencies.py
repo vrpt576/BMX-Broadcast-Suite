@@ -42,3 +42,14 @@ def get_current_lineup_service() -> CurrentLineupService:
         get_event_service(),
         get_motoboard_service(),
     )
+
+from connector.services.current_results_service import CurrentResultsService
+
+
+def get_current_results_service() -> CurrentResultsService:
+    return CurrentResultsService(
+        get_current_moto_service(),
+        get_event_service(),
+        get_motoboard_service(),
+        get_current_lineup_service(),
+    )

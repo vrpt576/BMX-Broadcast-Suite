@@ -159,3 +159,12 @@ Open `/diagnostics` to check Python, pyodbc, the configured SQL Server ODBC driv
 - Windows: `scripts/install-windows.ps1`
 - Linux: `scripts/install-linux.sh`
 - Linux service template: `scripts/bbs-connector.service.example`
+
+### Resilient broadcast endpoints
+
+- `GET /api/lineup/current` — live lineup or matching last-known-good cache
+- `GET /api/results/current` — experimental result ordering
+- `WS /ws/broadcast` — changed broadcast snapshots
+- `/overlay/results` — experimental OBS result graphic
+
+Cached responses include `is_stale: true`, `source: "cache"`, and a warning for the operator. The OBS lineup remains visible instead of going blank.

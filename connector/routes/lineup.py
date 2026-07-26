@@ -121,6 +121,7 @@ function render(state) {
   }
   graphic.style.display = '';
   offline.style.display = 'none';
+  graphic.style.opacity = state.is_stale ? '0.92' : '1';
 }
 async function refresh() {
   try {
@@ -133,12 +134,19 @@ async function refresh() {
     document.body.style.visibility = (preview || currentState.active_graphic === 'lineup') ? 'visible' : 'hidden';
     render(lineupState);
   } catch (_) {
-    if (!demo) { graphic.style.display = 'none'; offline.style.display = 'block'; }
+    if (!demo) { offline.textContent='WAITING FOR FIRST VALID LINEUP'; offline.style.display='block'; }
   }
 }
 applyTheme();
 refresh();
-setInterval(refresh, 500);
+function connectSocket(){
+  const scheme=location.protocol==='https:'?'wss':'ws';
+  const ws=new WebSocket(`${scheme}://${location.host}/ws/broadcast${demo?'?demo=true':''}`);
+  ws.onmessage=e=>{const payload=JSON.parse(e.data);if(payload.current)document.body.style.visibility=(preview||payload.current.active_graphic==='lineup')?'visible':'hidden';if(payload.lineup)render(payload.lineup);};
+  ws.onclose=()=>setTimeout(connectSocket,1500);
+}
+connectSocket();
+setInterval(refresh,5000);
 </script>
 </body>
 </html>'''

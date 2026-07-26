@@ -118,6 +118,21 @@ class CurrentMotoService:
                 )
             )
 
+    def sync_class_name(self, class_name: str) -> CurrentMoto:
+        """Update only the class label from trusted RaceManager data."""
+        with self._lock:
+            current = self._read_or_default()
+            normalized = self._normalize_class_name(class_name)
+            if normalized == current.class_name:
+                return current
+            result = current.model_copy(update={
+                "class_name": normalized,
+                "updated_at": datetime.now(timezone.utc),
+                "source": "racemanager",
+            })
+            self._write(result)
+            return result
+
     def set_graphic(self, graphic: ActiveGraphic) -> CurrentMoto:
         """Select the OBS graphic that should currently be visible."""
         with self._lock:

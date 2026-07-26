@@ -275,7 +275,15 @@ async function refresh() {
 }
 applyTheme();
 refresh();
-setInterval(refresh, 250);
+let ws;
+function connectSocket(){
+  const scheme=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${scheme}://${location.host}/ws/broadcast`);
+  ws.onmessage=e=>{const payload=JSON.parse(e.data);if(payload.current){const state=payload.current;document.querySelector('#round').textContent=phaseLabels[state.race_phase]||state.race_phase;document.querySelector('#class').textContent=(state.class_name||'CLASS NOT SET').toUpperCase();document.querySelector('#moto').textContent=state.moto_number;document.body.style.visibility=(preview||state.active_graphic==='current_moto')?'visible':'hidden';}};
+  ws.onclose=()=>setTimeout(connectSocket,1500);
+}
+connectSocket();
+setInterval(refresh, 5000);
 </script>
 </body>
 </html>'''

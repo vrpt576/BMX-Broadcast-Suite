@@ -90,12 +90,13 @@ DIRECTOR_HTML = r'''<!doctype html>
       <div class="graphic-buttons">
         <button data-graphic="lineup">L · Show Rider Lineup</button>
         <button data-graphic="current_moto">M · Show Current Moto</button>
+        <button data-graphic="results">R · Show Results (Experimental)</button>
         <button class="danger" data-graphic="hidden">H · Hide All Graphics</button>
       </div>
       <div class="keys">
         <div><kbd>Space</kbd> Next moto</div><div><kbd>Backspace</kbd> Previous moto</div>
         <div><kbd>L</kbd> Lineup</div><div><kbd>M</kbd> Current moto</div>
-        <div><kbd>H</kbd> Hide graphics</div><div><kbd>[</kbd> <kbd>]</kbd> Change round</div>
+        <div><kbd>R</kbd> Results</div><div><kbd>H</kbd> Hide graphics</div><div><kbd>[</kbd> <kbd>]</kbd> Change round</div>
       </div>
       <div class="lineup">
         <h2>Selected Moto Preview</h2>
@@ -110,7 +111,7 @@ const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
 const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Mains'};
-const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup'};
+const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results'};
 let state=null;
 const $=s=>document.querySelector(s);
 function render(value){
@@ -121,13 +122,13 @@ function render(value){
  document.querySelectorAll('[data-graphic]').forEach(b=>b.classList.toggle('active',b.dataset.graphic===value.active_graphic));
 }
 async function request(path,options={}){ const r=await fetch(path,options); if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(b.detail||`Request failed: ${r.status}`)} const v=await r.json(); render(v); await refreshLineup(); return v; }
-async function step(dir){try{await request(`/api/current/${dir}`,{method:'POST'})}catch(e){$('#message').textContent=e.message}}
+async function step(dir){if(dir==='previous'&&!confirm('Move backward one moto?'))return;try{await request(`/api/current/${dir}`,{method:'POST'})}catch(e){$('#message').textContent=e.message}}
 async function round(dir){try{await request(`/api/current/phase/${dir}`,{method:'POST'})}catch(e){$('#message').textContent=e.message}}
 async function graphic(name){try{await request(`/api/current/graphic/${name}`,{method:'POST'})}catch(e){$('#message').textContent=e.message}}
-async function apply(){const body={moto_number:Number($('#jump').value),race_phase:$('#race-phase').value,class_name:$('#class-name').value,minimum_moto:1};if($('#maximum').value!=='')body.maximum_moto=Number($('#maximum').value);try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){$('#message').textContent=e.message}}
-async function refreshLineup(){try{const r=await fetch(lineupEndpoint,{cache:'no-store'});if(!r.ok)throw new Error();const l=await r.json();if(l.source==='database'&&l.class_name)$('#class-stat').textContent=l.class_name;const box=$('#riders');box.replaceChildren();for(const rider of l.riders){const row=document.createElement('div');row.className='rider';row.innerHTML=`<span class="gate">${rider.gate??'—'}</span><span class="plate">${rider.bike_number??'—'}</span><span></span>`;row.lastElementChild.textContent=`${rider.first_name} ${rider.last_name}`;box.append(row)}if(!l.riders.length)box.textContent='No riders assigned.'}catch(_){$('#riders').textContent='RaceManager lineup unavailable.'}}
+async function apply(){if(state&&Number($('#jump').value)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;const body={moto_number:Number($('#jump').value),race_phase:$('#race-phase').value,class_name:$('#class-name').value,minimum_moto:1};if($('#maximum').value!=='')body.maximum_moto=Number($('#maximum').value);try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}catch(e){$('#message').textContent=e.message}}
+async function refreshLineup(){try{const r=await fetch(lineupEndpoint,{cache:'no-store'});if(!r.ok)throw new Error();const l=await r.json();if((l.source==='racemanager'||l.source==='cache')&&l.class_name)$('#class-stat').textContent=l.class_name;const box=$('#riders');box.replaceChildren();for(const rider of l.riders){const row=document.createElement('div');row.className='rider';row.innerHTML=`<span class="gate">${rider.gate??'—'}</span><span class="plate">${rider.bike_number??'—'}</span><span></span>`;row.lastElementChild.textContent=`${rider.first_name} ${rider.last_name}`;box.append(row)}if(!l.riders.length)box.textContent='No riders assigned.';$('#message').textContent=l.is_stale?'Database offline — showing last known lineup.':''}catch(_){$('#riders').textContent='RaceManager lineup unavailable.'}}
 $('#previous').addEventListener('click',()=>step('previous'));$('#next').addEventListener('click',()=>step('next'));$('#previous-round').addEventListener('click',()=>round('previous'));$('#next-round').addEventListener('click',()=>round('next'));$('#apply').addEventListener('click',apply);document.querySelectorAll('[data-graphic]').forEach(b=>b.addEventListener('click',()=>graphic(b.dataset.graphic)));
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key===' '||e.key==='ArrowRight'){e.preventDefault();step('next')}else if(e.key==='Backspace'||e.key==='ArrowLeft'){e.preventDefault();step('previous')}else if(e.key.toLowerCase()==='l')graphic('lineup');else if(e.key.toLowerCase()==='m')graphic('current_moto');else if(e.key.toLowerCase()==='h')graphic('hidden');else if(e.key===']')round('next');else if(e.key==='[')round('previous')});
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key===' '||e.key==='ArrowRight'){e.preventDefault();step('next')}else if(e.key==='Backspace'||e.key==='ArrowLeft'){e.preventDefault();step('previous')}else if(e.key.toLowerCase()==='l')graphic('lineup');else if(e.key.toLowerCase()==='m')graphic('current_moto');else if(e.key.toLowerCase()==='r')graphic('results');else if(e.key.toLowerCase()==='h')graphic('hidden');else if(e.key===']')round('next');else if(e.key==='[')round('previous')});
 request('/api/current').catch(e=>$('#message').textContent=e.message);setInterval(()=>fetch('/api/current',{cache:'no-store'}).then(r=>r.json()).then(render).catch(()=>{}),1000);
 </script>
 </body></html>'''

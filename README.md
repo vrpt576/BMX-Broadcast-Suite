@@ -81,3 +81,11 @@ Thank you to the BMX community and live production contributors for inspiring th
 ### Overlay themes
 
 BBS overlays are track-agnostic. Select a theme in the browser-source URL, such as `?theme=default` or `?theme=bend-bmx`. Custom themes live in `themes/<slug>/theme.json`; no Python changes are required.
+
+## Broadcast resilience
+
+BBS stores the latest valid rider lineup in `data/last_known_lineup.json`. If SQL Server becomes temporarily unavailable, the selected moto continues to display from that cache and the Race Director shows an offline warning. A cache is never reused for a different moto or race phase.
+
+Live overlay updates are delivered through `/ws/broadcast`, with slow HTTP refreshes retained as a fallback.
+
+An experimental results overlay is available at `/overlay/results`. Round 1–3 finish fields are implemented from the known RaceManager schema; elimination and main result selection must still be validated at a live event.
