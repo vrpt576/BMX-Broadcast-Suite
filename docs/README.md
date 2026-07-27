@@ -1,3 +1,13 @@
-# docs
+# BBS Documentation
 
-This folder contains project documentation, setup guides, and architecture notes for the BMX Broadcast Suite.
+- [Windows Installation](installation-windows.md)
+- [Linux Installation](installation-linux.md)
+- [First Run](first-run.md)
+- [Track Configuration](configuration.md)
+- [OBS Setup](obs-setup.md)
+- [Browser Sources](browser-sources.md)
+- [Troubleshooting](troubleshooting.md)
+- [FAQ](faq.md)
+- [Keyboard Shortcuts](keyboard-shortcuts.md)
+- [Upgrading](upgrading.md)
+- [Backup and Restore](backup-and-restore.md)

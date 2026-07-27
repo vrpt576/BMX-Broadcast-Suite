@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+- Added centralized console and daily rotating file logging.
+- Added `/logs`, `/api/logs`, and log download support.
+- Added request timing, startup, exception, and database error logging.
+- Added configurable log directory, level, and retention.
+- Added complete Windows/Linux installation, first-run, configuration, OBS, browser-source, troubleshooting, FAQ, shortcut, upgrading, and backup/restore guides.
+
+
 ## 0.9.0
 
 - Added last-known-good lineup cache and stale-data metadata.

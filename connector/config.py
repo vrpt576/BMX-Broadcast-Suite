@@ -11,9 +11,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="BBS_", case_sensitive=False, extra="ignore")
 
     app_name: str = "BMX Broadcast Suite Connector"
-    app_version: str = "1.0.0"
+    app_version: str = "1.1.0"
     api_prefix: str = "/api"
     log_level: str = "INFO"
+    log_dir: Path = Path("connector/logs")
+    log_retention_days: int = 14
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     public_base_url: str = ""

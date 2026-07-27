@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v0.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -59,7 +59,9 @@ The project is organized into the following top-level areas:
 
 ## Installation
 
-See [connector/README.md](connector/README.md) for local, Windows, and Docker setup instructions.
+Start with the [documentation index](docs/README.md), including Windows/Linux installation, first run, OBS setup, troubleshooting, upgrading, and backup/restore.
+
+Operational logs are available at `/logs`; the JSON API is `/api/logs`, and the current file can be downloaded from `/api/logs/download`.
 
 ## Roadmap
 

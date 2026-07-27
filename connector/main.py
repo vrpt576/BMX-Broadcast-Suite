@@ -1,6 +1,7 @@
 """FastAPI entry point for the BMX Broadcast Suite Connector."""
 
 import logging
+import time
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +10,12 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
-from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, motos, results, themes
+from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, themes
 
 settings = get_settings()
-logging.basicConfig(level=settings.log_level.upper())
+from connector.services.logging_service import configure_logging
+configure_logging(settings.log_level, settings.log_dir, settings.log_retention_days)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.app_name,
@@ -36,9 +39,11 @@ app.include_router(themes.router, prefix=settings.api_prefix)
 app.include_router(diagnostics.router, prefix=settings.api_prefix)
 app.include_router(results.router, prefix=settings.api_prefix)
 app.include_router(configuration.router, prefix=settings.api_prefix)
+app.include_router(logs.router, prefix=settings.api_prefix)
 app.include_router(broadcast_ws.router)
 
 # Human-facing pages live outside /api.
+app.add_api_route("/logs", logs.logs_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/configuration", configuration.configuration_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/diagnostics", diagnostics.diagnostics_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/director", director.race_director_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
@@ -47,6 +52,24 @@ app.add_api_route("/overlay/current", current.current_moto_overlay, methods=["GE
 app.add_api_route("/overlay/lineup", lineup.rider_lineup_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/results", results.results_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 
+
+@app.middleware("http")
+async def request_logging(request: Request, call_next):
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception("Unhandled request error: %s %s", request.method, request.url.path)
+        raise
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if not request.url.path.startswith("/api/logs"):
+        logger.info("%s %s -> %s (%.1f ms)", request.method, request.url.path, response.status_code, elapsed_ms)
+    return response
+
+
+@app.on_event("startup")
+def log_startup() -> None:
+    logger.info("BBS %s starting for %s on %s:%s", settings.app_version, settings.track_name, settings.app_host, settings.app_port)
 
 @app.exception_handler(RaceManagerDatabaseError)
 def database_error_handler(
