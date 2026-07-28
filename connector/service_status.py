@@ -45,7 +45,7 @@ def systemd_state(unit: str = "bbs-connector.service") -> str:
 
 
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.1"})
+    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.3"})
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
 

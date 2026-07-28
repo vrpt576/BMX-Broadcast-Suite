@@ -32,25 +32,26 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BBS Rider Lineup Overlay</title>
   <style>
-    :root { --primary:#f3b61f; --primary-text:#101820; --panel:#101820; --panel-text:#fff; --muted-text:#d8dde3; --divider:rgba(255,255,255,.18); --shadow:rgba(0,0,0,.45); --font-family:Arial, Helvetica, sans-serif; --text-transform:uppercase; font-family:var(--font-family); color:var(--panel-text); }
+    :root { --primary:#f3b61f; --primary-text:#101820; --secondary:#d98b13; --secondary-text:#101820; --panel:#101820; --panel-alt:#1b2733; --panel-text:#fff; --muted-text:#d8dde3; --header-panel:#101820; --row-odd:rgba(16,24,32,.96); --row-even:rgba(27,39,51,.96); --gate:#f3b61f; --gate-text:#101820; --plate:#f3b61f; --divider:rgba(255,255,255,.18); --shadow:rgba(0,0,0,.45); --warning:#7f1d1d; --warning-text:#fff; --font-family:Arial, Helvetica, sans-serif; --text-transform:uppercase; font-family:var(--font-family); color:var(--panel-text); }
     * { box-sizing: border-box; }
     body { margin: 0; width: 100vw; height: 100vh; overflow: hidden; background: transparent; }
     .wrap { position: absolute; left: 4vw; bottom: 5vh; width: min(900px, 92vw); filter: drop-shadow(0 6px 12px var(--shadow)); }
     .header { display: flex; align-items: stretch; width: fit-content; max-width: 100%; }
     .round { background: var(--primary); color: var(--primary-text); padding: .32em .7em; font-size: 27px; font-weight: 950; letter-spacing: .05em; text-transform: var(--text-transform); }
-    .class { background: var(--panel); padding: .32em .75em; font-size: 27px; font-weight: 900; text-transform: var(--text-transform); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .class { background: var(--header-panel); padding: .32em .75em; font-size: 27px; font-weight: 900; text-transform: var(--text-transform); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .moto { background: var(--primary); color: var(--primary-text); padding: .32em .65em; font-size: 27px; font-weight: 950; white-space: nowrap; }
-    .riders { width: min(760px, 88vw); background: color-mix(in srgb, var(--panel) 96%, transparent); border-top: 4px solid var(--primary); }
-    .columns { display:grid; grid-template-columns:78px 150px 1fr; align-items:center; min-height:34px; background:color-mix(in srgb, var(--panel) 88%, white 12%); color:var(--muted-text); font-size:15px; font-weight:900; letter-spacing:.08em; text-transform:var(--text-transform); border-bottom:1px solid var(--divider); }
+    .riders { width: min(760px, 88vw); background: var(--row-odd); border-top: 4px solid var(--primary); }
+    .columns { display:grid; grid-template-columns:78px 150px 1fr; align-items:center; min-height:34px; background:var(--panel-alt); color:var(--muted-text); font-size:15px; font-weight:900; letter-spacing:.08em; text-transform:var(--text-transform); border-bottom:1px solid var(--divider); }
     .columns div { padding:0 .7em; }
     .columns .lane-label, .columns .plate-label { text-align:center; }
-    .rider { display: grid; grid-template-columns: 78px 150px 1fr; align-items: center; min-height: 58px; border-bottom: 1px solid var(--divider); }
+    .rider { display: grid; background:var(--row-odd); grid-template-columns: 78px 150px 1fr; align-items: center; min-height: 58px; border-bottom: 1px solid var(--divider); }
+    .rider:nth-child(even) { background:var(--row-even); }
     .rider:last-child { border-bottom: 0; }
-    .gate { align-self: stretch; display: grid; place-items: center; background: var(--primary); color: var(--primary-text); font-size: 32px; font-weight: 950; }
-    .bike { padding: 0 .7em; color: var(--primary); font-size: 27px; font-weight: 900; text-align: center; }
+    .gate { align-self: stretch; display: grid; place-items: center; background: var(--gate); color: var(--gate-text); font-size: 32px; font-weight: 950; }
+    .bike { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: center; }
     .name { padding: .3em .8em .3em .2em; font-size: 28px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; }
     .empty { padding: 1.2em; font-size: 24px; font-weight: 700; }
-    .offline { display: none; background: color-mix(in srgb, var(--panel) 94%, transparent); color: var(--panel-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
+    .offline { display: none; background: var(--warning); color: var(--warning-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
   </style>
 </head>
 <body>
@@ -92,11 +93,22 @@ async function applyTheme() {
     const t = theme.typography || {};
     if (c.primary) root.setProperty('--primary', c.primary);
     if (c.primary_text) root.setProperty('--primary-text', c.primary_text);
+    if (c.secondary) root.setProperty('--secondary', c.secondary);
+    if (c.secondary_text) root.setProperty('--secondary-text', c.secondary_text);
     if (c.panel) root.setProperty('--panel', c.panel);
+    if (c.panel_alt) root.setProperty('--panel-alt', c.panel_alt);
     if (c.panel_text) root.setProperty('--panel-text', c.panel_text);
     if (c.muted_text) root.setProperty('--muted-text', c.muted_text);
+    if (c.header_panel) root.setProperty('--header-panel', c.header_panel);
+    if (c.row_odd) root.setProperty('--row-odd', c.row_odd);
+    if (c.row_even) root.setProperty('--row-even', c.row_even);
+    if (c.gate) root.setProperty('--gate', c.gate);
+    if (c.gate_text) root.setProperty('--gate-text', c.gate_text);
+    if (c.plate) root.setProperty('--plate', c.plate);
     if (c.divider) root.setProperty('--divider', c.divider);
     if (c.shadow) root.setProperty('--shadow', c.shadow);
+    if (c.warning) root.setProperty('--warning', c.warning);
+    if (c.warning_text) root.setProperty('--warning-text', c.warning_text);
     if (t.font_family) root.setProperty('--font-family', t.font_family);
     if (t.text_transform) root.setProperty('--text-transform', t.text_transform);
   } catch (_) {}

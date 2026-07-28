@@ -6,6 +6,7 @@
 - [Track Configuration](configuration.md)
 - [OBS Setup](obs-setup.md)
 - [Browser Sources](browser-sources.md)
+- [Theme Customization](themes.md)
 - [Troubleshooting](troubleshooting.md)
 - [FAQ](faq.md)
 - [Keyboard Shortcuts](keyboard-shortcuts.md)

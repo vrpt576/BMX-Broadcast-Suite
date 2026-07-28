@@ -1,104 +1,73 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.3-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
-## Project description
+BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, and an Ubuntu background service with a desktop/system-tray controller.
 
-BMX Broadcast Suite is an open-source platform for live BMX race production. It is designed to connect USABMX RaceManager data with OBS Studio to support professional graphics, rider information, and event overlays during live broadcasts.
+## Current status — v1.2.3
 
-## Project philosophy
+BBS is usable for live production on Ubuntu/Linux. The verified workflow can maintain a RaceManager connection, select and step through motos, display current-moto and rider-lineup graphics in OBS, and continue showing the last valid matching lineup during a temporary SQL interruption. Results support is available but remains experimental outside the validated RaceManager round fields.
 
-We aim to make BMX event streaming accessible, flexible, and community-driven. The project focuses on:
+### Available now
 
-- modular integration with existing race management tools
-- transparent and maintainable live broadcast workflows
-- theme-driven visuals and reliable data delivery
-- open collaboration across BMX race organizers, broadcasters, and developers
+- Read-only Microsoft SQL Server integration with the RaceManager `RACE` database
+- Automatic compatibility with RaceManager schemas with or without `MB.Race_Riders.Nickname`
+- Current event, moto, class, rider lineup, gate, plate, and entered result APIs
+- Race Director controls for moto/phase movement and active graphic selection
+- OBS browser sources for current moto, lineup, and experimental results
+- WebSocket updates with HTTP polling fallback
+- Last-known-good lineup resilience with stale-data indication
+- Track configuration UI, diagnostics dashboard, logs, and downloadable log files
+- Machine-wide Ubuntu `systemd` service, start-at-boot, desktop launcher, and tray status/control
+- Theme packages with expanded per-element color customization
 
-## Current status
+### Known limitations
 
-The first BBS Connector implementation is now available. It provides a read-only FastAPI service over the validated USABMX RaceManager SQL Server relationships, including events, staged motos, rider lineups, lane assignments, and entered results.
+- Elimination, semifinal, and main-event result selection still needs broader live-event validation
+- Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated
+- The background service and tray installer currently target Ubuntu/Linux only
+- Themes are edited as JSON files; a visual theme editor is planned
 
-## Features
+## Quick start
 
-### Implemented
+Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md), then [First Run](docs/first-run.md), [OBS Setup](docs/obs-setup.md), and [Linux Service and Tray](docs/service-linux.md).
 
-- Read-only SQL Server integration with the USABMX RaceManager `RACE` database
-- FastAPI connector with health, current-event, moto-list, and single-moto endpoints
-- Normalized rider lineups, lane assignments, results, and moto scoring state
-- Environment-based configuration and Docker support
-- Unit tests that run without a RaceManager installation
-- Theme package scaffolding for Bend BMX operations
+Common pages:
 
-### Planned
+- Configuration: `http://localhost:8000/configuration`
+- Diagnostics: `http://localhost:8000/diagnostics`
+- Controller: `http://localhost:8000/controller`
+- Current overlay: `http://localhost:8000/overlay/current`
+- Lineup overlay: `http://localhost:8000/overlay/lineup`
+- Results overlay: `http://localhost:8000/overlay/results`
 
-- Broader RaceManager round, transfer, and main-event coverage
-- Live race data export and broadcast-state pipeline
-- OBS browser-source overlays for live graphics
-- Broadcaster controller UI and hotkey support
-- Event theme management and multi-track support
-- Timing and ProStart integration
+Add `?preview=true` when building or testing an OBS scene. Remove it for live controller-driven operation.
 
-## Architecture overview
+## Themes
 
-The project is organized into the following top-level areas:
+Select a theme with `?theme=default` or set `BBS_DEFAULT_THEME`. Theme packages live in `themes/<slug>/theme.json`. Version 1.2.3 adds independent colors for primary and secondary accents, header panels, alternate panels, odd/even rows, lane cells, plate numbers, dividers, shadows, and warning banners. See [Theme Customization](docs/themes.md).
 
-- `database/` — validated RaceManager SQL queries and read-only database client
-- `connector/` — FastAPI JSON service and normalized broadcast models
-- `exporter/` — Data export and bridge logic for overlays
-- `overlay/` — Browser-source overlay templates, layouts, and assets for OBS
-- `controller/` — Broadcast control interface and hotkey management
-- `themes/` — Theme packages, branding, and track-specific visuals
-- `docs/` — Project documentation, setup instructions, and architecture references
+## Project layout
 
-## Screenshots
-
-> Screenshots coming soon.
-
-## Version 1.2.1 highlights
-
-- Runs as a machine-wide systemd service that starts automatically at boot.
-- Adds a desktop and system-tray launcher using `logo.png`, with service and RaceManager status.
-- Provides tray shortcuts and authenticated start, stop, and restart controls.
-- Retains automatic support for RaceManager databases with or without the optional rider `Nickname` column.
-
-## Installation
-
-Start with the [documentation index](docs/README.md), including Windows/Linux installation, first run, OBS setup, troubleshooting, upgrading, and backup/restore.
-
-Operational logs are available at `/logs`; the JSON API is `/api/logs`, and the current file can be downloaded from `/api/logs/download`.
+- `database/` — RaceManager SQL queries and read-only database client
+- `connector/` — FastAPI application, services, tray application, and APIs
+- `overlay/` — overlay guidance and future reusable front-end assets
+- `controller/` — broadcast controller guidance
+- `themes/` — track-specific theme packages
+- `packaging/` and `scripts/` — Linux service, tray, and installation tooling
+- `docs/` — setup, operation, troubleshooting, and architecture documentation
+- `tests/` — unit and resilience tests that do not require RaceManager
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for planned phases and development priorities.
+The roadmap is organized by release goals rather than the original foundation phases. Near-term priorities are a visual theme editor, automatic graphic sequencing, stronger results validation, and packaging polish. Later goals include timing/ProStart data, rider media, rankings, multi-track deployment, and Windows service/tray support. See [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 
-Contributions are welcome from BMX organizers, broadcasters, and developers. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening issues or pull requests.
+Contributions from BMX organizers, broadcasters, designers, and developers are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request. Never commit `.env`, SQL passwords, logs, virtual environments, or local runtime state.
 
 ## License
 
-BMX Broadcast Suite is released under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Acknowledgements
-
-Thank you to the BMX community and live production contributors for inspiring this project.
-
-
-### Overlay themes
-
-BBS overlays are track-agnostic. Select a theme in the browser-source URL, such as `?theme=default` or `?theme=bend-bmx`. Custom themes live in `themes/<slug>/theme.json`; no Python changes are required.
-
-## Broadcast resilience
-
-BBS stores the latest valid rider lineup in `data/last_known_lineup.json`. If SQL Server becomes temporarily unavailable, the selected moto continues to display from that cache and the Race Director shows an offline warning. A cache is never reused for a different moto or race phase.
-
-Live overlay updates are delivered through `/ws/broadcast`, with slow HTTP refreshes retained as a fallback.
-
-An experimental results overlay is available at `/overlay/results`. Round 1–3 finish fields are implemented from the known RaceManager schema; elimination and main result selection must still be validated at a live event.
-
-## Track configuration
-
-BBS contains no track-specific network address or credentials. Open `/configuration` after installation to set the track name, default theme, connector host/port, and all RaceManager SQL settings. These values are saved in the local `.env` file, which is excluded from Git. The SQL password is never returned by the configuration API.
+BMX Broadcast Suite is released under the MIT License. See [LICENSE](LICENSE).

@@ -39,7 +39,7 @@ fi
 mkdir -p data connector/logs
 
 cat <<EOF2
-BBS 1.2.1 installed in $ROOT
+BBS 1.2.3 installed in $ROOT
 Start:       $ROOT/.venv/bin/python -m connector.run
 Configuration: http://localhost:8000/configuration
 Diagnostics:   http://localhost:8000/diagnostics

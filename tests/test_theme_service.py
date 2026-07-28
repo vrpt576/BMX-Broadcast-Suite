@@ -22,8 +22,21 @@ def test_custom_theme_merges_with_defaults(tmp_path: Path) -> None:
     theme = ThemeService(tmp_path).get("my-track")
     assert theme["colors"]["primary"] == "#123456"
     assert theme["colors"]["panel_text"] == "#ffffff"
+    assert theme["colors"]["row_even"]
+    assert theme["colors"]["warning_text"] == "#ffffff"
 
 
 def test_unknown_theme_raises(tmp_path: Path) -> None:
     with pytest.raises(ThemeNotFoundError):
         ThemeService(tmp_path).get("missing")
+
+
+def test_expanded_color_palette_is_available(tmp_path: Path) -> None:
+    colors = ThemeService(tmp_path).get("default")["colors"]
+    expected = {
+        "primary", "primary_text", "secondary", "secondary_text",
+        "panel", "panel_alt", "panel_text", "muted_text", "header_panel",
+        "row_odd", "row_even", "gate", "gate_text", "plate",
+        "divider", "shadow", "warning", "warning_text",
+    }
+    assert expected.issubset(colors)

@@ -215,14 +215,14 @@ OVERLAY_HTML = r'''<!doctype html>
   <title>BBS Current Moto Overlay</title>
   <style>
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
-    :root { --primary:#f3b61f; --primary-text:#101820; --panel:#111820; --panel-text:#fff; --shadow:rgba(0,0,0,.65); --font-family:Arial, Helvetica, sans-serif; --text-transform:uppercase; }
+    :root { --primary:#f3b61f; --primary-text:#101820; --secondary:#d98b13; --secondary-text:#101820; --panel:#111820; --panel-alt:#1b2733; --panel-text:#fff; --header-panel:#111820; --divider:rgba(255,255,255,.18); --shadow:rgba(0,0,0,.65); --font-family:Arial, Helvetica, sans-serif; --text-transform:uppercase; }
     body { display: grid; place-items: center; font-family: var(--font-family); }
     .stack { display: grid; justify-items: start; filter: drop-shadow(0 4px 7px var(--shadow)); }
     .topline { display: flex; align-items: stretch; }
     .phase { background: var(--primary); color: var(--primary-text); padding: .16em .58em; font-size: 28px; font-weight: 900; letter-spacing: .08em; text-transform: var(--text-transform); }
-    .class-name { max-width: 620px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: color-mix(in srgb, var(--panel) 94%, transparent); color: var(--panel-text); padding: .18em .58em; font-size: 28px; font-weight: 800; }
+    .class-name { max-width: 620px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: color-mix(in srgb, var(--header-panel) 94%, transparent); color: var(--panel-text); padding: .18em .58em; font-size: 28px; font-weight: 800; }
     .bug { display: flex; align-items: stretch; }
-    .label { background: var(--panel); color: var(--panel-text); padding: .28em .52em; font-size: 42px; font-weight: 800; letter-spacing: .04em; }
+    .label { background: var(--panel-alt); color: var(--panel-text); padding: .28em .52em; font-size: 42px; font-weight: 800; letter-spacing: .04em; }
     .number { min-width: 1.65em; text-align: center; background: var(--primary); color: var(--primary-text); padding: .16em .32em; font-size: 56px; line-height: 1; font-weight: 950; }
   </style>
 </head>
@@ -255,8 +255,13 @@ async function applyTheme() {
     const t = theme.typography || {};
     if (c.primary) root.setProperty('--primary', c.primary);
     if (c.primary_text) root.setProperty('--primary-text', c.primary_text);
+    if (c.secondary) root.setProperty('--secondary', c.secondary);
+    if (c.secondary_text) root.setProperty('--secondary-text', c.secondary_text);
     if (c.panel) root.setProperty('--panel', c.panel);
+    if (c.panel_alt) root.setProperty('--panel-alt', c.panel_alt);
     if (c.panel_text) root.setProperty('--panel-text', c.panel_text);
+    if (c.header_panel) root.setProperty('--header-panel', c.header_panel);
+    if (c.divider) root.setProperty('--divider', c.divider);
     if (c.shadow) root.setProperty('--shadow', c.shadow);
     if (t.font_family) root.setProperty('--font-family', t.font_family);
     if (t.text_transform) root.setProperty('--text-transform', t.text_transform);

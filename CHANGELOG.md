@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.3
+
+- Reworked the main README to reflect the current production status, known limitations, and verified Ubuntu workflow.
+- Replaced the original phase roadmap with shipped, near-term, mid-term, and platform-expansion priorities.
+- Expanded theme colors for secondary accents, headers, alternate panels, odd/even rows, lane cells, plate numbers, dividers, shadows, and warning banners.
+- Applied theme customization consistently to current-moto, lineup, and results overlays.
+- Added a complete theme customization guide and updated bundled theme packages.
+
 ## 1.2.1
 
 - Added an Ubuntu/Linux machine-wide systemd service that starts BBS at boot and restarts it after failures.
