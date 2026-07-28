@@ -27,17 +27,33 @@ def _latest(values: Iterable[datetime | None]) -> datetime | None:
 class MotoboardService:
     def __init__(self, database: RaceManagerDatabase) -> None:
         self.database = database
+        self._nickname_supported: bool | None = None
+
+    def _supports_nickname(self) -> bool:
+        if self._nickname_supported is None:
+            checker = getattr(self.database, "column_exists", None)
+            self._nickname_supported = bool(
+                checker and checker("MB", "Race_Riders", "Nickname")
+            )
+        return self._nickname_supported
 
     def list_motos(self, motoboard_id: UUID) -> MotoList:
-        rows = self.database.fetch_all(queries.MOTO_RIDERS, [motoboard_id])
+        query = (
+            queries.MOTO_RIDERS_WITH_NICKNAME
+            if self._supports_nickname()
+            else queries.MOTO_RIDERS
+        )
+        rows = self.database.fetch_all(query, [motoboard_id])
         motos = self._group(rows)
         return MotoList(motoboard_id=motoboard_id, count=len(motos), motos=motos)
 
     def get_moto(self, motoboard_id: UUID, moto_number: int) -> Moto:
-        rows = self.database.fetch_all(
-            queries.MOTO_RIDERS_BY_NUMBER,
-            [motoboard_id, moto_number],
+        query = (
+            queries.MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME
+            if self._supports_nickname()
+            else queries.MOTO_RIDERS_BY_NUMBER
         )
+        rows = self.database.fetch_all(query, [motoboard_id, moto_number])
         motos = self._group(rows)
         if not motos:
             raise MotoNotFoundError(

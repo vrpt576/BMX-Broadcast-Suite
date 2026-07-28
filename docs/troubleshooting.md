@@ -32,3 +32,27 @@ SQL and theme changes apply to new requests. Host, port, CORS, and logging start
 ## Useful evidence for a bug report
 
 Include BBS version, diagnostics output, relevant downloaded log, operating system, RaceManager version if known, exact overlay URL, and steps to reproduce. Remove passwords before sharing files.
+
+## Lineup API reports `Invalid column name 'Nickname'`
+
+This indicates a pre-1.2.0 connector is querying a RaceManager schema that does not contain the optional `MB.Race_Riders.Nickname` column. Upgrade to BBS 1.2.0 or newer. Version 1.2.0 detects the column and returns `nickname: null` when it is absent.
+
+Verify the endpoint directly:
+
+```bash
+curl http://localhost:8000/api/lineup/current
+```
+
+A healthy response contains moto, class, rider, source, and freshness fields rather than HTTP 503.
+
+## Current overlay appears but lineup is blank
+
+The normal lineup URL obeys broadcast controller state. During setup, use:
+
+`http://localhost:8000/overlay/lineup?preview=true`
+
+For live operation, use the URL without preview mode and activate the lineup through `/controller`.
+
+## Browser Source is missing from OBS
+
+Use the native OBS Studio package rather than the Snap build. See [OBS Setup](obs-setup.md).

@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.0-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -56,6 +56,12 @@ The project is organized into the following top-level areas:
 ## Screenshots
 
 > Screenshots coming soon.
+
+## Version 1.2.0 highlights
+
+- Automatically supports RaceManager databases with or without the optional rider `Nickname` column.
+- Documents the verified native OBS Studio and Browser Source setup.
+- Expands Linux prerequisites, installation checks, diagnostics, overlay preview mode, and troubleshooting guidance.
 
 ## Installation
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Added automatic RaceManager schema detection for the optional `MB.Race_Riders.Nickname` column.
+- Preserved the `nickname` API field as `null` on older RaceManager databases instead of failing lineup queries.
+- Updated Ubuntu/Debian prerequisites and installer checks for Python virtual environments and Microsoft ODBC Driver 18.
+- Documented native OBS Studio installation, Browser Source requirements, overlay URLs, preview mode, diagnostics, and the verified troubleshooting workflow.
+- Updated application and diagnostics version reporting to 1.2.0.
+
 ## 1.1.0
 
 - Added centralized console and daily rotating file logging.

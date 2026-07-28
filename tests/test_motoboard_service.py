@@ -6,10 +6,17 @@ from connector.services.motoboard_service import MotoboardService
 
 
 class FakeDatabase:
-    def __init__(self, rows):
+    def __init__(self, rows, nickname_supported=False):
         self.rows = rows
+        self.nickname_supported = nickname_supported
+        self.queries = []
+
+    def column_exists(self, schema, table, column):
+        assert (schema, table, column) == ("MB", "Race_Riders", "Nickname")
+        return self.nickname_supported
 
     def fetch_all(self, query, params=None):
+        self.queries.append(query)
         return self.rows
 
 
@@ -64,3 +71,17 @@ def test_marks_fully_scored_moto():
     assert moto.state == MotoState.SCORED
     assert moto.riders_scored == moto.riders_total == 2
     assert moto.updated_at == rows[-1]["updated_at"]
+
+
+def test_uses_null_nickname_for_older_racemanager_schema():
+    database = FakeDatabase([rider_row(1, 1)], nickname_supported=False)
+    MotoboardService(database).list_motos(uuid4())
+    assert "NULL AS nickname" in database.queries[0]
+
+
+def test_uses_nickname_when_column_is_available():
+    database = FakeDatabase([rider_row(1, 1)], nickname_supported=True)
+    service = MotoboardService(database)
+    service.list_motos(uuid4())
+    service.list_motos(uuid4())
+    assert all("rr.Nickname AS nickname" in query for query in database.queries)

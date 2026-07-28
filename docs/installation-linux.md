@@ -1,15 +1,46 @@
 # Linux Installation Guide
 
-Tested workflow for Ubuntu and Debian-family systems.
+BBS 1.2.0 is supported on current Ubuntu and Debian-family systems. The verified production setup uses native OBS Studio, Python 3.11 or newer, Microsoft ODBC Driver 18, and wired access to the RaceManager SQL Server host.
 
-## Packages
+## Prerequisites
+
+- 64-bit Ubuntu or Debian-family Linux
+- Python 3.11 or newer with the `venv` module
+- Git
+- unixODBC development libraries
+- Microsoft ODBC Driver 18 for SQL Server
+- Network access to the RaceManager SQL Server host and port
+- OBS Studio with Browser Source support for broadcast graphics
+
+Install the base packages:
 
 ```bash
 sudo apt update
-sudo apt install -y git python3 python3-venv unixodbc unixodbc-dev
+sudo apt install -y git python3 python3-venv unixodbc unixodbc-dev curl ca-certificates
 ```
 
-Install Microsoft ODBC Driver 18 using Microsoft's instructions for your distribution.
+Install **Microsoft ODBC Driver 18 for SQL Server** using Microsoft's package instructions for your exact distribution. Confirm that it is visible before continuing:
+
+```bash
+odbcinst -q -d | grep "ODBC Driver 18 for SQL Server"
+```
+
+## Install native OBS Studio
+
+The Snap build is not recommended for BBS production because Browser Source/plugin availability can differ from the native package. On Ubuntu, install OBS from the official OBS Studio PPA:
+
+```bash
+sudo add-apt-repository ppa:obsproject/obs-studio
+sudo apt update
+sudo apt install -y obs-studio
+```
+
+Confirm the native executable and version:
+
+```bash
+command -v obs
+obs --version
+```
 
 ## Install BBS
 
@@ -21,7 +52,26 @@ chmod +x scripts/install-linux.sh
 ./.venv/bin/python -m connector.run
 ```
 
-Open `http://SERVER-IP:8000/configuration`.
+Open these pages from the BBS computer or another computer on the same network:
+
+- Configuration: `http://SERVER-IP:8000/configuration`
+- Diagnostics: `http://SERVER-IP:8000/diagnostics`
+- Controller: `http://SERVER-IP:8000/controller`
+
+Do not commit `.env`; it contains local settings and may contain the SQL password.
+
+## Validation
+
+The diagnostics page should confirm:
+
+- Python and application health
+- ODBC Driver 18 availability
+- SQL Server network reachability
+- successful SQL login
+- the `RACE` database
+- a current RaceManager event and motoboard
+
+BBS 1.2.0 automatically detects whether the RaceManager `MB.Race_Riders` table includes the optional `Nickname` column. Older schemas return `nickname: null` and continue serving lineups.
 
 ## systemd
 

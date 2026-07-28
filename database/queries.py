@@ -51,7 +51,7 @@ WHERE mb.Motoboard_DBID = ?;
 
 # Round type 123 is RaceManager's staged/current-lineup branch. It retains the
 # three lane assignments and receives clipboard-entered finishes.
-MOTO_RIDERS = """
+MOTO_RIDERS_TEMPLATE = """
 SELECT
     mg.Moto_Number AS moto_number,
     mg.Motogroup_Number AS motogroup_number,
@@ -74,7 +74,7 @@ SELECT
     rr.Bike_Number_Actual AS bike_number,
     rr.First_Name AS first_name,
     rr.Last_Name AS last_name,
-    rr.Nickname AS nickname,
+    {nickname_expression} AS nickname,
     rr.Proficiency_Code_Act AS proficiency,
     rr.Sponsor AS sponsor
 FROM MB.Age_Classes AS ac
@@ -95,7 +95,21 @@ ORDER BY
     mgr.Motogroup_Rider_Key;
 """
 
+def moto_riders_query(*, include_nickname: bool) -> str:
+    """Return a RaceManager rider query compatible with the detected schema."""
+    nickname_expression = "rr.Nickname" if include_nickname else "NULL"
+    return MOTO_RIDERS_TEMPLATE.format(nickname_expression=nickname_expression)
+
+
+MOTO_RIDERS = moto_riders_query(include_nickname=False)
+MOTO_RIDERS_WITH_NICKNAME = moto_riders_query(include_nickname=True)
+
 MOTO_RIDERS_BY_NUMBER = MOTO_RIDERS.replace(
+    "ORDER BY\n    mg.Moto_Number,",
+    "  AND mg.Moto_Number = ?\nORDER BY\n    mg.Moto_Number,",
+)
+
+MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME = MOTO_RIDERS_WITH_NICKNAME.replace(
     "ORDER BY\n    mg.Moto_Number,",
     "  AND mg.Moto_Number = ?\nORDER BY\n    mg.Moto_Number,",
 )

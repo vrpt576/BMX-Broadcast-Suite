@@ -68,3 +68,13 @@ class RaceManagerDatabase:
     ) -> Mapping[str, Any] | None:
         rows = self.fetch_all(query, params)
         return rows[0] if rows else None
+
+    def column_exists(self, schema: str, table: str, column: str) -> bool:
+        """Return whether a column exists without selecting from that column."""
+        row = self.fetch_one(
+            """
+            SELECT CASE WHEN COL_LENGTH(?, ?) IS NULL THEN 0 ELSE 1 END AS present;
+            """,
+            [f"{schema}.{table}", column],
+        )
+        return bool(row and row.get("present"))
