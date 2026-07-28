@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+- Added an Ubuntu/Linux machine-wide systemd service that starts BBS at boot and restarts it after failures.
+- Added a desktop and system-tray launcher using `logo.png`.
+- Added live service, connector API, RaceManager, current-moto, and class status in the tray menu.
+- Added tray shortcuts for Controller, Configuration, Diagnostics, Logs, and lineup preview.
+- Added authenticated start, stop, and restart controls for the machine service.
+- Added service installation and removal scripts plus Linux service documentation.
+
 ## 1.2.0
 
 - Added automatic RaceManager schema detection for the optional `MB.Race_Riders.Nickname` column.

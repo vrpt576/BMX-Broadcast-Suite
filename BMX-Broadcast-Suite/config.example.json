@@ -1,5 +1,0 @@
-{
-  "track": {"name": "Your BMX Track", "defaultTheme": "default"},
-  "application": {"host": "0.0.0.0", "port": 8000, "publicBaseUrl": "http://localhost:8000"},
-  "database": {"host": "localhost", "instance": "", "port": 1433, "user": "bbs_connector", "password": "replace-me", "database": "RACE", "driver": "ODBC Driver 18 for SQL Server"}
-}

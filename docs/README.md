@@ -11,3 +11,5 @@
 - [Keyboard Shortcuts](keyboard-shortcuts.md)
 - [Upgrading](upgrading.md)
 - [Backup and Restore](backup-and-restore.md)
+
+- [Linux background service and tray icon](service-linux.md)

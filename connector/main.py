@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
-from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, themes
+from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, status as status_route, themes
 
 settings = get_settings()
 from connector.services.logging_service import configure_logging
@@ -31,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(status_route.router, prefix=settings.api_prefix)
 app.include_router(event.router, prefix=settings.api_prefix)
 app.include_router(motos.router, prefix=settings.api_prefix)
 app.include_router(current.router, prefix=settings.api_prefix)

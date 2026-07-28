@@ -85,3 +85,16 @@ sudo systemctl status bbs-connector
 ```
 
 Use `journalctl -u bbs-connector -f` and the BBS `/logs` page for troubleshooting.
+
+## Run BBS as a background service
+
+BBS 1.2.1 can start automatically at machine boot and run without a terminal window. It also includes a desktop and system-tray controller using `logo.png`.
+
+Install the desktop integration packages and service after completing the normal installation:
+
+```bash
+sudo apt install -y python3-gi gir1.2-ayatanaappindicator3-0.1 policykit-1 libnotify-bin
+./scripts/install-service-linux.sh
+```
+
+See [Linux Background Service and Tray Icon](service-linux.md) for operation, logs, upgrades, and removal.

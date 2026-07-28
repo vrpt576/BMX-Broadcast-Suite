@@ -18,6 +18,11 @@ PY
 python3 -m venv --help >/dev/null 2>&1 || fail "python3-venv is required. Install it with: sudo apt install python3-venv"
 command -v odbcinst >/dev/null || fail "unixODBC is required. Install unixodbc and unixodbc-dev."
 
+python3 -c "import gi" 2>/dev/null || warn "python3-gi was not detected; install it for the BBS tray icon."
+if ! dpkg-query -W -f='${Status}' gir1.2-ayatanaappindicator3-0.1 2>/dev/null | grep -Fq "install ok installed"; then
+    warn "gir1.2-ayatanaappindicator3-0.1 was not detected; install it for the BBS tray icon."
+fi
+
 if ! odbcinst -q -d 2>/dev/null | grep -Fq "ODBC Driver 18 for SQL Server"; then
     warn "Microsoft ODBC Driver 18 for SQL Server was not detected. Install it before connecting to RaceManager."
 fi
@@ -34,10 +39,11 @@ fi
 mkdir -p data connector/logs
 
 cat <<EOF2
-BBS 1.2.0 installed in $ROOT
+BBS 1.2.1 installed in $ROOT
 Start:       $ROOT/.venv/bin/python -m connector.run
 Configuration: http://localhost:8000/configuration
 Diagnostics:   http://localhost:8000/diagnostics
 Controller:    http://localhost:8000/controller
 OBS setup:     docs/obs-setup.md
+Machine service: scripts/install-service-linux.sh
 EOF2
