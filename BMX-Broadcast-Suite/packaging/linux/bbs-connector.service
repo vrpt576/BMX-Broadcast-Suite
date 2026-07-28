@@ -1,0 +1,26 @@
+[Unit]
+Description=BMX Broadcast Suite Connector
+Documentation=https://github.com/vrpt576/BMX-Broadcast-Suite
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@BBS_USER@
+Group=@BBS_GROUP@
+WorkingDirectory=@BBS_ROOT@
+EnvironmentFile=-@BBS_ROOT@/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@BBS_ROOT@/.venv/bin/python -m connector.run
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+
+# Basic hardening while retaining write access to BBS data and log directories.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=@BBS_ROOT@/data @BBS_ROOT@/connector/logs
+
+[Install]
+WantedBy=multi-user.target

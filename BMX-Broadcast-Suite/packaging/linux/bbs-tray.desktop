@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=BMX Broadcast Suite
+Comment=Open BBS status and service controls
+Exec=@BBS_ROOT@/scripts/start-tray-linux.sh
+Icon=@BBS_ROOT@/logo.png
+Terminal=false
+Categories=AudioVideo;Utility;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

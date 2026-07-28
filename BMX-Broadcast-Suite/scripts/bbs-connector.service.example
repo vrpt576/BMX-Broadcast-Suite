@@ -1,0 +1,16 @@
+[Unit]
+Description=BMX Broadcast Suite Connector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bbs
+WorkingDirectory=/opt/bmx-broadcast-suite
+EnvironmentFile=/opt/bmx-broadcast-suite/.env
+ExecStart=/opt/bmx-broadcast-suite/.venv/bin/python -m connector.run
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

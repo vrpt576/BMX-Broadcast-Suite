@@ -1,0 +1,17 @@
+{
+  "name": "Bend BMX",
+  "slug": "bend-bmx",
+  "colors": {
+    "primary": "#f3b61f",
+    "primary_text": "#101820",
+    "panel": "#101820",
+    "panel_text": "#ffffff",
+    "muted_text": "#d8dde3",
+    "divider": "rgba(255,255,255,.18)",
+    "shadow": "rgba(0,0,0,.50)"
+  },
+  "typography": {
+    "font_family": "Arial, Helvetica, sans-serif",
+    "text_transform": "uppercase"
+  }
+}
