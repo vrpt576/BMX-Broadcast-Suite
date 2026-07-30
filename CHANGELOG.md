@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.6
+
+- Bundled the Microsoft ODBC Driver 18 x64 MSI for offline Windows installation.
+- Added SHA-256 and Microsoft Authenticode verification for the bundled ODBC installer.
+- Fixed the IExpress launcher path bug that caused the setup wizard to exit immediately.
+- Fixed administrator relaunch handling so temporary installer files remain available during elevation.
+- Fixed the Windows Scheduled Task to use `python.exe` instead of `pythonw.exe`.
+- Updated application, tray, documentation, installer, and test version references to 1.2.6.
+
 ## 1.2.5
 
 - Added a graphical Windows setup wizard with prerequisite checks, installation-folder selection, and optional machine-startup configuration.

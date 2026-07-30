@@ -1,6 +1,6 @@
 # Windows Installation Guide
 
-For the simplest installation, download and run `BMX-Broadcast-Suite-Setup-v1.2.5.exe` from the GitHub release. See the [Windows Setup Wizard](wizard-installer-windows.md). The commands below remain available for development and advanced installation.
+For the simplest installation, download and run `BMX-Broadcast-Suite-Setup-v1.2.6.exe` from the GitHub release. See the [Windows Setup Wizard](wizard-installer-windows.md). The commands below remain available for development and advanced installation.
 
 ## Requirements
 

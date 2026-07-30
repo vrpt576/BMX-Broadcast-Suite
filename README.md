@@ -1,12 +1,12 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.5-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.6-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.5
+## Current status â€” v1.2.6
 
 BBS is usable for live production on Ubuntu/Linux and can also run on Windows 10/11. The verified workflow can maintain a RaceManager connection, select and step through motos, display current-moto and rider-lineup graphics in OBS, and continue showing the last valid matching lineup during a temporary SQL interruption. Results support is available but remains experimental outside the validated RaceManager round fields.
 
@@ -53,14 +53,14 @@ Select a theme with `?theme=default` or set `BBS_DEFAULT_THEME`. Theme packages 
 
 ## Project layout
 
-- `database/` — RaceManager SQL queries and read-only database client
-- `connector/` — FastAPI application, services, platform tray applications, and APIs
-- `overlay/` — overlay guidance and future reusable front-end assets
-- `controller/` — broadcast controller guidance
-- `themes/` — track-specific theme packages
-- `packaging/` and `scripts/` — Linux and Windows background, tray, and installation tooling
-- `docs/` — setup, operation, troubleshooting, and architecture documentation
-- `tests/` — unit and resilience tests that do not require RaceManager
+- `database/` â€” RaceManager SQL queries and read-only database client
+- `connector/` â€” FastAPI application, services, platform tray applications, and APIs
+- `overlay/` â€” overlay guidance and future reusable front-end assets
+- `controller/` â€” broadcast controller guidance
+- `themes/` â€” track-specific theme packages
+- `packaging/` and `scripts/` â€” Linux and Windows background, tray, and installation tooling
+- `docs/` â€” setup, operation, troubleshooting, and architecture documentation
+- `tests/` â€” unit and resilience tests that do not require RaceManager
 
 ## Roadmap
 

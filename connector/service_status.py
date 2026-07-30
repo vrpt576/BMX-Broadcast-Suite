@@ -78,7 +78,7 @@ def service_state(service_name: str | None = None) -> str:
 
 
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.5"})
+    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.6"})
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
@@ -120,6 +120,6 @@ def status_lines(status: ServiceStatus) -> list[str]:
     if status.moto_number is not None:
         label = f"Moto {status.moto_number}"
         if status.class_name:
-            label += f" — {status.class_name}"
+            label += f" â€” {status.class_name}"
         lines.append(label)
     return lines

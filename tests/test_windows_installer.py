@@ -13,7 +13,7 @@ def test_wizard_uses_existing_supported_installers():
     text = (ROOT / "scripts" / "install-wizard-windows.ps1").read_text(encoding="utf-8")
     assert "install-windows.ps1" in text
     assert "install-service-windows.ps1" in text
-    assert "BMX Broadcast Suite 1.2.5" in text
+    assert "BMX Broadcast Suite 1.2.6" in text
 
 
 def test_wizard_documentation_is_linked():

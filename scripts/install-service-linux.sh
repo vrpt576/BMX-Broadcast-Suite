@@ -59,7 +59,7 @@ if [[ -d "$USER_HOME/Desktop" ]]; then
 fi
 
 cat <<OUT
-BBS 1.2.5 machine service installed and started.
+BBS 1.2.6 machine service installed and started.
 
 Service:    systemctl status $UNIT_NAME
 Controller: http://localhost:8000/controller

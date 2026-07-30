@@ -7,7 +7,7 @@ def test_healthy_service_status():
         service="running",
         api="available",
         database="connected",
-        version="1.2.5",
+        version="1.2.6",
         moto_number=12,
         class_name="8 Novice",
     )
@@ -15,7 +15,7 @@ def test_healthy_service_status():
     assert status_lines(status) == [
         "Service: Running",
         "RaceManager: Connected",
-        "Moto 12 — 8 Novice",
+        "Moto 12 â€” 8 Novice",
     ]
 
 
