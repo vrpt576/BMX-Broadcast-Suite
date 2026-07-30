@@ -34,7 +34,7 @@ class BBSWindowsTray:
 
     def _menu(self) -> pystray.Menu:
         return pystray.Menu(
-            pystray.MenuItem(lambda _item: f"BMX Broadcast Suite {self.status.version or '1.2.4'}", None, enabled=False),
+            pystray.MenuItem(lambda _item: f"BMX Broadcast Suite {self.status.version or '1.2.5'}", None, enabled=False),
             pystray.MenuItem(lambda _item: "\n".join(status_lines(self.status)), None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Open Race Director", lambda _icon, _item: self._open("/director"), default=True),

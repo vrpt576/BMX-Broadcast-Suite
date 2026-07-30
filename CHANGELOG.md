@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.5
+
+- Added a graphical Windows setup wizard with prerequisite checks, installation-folder selection, and optional machine-startup configuration.
+- Added a Windows EXE installer build pipeline using the built-in IExpress packaging tool.
+- Added guided installation documentation and SmartScreen guidance for the currently unsigned installer.
+- Preserved the PowerShell installer for development and advanced deployments.
+- Added independent control over starting the tray application during background-service installation.
+
 ## 1.2.4
 
 - Added Windows 10/11 background operation through a machine startup Scheduled Task running as `SYSTEM`.

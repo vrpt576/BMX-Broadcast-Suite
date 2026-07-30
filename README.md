@@ -1,14 +1,16 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.4-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.5-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.4
+## Current status — v1.2.5
 
 BBS is usable for live production on Ubuntu/Linux and can also run on Windows 10/11. The verified workflow can maintain a RaceManager connection, select and step through motos, display current-moto and rider-lineup graphics in OBS, and continue showing the last valid matching lineup during a temporary SQL interruption. Results support is available but remains experimental outside the validated RaceManager round fields.
+
+Windows users can install BBS through the new graphical setup EXE. The wizard checks prerequisites, installs the application, and offers boot-time background operation and desktop/tray controls. See [Windows Setup Wizard](docs/wizard-installer-windows.md).
 
 ### Available now
 

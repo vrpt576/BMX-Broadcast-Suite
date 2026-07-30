@@ -1,6 +1,7 @@
 # BBS Documentation
 
 - [Windows Installation](installation-windows.md)
+- [Windows Setup Wizard](wizard-installer-windows.md)
 - [Linux Installation](installation-linux.md)
 - [First Run](first-run.md)
 - [Track Configuration](configuration.md)

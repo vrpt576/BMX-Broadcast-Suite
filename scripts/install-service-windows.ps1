@@ -1,6 +1,7 @@
 param(
     [string]$InstallDir = (Resolve-Path "$PSScriptRoot\..").Path,
-    [switch]$NoAutoStart
+    [switch]$NoAutoStart,
+    [switch]$NoTrayLaunch
 )
 
 $ErrorActionPreference = "Stop"
@@ -71,9 +72,11 @@ New-BBSShortcut (Join-Path $startup "BMX Broadcast Suite Tray.lnk")
 if (-not $NoAutoStart) {
     Start-ScheduledTask -TaskName $TaskName
 }
-& $TrayScript
+if (-not $NoTrayLaunch) {
+    & $TrayScript
+}
 
-Write-Host "BBS 1.2.4 Windows background task installed." -ForegroundColor Green
+Write-Host "BBS 1.2.5 Windows background task installed." -ForegroundColor Green
 Write-Host "The connector starts at machine boot and restarts after failures."
 Write-Host "Desktop, Start Menu, and notification-area launchers were installed."
 Write-Host "Diagnostics: http://localhost:8000/diagnostics"
