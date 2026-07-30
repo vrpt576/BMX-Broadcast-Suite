@@ -24,6 +24,12 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\install-windows.ps1
 ```
 
+To install dependencies and immediately register BBS for machine startup:
+
+```powershell
+.\scripts\install-windows.ps1 -InstallService
+```
+
 3. Start BBS:
 
 ```powershell
@@ -34,9 +40,19 @@ You may also bypass the script and run `\.venv\Scripts\python.exe -m connector.r
 
 4. Open `http://localhost:8000/configuration` and enter the track settings.
 
+## Run without a terminal
+
+After configuration, open an Administrator PowerShell window and run:
+
+```powershell
+.\scripts\install-service-windows.ps1
+```
+
+This creates a machine startup task named `BMX Broadcast Suite`, runs the connector as `SYSTEM`, restarts it after failures, and installs desktop, Start Menu, and notification-area launchers. See [Windows Background Operation and Tray](service-windows.md).
+
 ## Firewall
 
-Allow inbound TCP traffic on the configured BBS port, normally 8000, when OBS or the Race Director runs on another computer.
+Allow inbound TCP traffic on the configured BBS port, normally 8000, when OBS or the Race Director runs on another computer. Windows may prompt for this the first time BBS starts.
 
 ## Updating
 

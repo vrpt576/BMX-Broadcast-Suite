@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.4
+
+- Added Windows 10/11 background operation through a machine startup Scheduled Task running as `SYSTEM`.
+- Added automatic restart after failure and start-at-boot behavior without an open terminal.
+- Added a Windows notification-area controller with live service, API, RaceManager, moto, and class status.
+- Added Start, Stop, and Restart controls with Windows elevation prompts.
+- Added desktop, Start Menu, and login-start tray shortcuts using an ICO generated from `logo.png`.
+- Added Windows background installation, removal, and tray-launch scripts.
+- Preserved the existing Ubuntu `systemd` service and AppIndicator tray implementation.
+- Added Windows service/tray documentation and platform status tests.
+
 ## 1.2.3
 
 - Reworked the main README to reflect the current production status, known limitations, and verified Ubuntu workflow.

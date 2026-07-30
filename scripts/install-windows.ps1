@@ -1,4 +1,7 @@
-param([string]$InstallDir = (Resolve-Path "$PSScriptRoot\..").Path)
+param(
+    [string]$InstallDir = (Resolve-Path "$PSScriptRoot\..").Path,
+    [switch]$InstallService
+)
 $ErrorActionPreference = 'Stop'
 Write-Host "Installing BMX Broadcast Suite in $InstallDir" -ForegroundColor Cyan
 Set-Location $InstallDir
@@ -11,3 +14,6 @@ Write-Host "Installation complete." -ForegroundColor Green
 Write-Host "Configure: http://localhost:8000/configuration"
 Write-Host "Start: .\scripts\start-windows.ps1"
 Write-Host "Diagnostics: http://localhost:8000/diagnostics"
+if ($InstallService) {
+    & "$PSScriptRoot\install-service-windows.ps1" -InstallDir $InstallDir
+}

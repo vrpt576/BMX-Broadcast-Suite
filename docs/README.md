@@ -14,3 +14,4 @@
 - [Backup and Restore](backup-and-restore.md)
 
 - [Linux background service and tray icon](service-linux.md)
+- [Windows background operation and tray icon](service-windows.md)

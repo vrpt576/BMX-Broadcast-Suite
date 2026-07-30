@@ -12,6 +12,18 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 Open `http://localhost:8000/diagnostics` and resolve any red checks.
 
+For machine startup, automatic restart, desktop/Start Menu launchers, and the tray controller:
+
+```powershell
+.\scripts\install-service-windows.ps1
+```
+
+Remove only the background integration with:
+
+```powershell
+.\scripts\uninstall-service-windows.ps1
+```
+
 ## Linux / bmxServer01
 
 Microsoft ODBC Driver 18 for SQL Server and the Unix ODBC development package must be installed before `pyodbc` can connect. Then run:

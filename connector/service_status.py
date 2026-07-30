@@ -1,8 +1,9 @@
-"""Status helpers shared by the Linux tray application and tests."""
+"""Status helpers shared by the Linux and Windows tray applications."""
 
 from __future__ import annotations
 
 import json
+import platform
 import subprocess
 from dataclasses import dataclass
 from typing import Any
@@ -44,15 +45,47 @@ def systemd_state(unit: str = "bbs-connector.service") -> str:
     return "stopped"
 
 
+def windows_task_state(task: str = "BMX Broadcast Suite") -> str:
+    """Return a stable state for the Windows boot-time scheduled task."""
+    escaped = task.replace("'", "''")
+    result = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-Command",
+            f"(Get-ScheduledTask -TaskName '{escaped}' -ErrorAction SilentlyContinue).State.ToString()",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    if result.returncode != 0:
+        return "stopped"
+    state = result.stdout.strip().lower()
+    if state == "running":
+        return "running"
+    if state in {"queued"}:
+        return "starting"
+    return "stopped"
+
+
+def service_state(service_name: str | None = None) -> str:
+    """Read the native background runner state for the current platform."""
+    if platform.system() == "Windows":
+        return windows_task_state(service_name or "BMX Broadcast Suite")
+    return systemd_state(service_name or "bbs-connector.service")
+
+
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.3"})
+    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.4"})
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
-def read_status(base_url: str = "http://127.0.0.1:8000", unit: str = "bbs-connector.service") -> ServiceStatus:
-    """Read systemd and the connector's compact status endpoint."""
-    service = systemd_state(unit)
+def read_status(base_url: str = "http://127.0.0.1:8000", unit: str | None = None) -> ServiceStatus:
+    """Read the platform runner and connector's compact status endpoint."""
+    service = service_state(unit)
     if service != "running":
         return ServiceStatus(service=service, api="unavailable", database="unknown")
 

@@ -1,6 +1,6 @@
 # BMX Broadcast Suite Roadmap
 
-This roadmap reflects the project status as of v1.2.3. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
+This roadmap reflects the project status as of v1.2.4. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
 
 ## Shipped
 
@@ -20,6 +20,7 @@ This roadmap reflects the project status as of v1.2.3. Priorities may move as mo
 ### Deployment and branding
 - Ubuntu installer and machine-wide `systemd` service
 - Start-at-boot, desktop launcher, and system-tray controller
+- Windows boot-time background runner, desktop/Start Menu launcher, and notification-area controller
 - Track theme packages and expanded v1.2.3 color palette
 
 ## Near term
@@ -52,8 +53,7 @@ This roadmap reflects the project status as of v1.2.3. Priorities may move as mo
 
 ## Later / platform expansion
 
-- Windows background service, desktop launcher, and tray application
-- Signed installers and guided upgrades
+- Signed Windows installer and guided in-place upgrades
 - Additional race-management platforms where documented integrations are possible
 - Public plugin/API contracts for third-party overlays and controllers
 

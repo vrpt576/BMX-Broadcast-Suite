@@ -18,7 +18,7 @@ def connector_status(
     database: RaceManagerDatabase = Depends(get_database),
     current_service: CurrentMotoService = Depends(get_current_moto_service),
 ) -> dict[str, object]:
-    """Return the small status payload consumed by the Linux tray icon."""
+    """Return the small status payload consumed by desktop tray integrations."""
     database_status = "connected"
     try:
         database.fetch_one("SELECT 1 AS ok")

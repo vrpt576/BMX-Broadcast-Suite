@@ -1,6 +1,6 @@
 # Linux Background Service and Tray Icon
 
-BBS 1.2.3 can run as a machine-wide systemd service on Ubuntu/Linux. The connector starts during boot, does not need an open terminal, and automatically restarts after a failure.
+BBS 1.2.4 can run as a machine-wide systemd service on Ubuntu/Linux. The connector starts during boot, does not need an open terminal, and automatically restarts after a failure.
 
 The service runs as the user who installs it, so it retains access to that user's BBS project, `.env`, data, themes, and logs. It is still machine-wide and starts before desktop login.
 

@@ -1,14 +1,14 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.3-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.4-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
-BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, and an Ubuntu background service with a desktop/system-tray controller.
+BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.3
+## Current status — v1.2.4
 
-BBS is usable for live production on Ubuntu/Linux. The verified workflow can maintain a RaceManager connection, select and step through motos, display current-moto and rider-lineup graphics in OBS, and continue showing the last valid matching lineup during a temporary SQL interruption. Results support is available but remains experimental outside the validated RaceManager round fields.
+BBS is usable for live production on Ubuntu/Linux and can also run on Windows 10/11. The verified workflow can maintain a RaceManager connection, select and step through motos, display current-moto and rider-lineup graphics in OBS, and continue showing the last valid matching lineup during a temporary SQL interruption. Results support is available but remains experimental outside the validated RaceManager round fields.
 
 ### Available now
 
@@ -21,18 +21,18 @@ BBS is usable for live production on Ubuntu/Linux. The verified workflow can mai
 - Last-known-good lineup resilience with stale-data indication
 - Track configuration UI, diagnostics dashboard, logs, and downloadable log files
 - Machine-wide Ubuntu `systemd` service, start-at-boot, desktop launcher, and tray status/control
+- Windows machine startup task, automatic restart, desktop/Start Menu launcher, and notification-area status/control
 - Theme packages with expanded per-element color customization
 
 ### Known limitations
 
 - Elimination, semifinal, and main-event result selection still needs broader live-event validation
 - Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated
-- The background service and tray installer currently target Ubuntu/Linux only
 - Themes are edited as JSON files; a visual theme editor is planned
 
 ## Quick start
 
-Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md), then [First Run](docs/first-run.md), [OBS Setup](docs/obs-setup.md), and [Linux Service and Tray](docs/service-linux.md).
+Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md) and [Windows Background Operation and Tray](docs/service-windows.md).
 
 Common pages:
 
@@ -52,17 +52,17 @@ Select a theme with `?theme=default` or set `BBS_DEFAULT_THEME`. Theme packages 
 ## Project layout
 
 - `database/` — RaceManager SQL queries and read-only database client
-- `connector/` — FastAPI application, services, tray application, and APIs
+- `connector/` — FastAPI application, services, platform tray applications, and APIs
 - `overlay/` — overlay guidance and future reusable front-end assets
 - `controller/` — broadcast controller guidance
 - `themes/` — track-specific theme packages
-- `packaging/` and `scripts/` — Linux service, tray, and installation tooling
+- `packaging/` and `scripts/` — Linux and Windows background, tray, and installation tooling
 - `docs/` — setup, operation, troubleshooting, and architecture documentation
 - `tests/` — unit and resilience tests that do not require RaceManager
 
 ## Roadmap
 
-The roadmap is organized by release goals rather than the original foundation phases. Near-term priorities are a visual theme editor, automatic graphic sequencing, stronger results validation, and packaging polish. Later goals include timing/ProStart data, rider media, rankings, multi-track deployment, and Windows service/tray support. See [ROADMAP.md](ROADMAP.md).
+The roadmap is organized by release goals rather than the original foundation phases. Near-term priorities are a visual theme editor, automatic graphic sequencing, stronger results validation, and signed installer packaging. Later goals include timing/ProStart data, rider media, rankings, and multi-track deployment. See [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 
