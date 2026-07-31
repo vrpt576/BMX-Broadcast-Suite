@@ -41,6 +41,10 @@ DIRECTOR_HTML = r'''<!doctype html>
     .graphic-buttons { display:grid; gap:10px; }
     .graphic-buttons button { min-height:68px; font-size:1.15rem; }
     .keys { margin-top:16px; display:grid; grid-template-columns:repeat(2,1fr); gap:6px 16px; color:#aeb8c4; font-size:.9rem; }
+    .results-controls { margin-top:20px; padding-top:16px; border-top:1px solid #2c3947; }
+    .results-grid { display:grid; grid-template-columns:1fr 120px; gap:10px; }
+    .results-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+    .results-status { margin-top:10px; color:#f3b61f; font-weight:800; min-height:1.3em; }
     kbd { display:inline-block; min-width:26px; text-align:center; background:#222d39; border:1px solid #465464; border-bottom-width:3px; border-radius:5px; padding:2px 6px; color:#fff; }
     .lineup { margin-top:18px; }
     .rider { display:grid; grid-template-columns:58px 80px 1fr; gap:8px; padding:8px 10px; border-bottom:1px solid #2c3947; }
@@ -101,13 +105,33 @@ DIRECTOR_HTML = r'''<!doctype html>
       <div class="graphic-buttons">
         <button data-graphic="lineup">L · Show Rider Lineup</button>
         <button data-graphic="current_moto">M · Show Current Moto</button>
-        <button data-graphic="results">R · Show Results (Experimental)</button>
+        <button id="show-current-results">R · Show Results for Current Moto</button>
         <button class="danger" data-graphic="hidden">H · Hide All Graphics</button>
       </div>
       <div class="keys">
         <div><kbd>Space</kbd> Next moto</div><div><kbd>Backspace</kbd> Previous moto</div>
         <div><kbd>L</kbd> Lineup</div><div><kbd>M</kbd> Current moto</div>
         <div><kbd>R</kbd> Results</div><div><kbd>H</kbd> Hide graphics</div><div><kbd>[</kbd> <kbd>]</kbd> Change round</div>
+      </div>
+      <div class="results-controls">
+        <h2>Results Roll</h2>
+        <div class="results-grid">
+          <label>Start from
+            <select id="results-start"><option value="first">First available result</option><option value="current">Currently selected moto</option></select>
+          </label>
+          <label>Seconds
+            <input id="results-interval" type="number" min="2" max="300" value="10">
+          </label>
+        </div>
+        <button id="results-start-button" style="margin-top:10px">Start Results Roll</button>
+        <div class="results-actions">
+          <button id="results-pause" class="secondary">Pause</button>
+          <button id="results-resume" class="secondary">Resume</button>
+          <button id="results-stop" class="danger">Stop</button>
+          <button id="results-previous" class="secondary">Previous Result</button>
+          <button id="results-next" class="secondary">Next Result</button>
+        </div>
+        <div id="results-status" class="results-status">Results Roll stopped.</div>
       </div>
       <div class="lineup">
         <h2>Selected Moto Preview</h2>
@@ -177,6 +201,7 @@ function render(value){
   $('#maximum').value=value.maximum_moto??'';
   renderEventSelection(value);
   document.querySelectorAll('[data-graphic]').forEach(button=>button.classList.toggle('active',button.dataset.graphic===value.active_graphic));
+  $('#show-current-results').classList.toggle('active',value.active_graphic==='results');
 }
 
 async function loadEvents(){
@@ -281,6 +306,28 @@ async function graphic(name){
   try{await request(`/api/current/graphic/${name}`,{method:'POST'})}
   catch(error){$('#message').textContent=error.message}
 }
+function renderResultsStatus(value){
+  const position=value.current_result_index===null?'—':value.current_result_index+1;
+  const progress=value.total_available_results?`Moto ${position} of ${value.total_available_results}${value.current_result_moto?` · RaceManager Moto ${value.current_result_moto}`:''}`:'No result loaded';
+  const mode=value.active?(value.paused?'Paused':'Running'):'Stopped';
+  $('#results-status').textContent=`${mode} · ${progress}`;
+  $('#results-pause').disabled=!value.active||value.paused;
+  $('#results-resume').disabled=!value.active||!value.paused;
+}
+async function resultsAction(path,body=null){
+  try{
+    const options={method:'POST'};
+    if(body){options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body)}
+    const response=await fetch(`/api/results/${path}`,options);
+    if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.detail||`Request failed: ${response.status}`)}
+    renderResultsStatus(await response.json());
+    const currentResponse=await fetch('/api/current',{cache:'no-store'});
+    if(currentResponse.ok)render(await currentResponse.json());
+  }catch(error){$('#message').textContent=error.message}
+}
+async function loadResultsStatus(){
+  try{const response=await fetch('/api/results/status',{cache:'no-store'});if(response.ok)renderResultsStatus(await response.json())}catch(_){}
+}
 async function apply(){
   if(state&&Number($('#jump').value)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
   const body={
@@ -326,6 +373,13 @@ $('#race-phase').addEventListener('change',async()=>{
   catch(error){$('#message').textContent=error.message}
 });
 $('#refresh-events').addEventListener('click',loadEvents);
+$('#show-current-results').addEventListener('click',()=>resultsAction('show-current'));
+$('#results-start-button').addEventListener('click',()=>resultsAction('start',{start_from:$('#results-start').value,interval_seconds:Number($('#results-interval').value)}));
+$('#results-pause').addEventListener('click',()=>resultsAction('pause'));
+$('#results-resume').addEventListener('click',()=>resultsAction('resume'));
+$('#results-previous').addEventListener('click',()=>resultsAction('previous'));
+$('#results-next').addEventListener('click',()=>resultsAction('next'));
+$('#results-stop').addEventListener('click',()=>resultsAction('stop'));
 document.querySelectorAll('[data-graphic]').forEach(button=>button.addEventListener('click',()=>graphic(button.dataset.graphic)));
 window.addEventListener('keydown',event=>{
   if(['INPUT','SELECT','TEXTAREA'].includes(event.target.tagName))return;
@@ -333,14 +387,16 @@ window.addEventListener('keydown',event=>{
   else if(event.key==='Backspace'||event.key==='ArrowLeft'){event.preventDefault();step('previous')}
   else if(event.key.toLowerCase()==='l')graphic('lineup');
   else if(event.key.toLowerCase()==='m')graphic('current_moto');
-  else if(event.key.toLowerCase()==='r')graphic('results');
+  else if(event.key.toLowerCase()==='r')resultsAction('show-current');
   else if(event.key.toLowerCase()==='h')graphic('hidden');
   else if(event.key===']')round('next');
   else if(event.key==='[')round('previous');
 });
 request('/api/current').catch(error=>$('#message').textContent=error.message);
 loadEvents();
+loadResultsStatus();
 setInterval(()=>fetch('/api/current',{cache:'no-store'}).then(response=>response.json()).then(render).catch(()=>{}),1000);
 setInterval(loadProgram,5000);
+setInterval(loadResultsStatus,1000);
 </script>
 </body></html>'''

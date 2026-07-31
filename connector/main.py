@@ -14,6 +14,7 @@ from connector.routes import broadcast_ws, configuration, current, diagnostics, 
 
 settings = get_settings()
 from connector.services.logging_service import configure_logging
+from connector.dependencies import get_results_roll_service
 configure_logging(settings.log_level, settings.log_dir, settings.log_retention_days)
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,13 @@ async def request_logging(request: Request, call_next):
 
 @app.on_event("startup")
 def log_startup() -> None:
+    get_results_roll_service().start_worker()
     logger.info("BBS %s starting for %s on %s:%s", settings.app_version, settings.track_name, settings.app_host, settings.app_port)
+
+
+@app.on_event("shutdown")
+def stop_background_services() -> None:
+    get_results_roll_service().shutdown()
 
 @app.exception_handler(RaceManagerDatabaseError)
 def database_error_handler(

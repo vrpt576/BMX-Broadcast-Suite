@@ -19,6 +19,7 @@ FIELDS = {
     'sql_connect_timeout':'BBS_SQL_CONNECT_TIMEOUT','sql_query_timeout':'BBS_SQL_QUERY_TIMEOUT',
     'cors_origins':'BBS_CORS_ORIGINS','current_moto_state_file':'BBS_CURRENT_MOTO_STATE_FILE',
     'current_moto_default':'BBS_CURRENT_MOTO_DEFAULT','lineup_cache_file':'BBS_LINEUP_CACHE_FILE',
+    'results_cache_file':'BBS_RESULTS_CACHE_FILE','results_roll_state_file':'BBS_RESULTS_ROLL_STATE_FILE',
 }
 
 class ConfigurationService:

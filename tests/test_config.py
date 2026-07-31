@@ -30,6 +30,8 @@ def test_program_files_install_uses_programdata_for_all_mutable_paths(
                 "BBS_LOG_DIR=connector/logs",
                 "BBS_CURRENT_MOTO_STATE_FILE=data/current_moto.json",
                 "BBS_LINEUP_CACHE_FILE=data/last_valid_lineup.json",
+                "BBS_RESULTS_CACHE_FILE=data/last_valid_results.json",
+                "BBS_RESULTS_ROLL_STATE_FILE=data/results_roll.json",
                 "BBS_THEME_DIR=themes",
             )
         ),
@@ -49,11 +51,15 @@ def test_program_files_install_uses_programdata_for_all_mutable_paths(
         assert settings.log_dir == user_data / "connector" / "logs"
         assert settings.current_moto_state_file == user_data / "data" / "current_moto.json"
         assert settings.lineup_cache_file == user_data / "data" / "last_valid_lineup.json"
+        assert settings.results_cache_file == user_data / "data" / "last_valid_results.json"
+        assert settings.results_roll_state_file == user_data / "data" / "results_roll.json"
         assert settings.theme_dir == user_data / "themes"
         for path in (
             settings.log_dir,
             settings.current_moto_state_file,
             settings.lineup_cache_file,
+            settings.results_cache_file,
+            settings.results_roll_state_file,
             settings.theme_dir,
         ):
             assert not str(path).startswith(str(application_root))

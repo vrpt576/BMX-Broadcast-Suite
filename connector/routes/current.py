@@ -3,7 +3,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 
-from connector.dependencies import get_current_moto_service, get_race_program_service
+from connector.dependencies import (
+    get_current_moto_service,
+    get_race_program_service,
+    get_results_roll_service,
+)
 from connector.models import (
     ActiveGraphic,
     CurrentMoto,
@@ -16,6 +20,7 @@ from connector.services.current_moto_service import (
     CurrentMotoValidationError,
 )
 from connector.services.race_program_service import RaceProgramService
+from connector.services.results_roll_service import ResultsRollService
 
 router = APIRouter(tags=["broadcast control"])
 
@@ -105,7 +110,10 @@ def select_phase(
 def select_graphic(
     graphic: ActiveGraphic,
     service: CurrentMotoService = Depends(get_current_moto_service),
+    results_roll: ResultsRollService = Depends(get_results_roll_service),
 ) -> CurrentMoto:
+    if graphic != ActiveGraphic.RESULTS:
+        results_roll.pause_if_active()
     return service.set_graphic(graphic)
 
 

@@ -12,11 +12,14 @@ Displays moto, class, and race phase.
 
 Displays gate, plate, and rider name. During a temporary SQL outage, a matching last-known-good lineup may be shown and marked stale.
 
-## Results — experimental
+## Official Results
 
 `/overlay/results`
 
-Round 1–3 finish fields are implemented. Elimination and main selection still requires live validation.
+Displays official RaceManager Round 1–3 and final/overall placements selected
+by the server-owned Results Roll. The graphic supports eight riders, includes
+event/class/phase context and progress, and marks incomplete or cached data.
+See [Results Roll](results-roll.md) for operation and data-handling rules.
 
 ## Query parameters
 

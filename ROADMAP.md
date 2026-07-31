@@ -19,6 +19,7 @@ This roadmap reflects the project status as of v1.2.9. Priorities may move as mo
 - Phase-aware moto movement within qualifier and final branches
 - WebSocket updates with polling fallback
 - Last-known-good lineup resilience
+- Official Round 1–3 and Main/Overall results graphic with a server-owned, pausable Results Roll
 - Configuration, diagnostics, logging, backup, and troubleshooting workflows
 
 ### Deployment and branding
@@ -43,7 +44,6 @@ This roadmap reflects the project status as of v1.2.9. Priorities may move as mo
 
 ### Race-day automation
 - Optional automatic lineup display when a stage becomes current
-- Optional results display after finishes are entered
 - Configurable graphic timing, transitions, and producer overrides
 - Improved keyboard shortcuts and broadcast status feedback
 

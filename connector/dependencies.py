@@ -9,6 +9,7 @@ from connector.services.current_results_service import CurrentResultsService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
+from connector.services.results_roll_service import ResultsRollService
 
 
 @lru_cache
@@ -56,10 +57,24 @@ def get_current_lineup_service() -> CurrentLineupService:
     )
 
 
+@lru_cache
 def get_current_results_service() -> CurrentResultsService:
+    settings = get_settings()
     return CurrentResultsService(
         get_current_moto_service(),
         get_event_service(),
         get_motoboard_service(),
         get_current_lineup_service(),
+        settings.results_cache_file,
+    )
+
+
+@lru_cache
+def get_results_roll_service() -> ResultsRollService:
+    settings = get_settings()
+    return ResultsRollService(
+        get_current_moto_service(),
+        get_event_service(),
+        get_current_results_service(),
+        settings.results_roll_state_file,
     )

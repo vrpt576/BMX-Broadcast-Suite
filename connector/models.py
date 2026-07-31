@@ -210,6 +210,7 @@ class ResultRider(ApiModel):
 
 
 class CurrentResults(ApiModel):
+    event_name: str | None = None
     moto_number: int
     race_phase: RacePhase
     phase_label: str | None = None
@@ -226,4 +227,24 @@ class CurrentResults(ApiModel):
     updated_at: datetime | None = None
     is_stale: bool = False
     warning: str | None = None
-    experimental: bool = False
+    result_status: str = "official"
+    progress_index: int | None = None
+    progress_total: int | None = None
+
+
+class ResultsRollStart(ApiModel):
+    start_from: str = Field(default="first", pattern="^(first|current)$")
+    interval_seconds: int = Field(default=10, ge=2, le=300)
+
+
+class ResultsRollState(ApiModel):
+    active: bool = False
+    paused: bool = False
+    interval_seconds: int = Field(default=10, ge=2, le=300)
+    motoboard_id: UUID | None = None
+    event_name: str | None = None
+    current_result_index: int | None = None
+    current_result_moto: int | None = None
+    total_available_results: int = 0
+    started_at: datetime | None = None
+    next_change_at: datetime | None = None

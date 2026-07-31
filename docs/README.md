@@ -7,6 +7,7 @@
 - [Track Configuration](configuration.md)
 - [OBS Setup](obs-setup.md)
 - [Browser Sources](browser-sources.md)
+- [Results Roll](results-roll.md)
 - [Theme Customization](themes.md)
 - [Troubleshooting](troubleshooting.md)
 - [FAQ](faq.md)

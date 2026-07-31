@@ -54,6 +54,21 @@ def _is_transfer(value: Any) -> bool:
     return isinstance(value, str) and value.strip().upper() == "X"
 
 
+def is_main_classification(qualifiers: list[Moto], final: Moto) -> bool:
+    """Distinguish a transferred-rider Main from a total-points Overall."""
+    qualifier_riders = {rider.rider_id for moto in qualifiers for rider in moto.riders}
+    final_riders = {rider.rider_id for rider in final.riders}
+    has_transfer_markers = any(
+        _is_transfer(value)
+        for moto in qualifiers
+        for rider in moto.riders
+        for value in (rider.finish_1, rider.finish_2, rider.finish_3)
+    )
+    return has_transfer_markers or (
+        bool(qualifier_riders) and final_riders != qualifier_riders
+    )
+
+
 def _latest(values: Iterable[datetime | None]) -> datetime | None:
     present = [value for value in values if value is not None]
     return max(present) if present else None
@@ -239,19 +254,7 @@ class MotoboardService:
 
         if finals:
             final = finals[0]
-            qualifier_riders = {
-                rider.rider_id for moto in qualifiers for rider in moto.riders
-            }
-            final_riders = {rider.rider_id for rider in final.riders}
-            has_transfer_markers = any(
-                _is_transfer(value)
-                for moto in qualifiers
-                for rider in moto.riders
-                for value in (rider.finish_1, rider.finish_2, rider.finish_3)
-            )
-            is_main = has_transfer_markers or (
-                bool(qualifier_riders) and final_riders != qualifier_riders
-            )
+            is_main = is_main_classification(qualifiers, final)
             stages.append(
                 self._stage(
                     final,

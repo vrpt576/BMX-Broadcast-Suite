@@ -11,4 +11,7 @@
 9. Switch from demo data to live data and compare the displayed moto and riders with RaceManager.
 10. Keep `/diagnostics` and `/logs` open during the first event.
 
-Do not trust experimental results fields for elimination rounds or mains until verified against live RaceManager data.
+Before putting results on air, compare at least one classification with the
+official RaceManager report. Use the Director Results Roll controls to show the
+current result or play available Round 1–3 and final classifications in program order.
+See [Results Roll](results-roll.md).

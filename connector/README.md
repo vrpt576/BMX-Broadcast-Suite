@@ -131,6 +131,7 @@ Hotkeys:
 - `[` / `]`: previous or next race round
 - `L`: put the rider lineup on air
 - `M`: put the current-moto bug on air
+- `R`: show official results for the selected moto
 - `H`: hide all BBS graphics
 
 The selected on-air graphic is persisted in `data/current_moto.json`. Both OBS
@@ -143,6 +144,7 @@ While positioning an overlay in OBS, append `?preview=true` to force it visible:
 ```text
 /overlay/current?preview=true&theme=default
 /overlay/lineup?preview=true&theme=default
+/overlay/results?preview=true&theme=default
 ```
 
 ## Diagnostics
@@ -158,8 +160,10 @@ Open `/diagnostics` to check Python, pyodbc, the configured SQL Server ODBC driv
 ### Resilient broadcast endpoints
 
 - `GET /api/lineup/current` — live lineup or matching last-known-good cache
-- `GET /api/results/current` — experimental result ordering
+- `GET /api/results/current` — current official Results Roll item
+- `GET /api/results/status` — server-owned Results Roll state
+- `POST /api/results/start|pause|resume|previous|next|stop` — Results Roll controls
 - `WS /ws/broadcast` — changed broadcast snapshots
-- `/overlay/results` — experimental OBS result graphic
+- `/overlay/results` — official Round 1–3 and Main/Overall results graphic
 
 Cached responses include `is_stale: true`, `source: "cache"`, and a warning for the operator. The OBS lineup remains visible instead of going blank.

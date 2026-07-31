@@ -8,6 +8,8 @@ Stop BBS and copy:
 - custom folders under `themes/`
 - `data/current_moto.json`
 - `data/last_known_lineup.json`
+- `data/last_known_results.json`
+- `data/results_roll.json`
 - logs when needed for incident review
 
 Do not publish the backup because `.env` contains the SQL password.

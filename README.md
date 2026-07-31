@@ -67,6 +67,8 @@ Add `?preview=true` when building or testing an OBS scene. Remove it for live co
 - `GET /api/motos/group/{motogroup_id}` — retrieve one exact motogroup
 - `GET /api/lineup/current` — exact-stage gates and riders
 - `GET /api/results/current` — numeric placements plus separate transfer status
+- `GET /api/results/status` — persistent server-owned Results Roll state
+- `POST /api/results/start|pause|resume|previous|next|stop` — timed and manual results playback
 
 ## Themes
 
