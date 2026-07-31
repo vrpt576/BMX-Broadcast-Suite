@@ -1,14 +1,14 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.9-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.10-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, historical event selection, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.9
+## Current status — v1.2.10
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, and entered-result graphics in OBS. Version 1.2.9 builds on the v1.2.8 round-aware model with reliable historic-event loading, Main/Overall progression, and production-ready Windows installation, startup, and removal.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official Main-results, and break graphics in OBS. Version 1.2.10 adds reliable historic-finals navigation, a server-owned Results Roll, Round 1/Main break graphics, and improved Windows tray-icon sizing while retaining the production-ready Windows installation, startup, and removal flow.
 
 Validated RaceManager behavior in this release:
 
@@ -24,11 +24,12 @@ Validated RaceManager behavior in this release:
 - Read-only Microsoft SQL Server integration with the RaceManager `RACE` database
 - Automatic compatibility with RaceManager schemas with or without `MB.Race_Riders.Nickname`
 - Live and historical event selection with persistent `motoboard_id`
-- Round-aware class programs with dynamic Round 1/2/3, Main, or Overall controls
+- Round-aware class programs with dynamic qualifier and final-stage controls
 - Stable motogroup identities even when qualifier and final branches reuse moto numbers
 - Current event, moto, class, exact stage, rider lineup, gate, plate, transfer, and entered-result APIs
 - Phase-aware Next/Previous Moto movement within the branch currently on air
-- OBS browser sources for current moto, lineup, and results
+- OBS browser sources for current moto, lineup, Main results, and broadcast breaks
+- Server-owned Results Roll with pause/resume, manual navigation, and stop-at-last behavior
 - WebSocket updates with HTTP polling fallback
 - Last-known-good lineup resilience with stale-data indication
 - Track configuration UI, diagnostics dashboard, logs, and downloadable log files

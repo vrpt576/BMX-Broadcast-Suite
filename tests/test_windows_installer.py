@@ -2,6 +2,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASE_VERSION = "1.2.10"
+INSTALLER_NAME = f"BMX-Broadcast-Suite-Setup-v{RELEASE_VERSION}.exe"
 WIZARD_SCRIPTS = (
     "install-windows.ps1",
     "install-service-windows.ps1",
@@ -45,7 +47,28 @@ def test_wizard_uses_existing_supported_installers():
     assert "register-uninstall-windows.ps1" in text
     assert "start-windows-background.ps1" in text
     assert "Start-ScheduledTask" not in text
-    assert "BMX Broadcast Suite 1.2.9" in text
+    assert f"BMX Broadcast Suite {RELEASE_VERSION}" in text
+
+
+def test_windows_release_version_is_consistent():
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(
+        encoding="utf-8"
+    )
+    wizard = (ROOT / "scripts" / "install-wizard-windows.ps1").read_text(
+        encoding="utf-8"
+    )
+    registration = (ROOT / "scripts" / "register-uninstall-windows.ps1").read_text(
+        encoding="utf-8"
+    )
+    documentation = (ROOT / "docs" / "wizard-installer-windows.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert INSTALLER_NAME in builder
+    assert f"FriendlyName=BMX Broadcast Suite {RELEASE_VERSION} Setup" in builder
+    assert f'Version "{RELEASE_VERSION}"' in wizard
+    assert f'[string]$Version = "{RELEASE_VERSION}"' in registration
+    assert INSTALLER_NAME in documentation
 
 
 def test_wizard_documentation_is_linked():

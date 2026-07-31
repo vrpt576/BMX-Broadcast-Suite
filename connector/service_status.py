@@ -84,7 +84,7 @@ def service_state(service_name: str | None = None) -> str:
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
     request = Request(
         url,
-        headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.9"},
+        headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.10"},
     )
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)

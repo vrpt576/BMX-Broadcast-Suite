@@ -1,6 +1,6 @@
 param(
     [string]$InstallDir = (Resolve-Path "$PSScriptRoot\..").Path,
-    [string]$Version = "1.2.9",
+    [string]$Version = "1.2.10",
     [string]$RegistryKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BMXBroadcastSuite"
 )
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.2.10 - 2026-07-31
+
+- Fixed historic-event Director navigation so Main stepping renders the server
+  response immediately, resists stale polling updates, skips incompatible
+  classifications, and keeps the selected event pinned.
+- Enlarged the visible Windows notification-area artwork with a tightly cropped
+  source asset and validated multi-resolution icon generation.
+- Completed the official Main-results graphic and server-owned Results Roll,
+  including historic-event pinning, a configurable ten-second interval,
+  pause/resume, manual previous/next, and stop-at-last behavior.
+- Limited automatic results playback to completed RaceManager final Main-branch
+  classifications while excluding qualifier, quarterfinal, and semifinal
+  entries.
+- Added theme-aware Round 1 Break and Main Break graphics that preserve race
+  position and pause an active Results Roll before taking air.
+
 ## 1.2.9 - 2026-07-31
 
 - Improved historic-event loading in the Race Director by allowing slower

@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $staging = Join-Path ([IO.Path]::GetTempPath()) ("bbs-installer-" + [guid]::NewGuid().ToString("N"))
 $payloadRoot = Join-Path $staging "payload"
-$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.9.exe"
+$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.10.exe"
 $temporaryInstaller = Join-Path $staging "BBS-Setup.exe"
 $requiredPayloadScripts = @(
     "scripts/install-windows.ps1"
@@ -71,7 +71,7 @@ if ($AllowUncommitted) {
 
 New-Item -ItemType Directory -Force -Path $payloadRoot, $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path
-$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.9.exe"
+$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.10.exe"
 try {
     $payloadPrefix = $payloadRoot.TrimEnd("\") + "\"
     & git -C $root checkout-index --all --force --prefix=$payloadPrefix
@@ -124,7 +124,7 @@ InstallPrompt=
 DisplayLicense=
 FinishMessage=
 TargetName=$temporaryInstaller
-FriendlyName=BMX Broadcast Suite 1.2.9 Setup
+FriendlyName=BMX Broadcast Suite 1.2.10 Setup
 AppLaunched=wscript.exe setup.vbs
 PostInstallCmd=<None>
 AdminQuietInstCmd=wscript.exe setup.vbs

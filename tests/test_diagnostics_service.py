@@ -15,7 +15,7 @@ def test_diagnostics_reports_configuration_and_application(monkeypatch):
     monkeypatch.setattr(service, "_driver_check", lambda: service._python_check())
     monkeypatch.setattr(service, "_network_check", lambda: service._python_check())
     result = service.run()
-    assert result["application"]["version"] == "1.2.9"
+    assert result["application"]["version"] == "1.2.10"
     assert result["configuration"]["password_configured"] is True
     assert any(check["key"] == "database" for check in result["checks"])
 
