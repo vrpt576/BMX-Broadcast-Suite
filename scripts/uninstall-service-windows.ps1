@@ -16,7 +16,7 @@ Get-CimInstance Win32_Process |
             $RootPrefix,
             [StringComparison]::OrdinalIgnoreCase
         ) -and
-        $_.CommandLine -match "connector\.tray_windows"
+        $_.CommandLine -match "connector\.(run|tray_windows)"
     } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 

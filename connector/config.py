@@ -1,14 +1,78 @@
 """Track-agnostic environment configuration for the BBS Connector."""
 
 from functools import lru_cache
+import os
 from pathlib import Path
+import sys
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+APPLICATION_ROOT = Path(__file__).resolve().parents[1]
+WINDOWS_DATA_DIRECTORY = Path("BMX Broadcast Suite") / "UserData"
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def is_windows_program_files_install() -> bool:
+    """Return whether this code is running from a Windows Program Files tree."""
+    if sys.platform != "win32":
+        return False
+    roots = {
+        value
+        for value in (
+            os.environ.get("ProgramFiles"),
+            os.environ.get("ProgramFiles(x86)"),
+        )
+        if value
+    }
+    return any(_is_relative_to(APPLICATION_ROOT, Path(root)) for root in roots)
+
+
+def windows_user_data_root() -> Path:
+    """Return the machine-wide writable BBS data directory."""
+    override = os.environ.get("BBS_RUNTIME_ROOT")
+    if override:
+        return Path(override).expanduser()
+    program_data = os.environ.get("ProgramData")
+    if not program_data:
+        raise RuntimeError("ProgramData is unavailable for this Windows installation.")
+    return Path(program_data) / WINDOWS_DATA_DIRECTORY
+
+
+def configuration_file() -> Path:
+    """Select the local development or installed-machine configuration file."""
+    override = os.environ.get("BBS_ENV_FILE")
+    if override:
+        return Path(override).expanduser()
+    if is_windows_program_files_install():
+        return windows_user_data_root() / ".env"
+    return Path(".env")
+
+
+def runtime_root() -> Path:
+    """Return the base directory for mutable logs, state, caches, and themes."""
+    override = os.environ.get("BBS_RUNTIME_ROOT")
+    if override:
+        return Path(override).expanduser()
+    if is_windows_program_files_install():
+        return windows_user_data_root()
+    return Path.cwd()
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="BBS_", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="BBS_",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     app_name: str = "BMX Broadcast Suite Connector"
     app_version: str = "1.2.8"
@@ -38,6 +102,7 @@ class Settings(BaseSettings):
     current_moto_state_file: Path = Path("data/current_moto.json")
     current_moto_default: int = 1
     lineup_cache_file: Path = Path("data/last_known_lineup.json")
+    theme_dir: Path = Path("themes")
 
     @property
     def sql_server(self) -> str:
@@ -65,7 +130,18 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings(_env_file=configuration_file())
+    root = runtime_root()
+    for field in (
+        "log_dir",
+        "current_moto_state_file",
+        "lineup_cache_file",
+        "theme_dir",
+    ):
+        value = Path(getattr(settings, field))
+        if not value.is_absolute():
+            setattr(settings, field, root / value)
+    return settings
 
 
 def reload_settings() -> Settings:

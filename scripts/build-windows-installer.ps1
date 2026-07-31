@@ -1,5 +1,6 @@
 param(
-    [string]$OutputDirectory = (Join-Path (Resolve-Path "$PSScriptRoot\..").Path "dist")
+    [string]$OutputDirectory = (Join-Path (Resolve-Path "$PSScriptRoot\..").Path "dist"),
+    [switch]$AllowUncommitted
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,6 +9,17 @@ $staging = Join-Path ([IO.Path]::GetTempPath()) ("bbs-installer-" + [guid]::NewG
 $payloadRoot = Join-Path $staging "payload"
 $installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.8.exe"
 $temporaryInstaller = Join-Path $staging "BBS-Setup.exe"
+$requiredPayloadScripts = @(
+    "scripts/install-windows.ps1"
+    "scripts/install-service-windows.ps1"
+    "scripts/start-windows-background.ps1"
+    "scripts/start-tray-windows.ps1"
+    "scripts/restore-user-data-windows.ps1"
+    "scripts/register-uninstall-windows.ps1"
+    "scripts/uninstall-service-windows.ps1"
+    "scripts/uninstall-windows.ps1"
+    "scripts/uninstall-worker-windows.ps1"
+)
 
 $odbcMsi = Join-Path $root "packaging\windows\dependencies\msodbcsql18-x64.msi"
 $expectedOdbcHash = "20314529110DA3365A252164A657BDC837A18BE5839105AA5F5ACF0A8D2F4B82"
@@ -30,13 +42,49 @@ if ($odbcSignature.SignerCertificate.Subject -notmatch "Microsoft") {
     throw "ODBC installer signature is valid, but the signer is not recognized as Microsoft."
 }
 
+$gitDirectory = Join-Path $root ".git"
+if (-not (Test-Path -LiteralPath $gitDirectory)) {
+    throw "Build the Windows installer from a Git checkout so payload tracking can be verified."
+}
+
+foreach ($relative in $requiredPayloadScripts) {
+    $source = Join-Path $root ($relative -replace "/", "\")
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+        throw "Required installer payload script is missing: $relative"
+    }
+    & git -C $root ls-files --error-unmatch -- $relative 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Required installer payload script is not tracked or staged: $relative"
+    }
+}
+
+$workingChanges = @(& git -C $root status --porcelain --untracked-files=all)
+if (-not $AllowUncommitted -and $workingChanges.Count -gt 0) {
+    throw "Refusing to build a release installer from a dirty worktree. Commit the verified changes first."
+}
+if ($AllowUncommitted) {
+    $unstagedChanges = @(& git -C $root diff --name-only)
+    if ($unstagedChanges.Count -gt 0) {
+        throw "Stage all validation changes before using -AllowUncommitted so the indexed payload is deterministic."
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $payloadRoot, $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path
 $installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.8.exe"
 try {
-    Get-ChildItem -LiteralPath $root -Force |
-        Where-Object { $_.Name -notin @(".git", ".venv", ".test-venv", ".pytest_cache", "data", "dist", "debug-installer") } |
-        Copy-Item -Destination $payloadRoot -Recurse -Force
+    $payloadPrefix = $payloadRoot.TrimEnd("\") + "\"
+    & git -C $root checkout-index --all --force --prefix=$payloadPrefix
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git could not materialize the indexed installer payload."
+    }
+
+    foreach ($relative in $requiredPayloadScripts) {
+        $payloadFile = Join-Path $payloadRoot ($relative -replace "/", "\")
+        if (-not (Test-Path -LiteralPath $payloadFile -PathType Leaf)) {
+            throw "Indexed installer payload is incomplete: $relative"
+        }
+    }
 
     Get-ChildItem -Path $payloadRoot -Directory -Filter "__pycache__" -Recurse |
         Remove-Item -Recurse -Force
@@ -44,18 +92,20 @@ try {
         Remove-Item -Force
 
     Compress-Archive -Path (Join-Path $payloadRoot "*") -DestinationPath (Join-Path $staging "bbs-payload.zip") -CompressionLevel Optimal
-    Copy-Item (Join-Path $root "scripts\install-wizard-windows.ps1") $staging
-    Copy-Item (Join-Path $root "logo.png") $staging
+    Copy-Item (Join-Path $payloadRoot "scripts\install-wizard-windows.ps1") $staging
+    Copy-Item (Join-Path $payloadRoot "logo.png") $staging
     Copy-Item -LiteralPath $odbcMsi -Destination (Join-Path $staging "msodbcsql18-x64.msi")
 
 @'
-@echo off
-setlocal
-set "SOURCE_ROOT=%~dp0"
-set "SOURCE_ROOT=%SOURCE_ROOT:~0,-1%"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install-wizard-windows.ps1" -SourceRoot "%SOURCE_ROOT%"
-exit /b %ERRORLEVEL%
-'@ | Set-Content -LiteralPath (Join-Path $staging "setup.cmd") -Encoding Ascii
+Option Explicit
+Dim shell, fso, root, command, exitCode
+Set shell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+root = fso.GetParentFolderName(WScript.ScriptFullName)
+command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & root & "\install-wizard-windows.ps1"" -SourceRoot """ & root & """"
+exitCode = shell.Run(command, 0, True)
+WScript.Quit exitCode
+'@ | Set-Content -LiteralPath (Join-Path $staging "setup.vbs") -Encoding Ascii
 
     $sed = @"
 [Version]
@@ -75,10 +125,10 @@ DisplayLicense=
 FinishMessage=
 TargetName=$temporaryInstaller
 FriendlyName=BMX Broadcast Suite 1.2.8 Setup
-AppLaunched=setup.cmd
+AppLaunched=wscript.exe setup.vbs
 PostInstallCmd=<None>
-AdminQuietInstCmd=setup.cmd
-UserQuietInstCmd=setup.cmd
+AdminQuietInstCmd=wscript.exe setup.vbs
+UserQuietInstCmd=wscript.exe setup.vbs
 SourceFiles=SourceFiles
 [SourceFiles]
 SourceFiles0=$staging\
@@ -89,7 +139,7 @@ SourceFiles0=$staging\
 %FILE3%=
 %FILE4%=
 [Strings]
-FILE0=setup.cmd
+FILE0=setup.vbs
 FILE1=install-wizard-windows.ps1
 FILE2=bbs-payload.zip
 FILE3=logo.png

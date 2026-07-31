@@ -44,7 +44,19 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\scripts\build-windows-installer.ps1
 ```
 
-The generated EXE is written to `dist`. The builder uses Windows IExpress, which is included with supported Windows editions, and embeds a clean source payload plus the setup wizard.
+The generated EXE is written to `dist`. The builder uses Windows IExpress,
+which is included with supported Windows editions. It materializes the payload
+from tracked Git content and fails if the worktree is dirty or a
+wizard-referenced installer script is missing. This prevents an untracked local
+helper from producing an installer that cannot start BBS.
+
+For a pre-commit validation build, stage the exact intended changes and use:
+
+```powershell
+.\scripts\build-windows-installer.ps1 -AllowUncommitted
+```
+
+That mode still refuses unstaged changes and builds from the staged index.
 
 ## Uninstall
 

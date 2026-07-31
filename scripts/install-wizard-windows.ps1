@@ -3,6 +3,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$DataRoot = Join-Path $env:ProgramData "BMX Broadcast Suite\UserData"
+$StartupError = Join-Path $DataRoot "startup-error.log"
+$UninstallRegistryKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\BMXBroadcastSuite"
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -257,10 +260,33 @@ $cancel.Add_Click({
 $form.CancelButton = $cancel
 $form.Controls.Add($cancel)
 
+function Get-StartupFailureDetail {
+    if (Test-Path -LiteralPath $StartupError) {
+        return (Get-Content -LiteralPath $StartupError -Raw).Trim()
+    }
+    return "No startup traceback was written."
+}
+
+function Remove-PartialIntegration([string]$Target) {
+    if ([string]::IsNullOrWhiteSpace($Target)) {
+        return
+    }
+    $serviceCleanup = Join-Path $Target "scripts\uninstall-service-windows.ps1"
+    if (Test-Path -LiteralPath $serviceCleanup) {
+        try {
+            & $serviceCleanup
+        } catch {
+            Write-Warning "Could not completely remove partial service integration: $($_.Exception.Message)"
+        }
+    }
+    Remove-Item -LiteralPath $UninstallRegistryKey -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $install.Add_Click({
     $install.Enabled = $false
     $cancel.Enabled = $false
     $form.UseWaitCursor = $true
+    $target = ""
 
     try {
         if (-not (Test-OdbcDriver18)) {
@@ -320,7 +346,7 @@ Microsoft SQL ODBC driver: Found
         if (Test-Path -LiteralPath $restoreScript) {
             $status.Text = "Restoring preserved operator data..."
             [System.Windows.Forms.Application]::DoEvents()
-            & $restoreScript -InstallDir $target
+            & $restoreScript -InstallDir $target -PreserveRoot $DataRoot
         }
 
         $installScript = Join-Path `
@@ -334,7 +360,7 @@ Microsoft SQL ODBC driver: Found
         $status.Text = "Installing Python dependencies..."
         [System.Windows.Forms.Application]::DoEvents()
 
-        & $installScript -InstallDir $target
+        & $installScript -InstallDir $target -DataDir $DataRoot
 
         if ($LASTEXITCODE -ne 0) {
             throw "The Python dependency installation failed with exit code $LASTEXITCODE."
@@ -369,24 +395,45 @@ Microsoft SQL ODBC driver: Found
             & $backgroundScript
         }
 
-        $registrationScript = Join-Path `
-            $target `
-            "scripts\register-uninstall-windows.ps1"
-
-        if (-not (Test-Path -LiteralPath $registrationScript)) {
-            throw "The Windows uninstall registration script is missing."
-        }
-
-        $status.Text = "Registering Windows uninstall support..."
-        [System.Windows.Forms.Application]::DoEvents()
-        & $registrationScript -InstallDir $target -Version "1.2.8"
-
         $status.Text = "Waiting for BMX Broadcast Suite to start..."
         [System.Windows.Forms.Application]::DoEvents()
 
         $ready = $false
         $deadline = [DateTime]::UtcNow.AddSeconds(30)
         while (-not $ready -and [DateTime]::UtcNow -lt $deadline) {
+            if ($service.Checked) {
+                $task = Get-ScheduledTask `
+                    -TaskName "BMX Broadcast Suite" `
+                    -ErrorAction SilentlyContinue
+                if ($null -eq $task) {
+                    throw "Machine startup was requested, but the BMX Broadcast Suite Scheduled Task does not exist."
+                }
+                if ($task.State -ne "Running") {
+                    $taskInfo = Get-ScheduledTaskInfo `
+                        -TaskName "BMX Broadcast Suite" `
+                        -ErrorAction SilentlyContinue
+                    $taskResult = if ($null -ne $taskInfo) {
+                        $taskInfo.LastTaskResult
+                    } else {
+                        "unknown"
+                    }
+                    throw "The BMX Broadcast Suite Scheduled Task exited during startup (result $taskResult).`r`n$(Get-StartupFailureDetail)"
+                }
+            } else {
+                $runningProcess = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+                    Where-Object {
+                        -not [string]::IsNullOrWhiteSpace($_.ExecutablePath) -and
+                        [IO.Path]::GetFullPath($_.ExecutablePath).StartsWith(
+                            ([IO.Path]::GetFullPath($target).TrimEnd("\") + "\"),
+                            [StringComparison]::OrdinalIgnoreCase
+                        ) -and
+                        $_.CommandLine -match "connector\.run"
+                    } |
+                    Select-Object -First 1
+                if ($null -eq $runningProcess) {
+                    throw "The BBS background process exited during startup.`r`n$(Get-StartupFailureDetail)"
+                }
+            }
             try {
                 $response = Invoke-WebRequest `
                     -Uri "http://127.0.0.1:8000/health" `
@@ -400,8 +447,20 @@ Microsoft SQL ODBC driver: Found
         }
 
         if (-not $ready) {
-            throw "BBS was installed, but its local web service did not become ready within 30 seconds. Use the tray icon to restart BBS, then open Diagnostics."
+            throw "The BBS process remained running, but its local web service did not become ready within 30 seconds.`r`n$(Get-StartupFailureDetail)"
         }
+
+        $registrationScript = Join-Path `
+            $target `
+            "scripts\register-uninstall-windows.ps1"
+
+        if (-not (Test-Path -LiteralPath $registrationScript)) {
+            throw "The Windows uninstall registration script is missing."
+        }
+
+        $status.Text = "Registering Windows uninstall support..."
+        [System.Windows.Forms.Application]::DoEvents()
+        & $registrationScript -InstallDir $target -Version "1.2.8"
 
         $status.Text = "Installation complete."
 
@@ -426,9 +485,11 @@ Microsoft SQL ODBC driver: Found
         $form.Close()
     } catch {
         $status.Text = "Installation failed."
+        $failure = $_.Exception.Message
+        Remove-PartialIntegration $target
 
         [System.Windows.Forms.MessageBox]::Show(
-            $_.Exception.Message,
+            "$failure`r`n`r`nPartial Scheduled Task, shortcut, and Apps & Features registration were removed. Application files remain in $target for diagnostics. Mutable data remains in $DataRoot.",
             "Setup error",
             "OK",
             "Error"

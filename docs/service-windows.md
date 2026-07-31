@@ -15,7 +15,9 @@ The installer:
 
 - registers `BMX Broadcast Suite` in Task Scheduler
 - starts BBS at machine boot, before a user logs in
-- runs BBS without a terminal using `.venv\Scripts\pythonw.exe`
+- runs BBS invisibly as `SYSTEM` using the installed private
+  `.venv\Scripts\python.exe`, `-m connector.run`, and the installation folder
+  as its working directory
 - retries once per minute after an unexpected failure
 - generates `data\bbs.ico` from `logo.png`
 - creates desktop and Start Menu launchers
@@ -25,7 +27,15 @@ The installer:
 The setup wizard waits for `/health` before opening Configuration, so the
 first page load does not require manually starting BBS from the tray.
 
-Project files, `.env`, themes, logs, cache, and race state remain in the repository directory.
+Installed code under Program Files is read-only during normal operation.
+Mutable operator and runtime data lives at:
+
+```text
+%ProgramData%\BMX Broadcast Suite\UserData
+```
+
+This includes `.env`, `connector\logs`, `data` state and caches, and custom
+`themes`. Bundled themes remain available from the installation folder.
 
 ## Tray status and controls
 
@@ -61,7 +71,7 @@ Start only the tray:
 
 ## Upgrade
 
-Stop the task, back up `.env` and custom themes, update the repository, reinstall dependencies, and rerun the service installer:
+Stop the task, update the application, reinstall dependencies, and rerun the service installer. Operator data under ProgramData is preserved:
 
 ```powershell
 Stop-ScheduledTask -TaskName "BMX Broadcast Suite"
@@ -80,7 +90,8 @@ Run PowerShell as Administrator:
 .\scripts\uninstall-service-windows.ps1
 ```
 
-This removes the Scheduled Task and shortcuts. It preserves the repository, `.env`, themes, logs, cache, and race state.
+This removes the Scheduled Task and shortcuts. It preserves the repository and
+all operator data under `%ProgramData%\BMX Broadcast Suite\UserData`.
 
 ## Uninstall the application
 

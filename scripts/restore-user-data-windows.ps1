@@ -8,9 +8,7 @@ $ErrorActionPreference = "Stop"
 $Root = [IO.Path]::GetFullPath($InstallDir).TrimEnd("\")
 $Preserved = [IO.Path]::GetFullPath($PreserveRoot).TrimEnd("\")
 
-if (-not (Test-Path -LiteralPath $Preserved -PathType Container)) {
-    return
-}
+New-Item -ItemType Directory -Path $Preserved -Force | Out-Null
 
 $items = @(
     ".env"
@@ -20,22 +18,30 @@ $items = @(
     "data"
 )
 
-foreach ($relative in $items) {
-    $source = Join-Path $Preserved $relative
-    if (-not (Test-Path -LiteralPath $source)) {
-        continue
-    }
-
-    $destination = Join-Path $Root $relative
-    $parent = Split-Path -Parent $destination
-    New-Item -ItemType Directory -Path $parent -Force | Out-Null
-
-    if (Test-Path -LiteralPath $source -PathType Container) {
-        New-Item -ItemType Directory -Path $destination -Force | Out-Null
-        Copy-Item -Path (Join-Path $source "*") -Destination $destination -Recurse -Force
-    } else {
-        Copy-Item -LiteralPath $source -Destination $destination -Force
+$legacyConfiguration = (
+    (Test-Path -LiteralPath (Join-Path $Root ".env") -PathType Leaf) -or
+    (Test-Path -LiteralPath (Join-Path $Root "config.json") -PathType Leaf)
+)
+if ($legacyConfiguration) {
+    foreach ($relative in $items) {
+        $source = Join-Path $Root $relative
+        $destination = Join-Path $Preserved $relative
+        if (
+            -not (Test-Path -LiteralPath $source) -or
+            (Test-Path -LiteralPath $destination)
+        ) {
+            continue
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force |
+            Out-Null
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
     }
 }
 
-Write-Host "Restored preserved BBS operator data from $Preserved." -ForegroundColor Green
+New-Item -ItemType Directory -Force -Path `
+    (Join-Path $Preserved "connector\logs"), `
+    (Join-Path $Preserved "data"), `
+    (Join-Path $Preserved "themes") |
+    Out-Null
+
+Write-Host "Prepared preserved BBS operator data in $Preserved." -ForegroundColor Green

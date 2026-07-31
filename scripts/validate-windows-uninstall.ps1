@@ -74,8 +74,10 @@ try {
         -InstallDir $InstallDir `
         -PreserveRoot $PreserveRoot
 
-    Assert-True (Test-Path -LiteralPath (Join-Path $InstallDir ".env")) "reinstall did not restore .env"
-    Assert-True (Test-Path -LiteralPath (Join-Path $InstallDir "themes\custom-track\theme.json")) "reinstall did not restore themes"
+    Assert-True (Test-Path -LiteralPath (Join-Path $PreserveRoot ".env")) "reinstall did not retain .env"
+    Assert-True (Test-Path -LiteralPath (Join-Path $PreserveRoot "themes\custom-track\theme.json")) "reinstall did not retain themes"
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $InstallDir ".env"))) "reinstall copied mutable configuration into Program Files"
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $InstallDir "themes\custom-track\theme.json"))) "reinstall copied custom themes into Program Files"
 
     if ($SkipRegistry) {
         Write-Warning "Registry validation was skipped by request."

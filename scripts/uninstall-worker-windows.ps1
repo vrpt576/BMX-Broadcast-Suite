@@ -108,20 +108,23 @@ if ($PurgeUserData) {
     } catch {
         Write-Warning "Could not restrict preserved-data permissions: $($_.Exception.Message)"
     }
-    foreach ($relative in @(".env", "config.json", "connector\logs", "themes", "data")) {
-        $source = Join-Path $Root $relative
-        if (-not (Test-Path -LiteralPath $source)) {
-            continue
-        }
-        $destination = Join-Path $Preserved $relative
-        New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
-        if (Test-Path -LiteralPath $source -PathType Container) {
-            if (Test-Path -LiteralPath $destination) {
-                Remove-Item -LiteralPath $destination -Recurse -Force
+    $legacyConfiguration = (
+        (Test-Path -LiteralPath (Join-Path $Root ".env") -PathType Leaf) -or
+        (Test-Path -LiteralPath (Join-Path $Root "config.json") -PathType Leaf)
+    )
+    if ($legacyConfiguration) {
+        foreach ($relative in @(".env", "config.json", "connector\logs", "themes", "data")) {
+            $source = Join-Path $Root $relative
+            $destination = Join-Path $Preserved $relative
+            if (
+                -not (Test-Path -LiteralPath $source) -or
+                (Test-Path -LiteralPath $destination)
+            ) {
+                continue
             }
+            New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force |
+                Out-Null
             Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
-        } else {
-            Copy-Item -LiteralPath $source -Destination $destination -Force
         }
     }
 }

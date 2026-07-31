@@ -8,7 +8,17 @@
 - Added automatic restoration of preserved operator data during reinstall.
 - Added a controlled Windows uninstall/reinstall validation script and packaging regression checks.
 - Started the Windows background task during setup and waited for API readiness before opening Configuration.
-- Switched the background task to `pythonw.exe` and the IExpress bootstrap to a hidden `wscript.exe` launcher so installation and normal operation do not leave console windows open.
+- Fixed Windows startup-task registration to use the installed private `python.exe`
+  with an explicit module, working directory, task verification, and actionable
+  startup diagnostics.
+- Moved installed runtime configuration, logs, state, caches, and custom themes
+  to `%ProgramData%\BMX Broadcast Suite\UserData`; Program Files is now treated
+  as read-only after installation.
+- Made the Windows EXE payload deterministic and self-contained from tracked
+  Git content, including validation that every wizard-referenced script is
+  packaged.
+- Kept the IExpress bootstrap hidden through `wscript.exe` so setup and normal
+  operation do not leave console windows open.
 
 ## 1.2.8
 

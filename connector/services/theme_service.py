@@ -44,13 +44,22 @@ class ThemeNotFoundError(LookupError):
 
 
 class ThemeService:
-    def __init__(self, root: Path = Path("themes")) -> None:
+    def __init__(
+        self,
+        root: Path = Path("themes"),
+        *,
+        bundled_root: Path | None = None,
+    ) -> None:
         self.root = root
+        self.bundled_root = bundled_root
 
     def list(self) -> list[dict[str, Any]]:
         themes: dict[str, dict[str, Any]] = {"default": DEFAULT_THEME}
-        if self.root.exists():
-            for path in sorted(self.root.glob("*/theme.json")):
+        roots = [self.bundled_root, self.root]
+        for root in roots:
+            if root is None or not root.exists():
+                continue
+            for path in sorted(root.glob("*/theme.json")):
                 try:
                     theme = self._load_file(path)
                 except (OSError, ValueError, json.JSONDecodeError):
@@ -64,10 +73,13 @@ class ThemeService:
             raise ThemeNotFoundError(normalized)
         if normalized == "default":
             return DEFAULT_THEME
-        path = self.root / normalized / "theme.json"
-        if not path.is_file():
-            raise ThemeNotFoundError(normalized)
-        return self._load_file(path)
+        candidates = [self.root / normalized / "theme.json"]
+        if self.bundled_root is not None:
+            candidates.append(self.bundled_root / normalized / "theme.json")
+        for path in candidates:
+            if path.is_file():
+                return self._load_file(path)
+        raise ThemeNotFoundError(normalized)
 
     @staticmethod
     def _load_file(path: Path) -> dict[str, Any]:
