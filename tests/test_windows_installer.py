@@ -45,7 +45,7 @@ def test_wizard_uses_existing_supported_installers():
     assert "register-uninstall-windows.ps1" in text
     assert "start-windows-background.ps1" in text
     assert "Start-ScheduledTask" not in text
-    assert "BMX Broadcast Suite 1.2.8" in text
+    assert "BMX Broadcast Suite 1.2.9" in text
 
 
 def test_wizard_documentation_is_linked():

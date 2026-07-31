@@ -1,9 +1,9 @@
 # Windows Setup Wizard
 
-BBS 1.2.8 includes a graphical Windows installer:
+BBS 1.2.9 includes a graphical Windows installer:
 
 ```text
-BMX-Broadcast-Suite-Setup-v1.2.8.exe
+BMX-Broadcast-Suite-Setup-v1.2.9.exe
 ```
 
 The wizard checks for Python 3.11+ and Microsoft ODBC Driver 18 for SQL Server, lets the operator choose an installation folder, installs the Python environment, and optionally registers BBS to start at machine boot. It also installs the desktop, Start Menu, and notification-area controls supplied by BBS.
@@ -24,7 +24,7 @@ The installer is currently unsigned, so Windows SmartScreen may show an Unknown 
 
 ## Install
 
-1. Right-click `BMX-Broadcast-Suite-Setup-v1.2.8.exe` and choose **Run as administrator**.
+1. Right-click `BMX-Broadcast-Suite-Setup-v1.2.9.exe` and choose **Run as administrator**.
 2. Confirm both prerequisite checks are green.
 3. Choose the installation folder.
 4. Leave machine-startup enabled for a race-day computer.

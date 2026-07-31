@@ -84,12 +84,12 @@ try {
     } else {
         & (Join-Path $PSScriptRoot "register-uninstall-windows.ps1") `
             -InstallDir $InstallDir `
-            -Version "1.2.8" `
+            -Version "1.2.9" `
             -RegistryKey $RegistryKey
 
         $registration = Get-ItemProperty -Path $RegistryKey
         Assert-True ($registration.DisplayName -eq "BMX Broadcast Suite") "Apps & Features name is incorrect"
-        Assert-True ($registration.DisplayVersion -eq "1.2.8") "Apps & Features version is incorrect"
+        Assert-True ($registration.DisplayVersion -eq "1.2.9") "Apps & Features version is incorrect"
         Assert-True ($registration.UninstallString -like "*uninstall-windows.ps1*") "uninstall command is missing"
         Assert-True ($registration.QuietUninstallString -like "*-Quiet*") "quiet uninstall command is missing"
     }

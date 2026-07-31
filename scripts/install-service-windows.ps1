@@ -126,7 +126,7 @@ try {
     throw
 }
 
-Write-Host "BBS 1.2.8 Windows background task installed." -ForegroundColor Green
+Write-Host "BBS 1.2.9 Windows background task installed." -ForegroundColor Green
 Write-Host "The connector starts at machine boot and restarts after failures."
 Write-Host "Desktop, Start Menu, and notification-area launchers were installed."
 Write-Host "Diagnostics: http://localhost:8000/diagnostics"

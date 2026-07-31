@@ -76,7 +76,7 @@ $title.Font = New-Object System.Drawing.Font(
     18,
     [System.Drawing.FontStyle]::Bold
 )
-$title.Text = "BMX Broadcast Suite 1.2.8"
+$title.Text = "BMX Broadcast Suite 1.2.9"
 $form.Controls.Add($title)
 
 $intro = New-Object System.Windows.Forms.Label
@@ -460,12 +460,12 @@ Microsoft SQL ODBC driver: Found
 
         $status.Text = "Registering Windows uninstall support..."
         [System.Windows.Forms.Application]::DoEvents()
-        & $registrationScript -InstallDir $target -Version "1.2.8"
+        & $registrationScript -InstallDir $target -Version "1.2.9"
 
         $status.Text = "Installation complete."
 
         [System.Windows.Forms.MessageBox]::Show(
-            "BMX Broadcast Suite 1.2.8 was installed successfully.`r`n`r`nConfigure it at http://localhost:8000/configuration",
+            "BMX Broadcast Suite 1.2.9 was installed successfully.`r`n`r`nConfigure it at http://localhost:8000/configuration",
             "Setup complete",
             "OK",
             "Information"

@@ -7,7 +7,7 @@ def test_healthy_service_status():
         service="running",
         api="available",
         database="connected",
-        version="1.2.8",
+        version="1.2.9",
         moto_number=12,
         class_name="8 Novice",
     )

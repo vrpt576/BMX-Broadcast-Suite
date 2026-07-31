@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.2.9 - 2026-07-31
+
+- Improved historic-event loading in the Race Director by allowing slower
+  RaceManager event-list responses and repaired corrupted Director UI
+  characters.
+- Fixed Main and Overall moto progression so stepping stays within the selected
+  finals phase, skips incompatible classifications, and remains at the end when
+  no later compatible final exists.
 - Added Windows Apps & Features registration with interactive and quiet uninstall commands.
 - Added a scoped Windows uninstaller that removes only BBS-owned tasks, processes, services, shortcuts, files, and registry entries.
 - Preserved configuration, credentials, logs, themes, and local race state under `%ProgramData%` by default.

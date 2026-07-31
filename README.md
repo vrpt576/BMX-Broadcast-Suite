@@ -1,14 +1,14 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.8-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.9-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, historical event selection, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.8
+## Current status — v1.2.9
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, and entered-result graphics in OBS. Version 1.2.8 replaces the old manual phase overlay with a round-aware model based on RaceManager's actual motogroup, class, round-type, and lane/finish identities.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, and entered-result graphics in OBS. Version 1.2.9 builds on the v1.2.8 round-aware model with reliable historic-event loading, Main/Overall progression, and production-ready Windows installation, startup, and removal.
 
 Validated RaceManager behavior in this release:
 
