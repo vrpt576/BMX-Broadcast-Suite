@@ -20,8 +20,8 @@ class RaceManagerDatabase:
         self,
         connection_string: str,
         *,
-        connect_timeout: int = 5,
-        query_timeout: int = 10,
+        connect_timeout: int = 2,
+        query_timeout: int = 5,
     ) -> None:
         self.connection_string = connection_string
         self.connect_timeout = connect_timeout
@@ -40,6 +40,10 @@ class RaceManagerDatabase:
                 timeout=self.connect_timeout,
                 autocommit=True,
             )
+            # pyodbc exposes query timeout on Connection on supported builds;
+            # Cursor.timeout is not available in pyodbc 5.2 on Windows.
+            if hasattr(connection, "timeout"):
+                connection.timeout = self.query_timeout
         except pyodbc.Error as exc:
             raise RaceManagerDatabaseError(f"SQL Server connection failed: {exc}") from exc
 
@@ -54,7 +58,6 @@ class RaceManagerDatabase:
         try:
             with self.connection() as connection:
                 cursor = connection.cursor()
-                cursor.timeout = self.query_timeout
                 cursor.execute(query, tuple(params or ()))
                 columns = [column[0] for column in cursor.description or ()]
                 return [dict(zip(columns, row)) for row in cursor.fetchall()]

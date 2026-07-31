@@ -49,12 +49,39 @@ JOIN MB.Motoboard AS mb
 WHERE mb.Motoboard_DBID = ?;
 """
 
-# Round type 123 is RaceManager's staged/current-lineup branch. It retains the
-# three lane assignments and receives clipboard-entered finishes.
+EVENTS = """
+SELECT TOP 250
+    e.Event_DBID AS event_id,
+    e.Event_Name AS event_name,
+    e.Location AS location,
+    e.Date_Begin AS date_begin,
+    e.Date_End AS date_end,
+    r.Race_DBID AS race_id,
+    r.Race_Description AS race_description,
+    mb.Motoboard_DBID AS motoboard_id,
+    mb.Total_Motos AS total_motos,
+    mb.Total_Riders AS total_riders,
+    mb.Date_Maintenance AS updated_at
+FROM Evt.Events AS e
+JOIN Evt.Races AS r
+    ON r.Event_ID = e.Event_DBID
+JOIN MB.Motoboard AS mb
+    ON mb.Race_ID = r.Race_DBID
+ORDER BY
+    e.Date_Begin DESC,
+    mb.Date_Maintenance DESC,
+    e.Event_Name,
+    r.Race_Description;
+"""
+
+# RaceManager stores qualifier/moto progression in Round_Type_ID 123 and
+# final/overall classification in Round_Type_ID 1.  Do not collapse rows by
+# Moto_Number: the two branches may reuse a number for different motogroups.
 MOTO_RIDERS_TEMPLATE = """
 SELECT
     mg.Moto_Number AS moto_number,
     mg.Motogroup_Number AS motogroup_number,
+    mg.Motogroup_DBID AS motogroup_id,
     ac.Age_Class_DBID AS class_id,
     ac.Class_Name AS class_name,
     ac.Class_Name_Short AS class_name_short,
@@ -89,27 +116,63 @@ JOIN MB.Racegroup_Riders AS rgr
 JOIN MB.Race_Riders AS rr
     ON rr.Race_Rider_DBID = rgr.Race_Rider_ID
 WHERE ac.Motoboard_ID = ?
-  AND ro.Round_Type_ID = 123
+{extra_where}
 ORDER BY
+    ro.Round_Type_ID,
     mg.Moto_Number,
+    mg.Motogroup_Number,
     mgr.Motogroup_Rider_Key;
 """
 
-def moto_riders_query(*, include_nickname: bool) -> str:
+
+def moto_riders_query(
+    *,
+    include_nickname: bool,
+    extra_where: str = "",
+) -> str:
     """Return a RaceManager rider query compatible with the detected schema."""
     nickname_expression = "rr.Nickname" if include_nickname else "NULL"
-    return MOTO_RIDERS_TEMPLATE.format(nickname_expression=nickname_expression)
+    return MOTO_RIDERS_TEMPLATE.format(
+        nickname_expression=nickname_expression,
+        extra_where=extra_where,
+    )
 
 
 MOTO_RIDERS = moto_riders_query(include_nickname=False)
 MOTO_RIDERS_WITH_NICKNAME = moto_riders_query(include_nickname=True)
 
-MOTO_RIDERS_BY_NUMBER = MOTO_RIDERS.replace(
-    "ORDER BY\n    mg.Moto_Number,",
-    "  AND mg.Moto_Number = ?\nORDER BY\n    mg.Moto_Number,",
+MOTO_RIDERS_QUALIFIERS = moto_riders_query(
+    include_nickname=False,
+    extra_where="  AND ro.Round_Type_ID = 123",
+)
+MOTO_RIDERS_QUALIFIERS_WITH_NICKNAME = moto_riders_query(
+    include_nickname=True,
+    extra_where="  AND ro.Round_Type_ID = 123",
 )
 
-MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME = MOTO_RIDERS_WITH_NICKNAME.replace(
-    "ORDER BY\n    mg.Moto_Number,",
-    "  AND mg.Moto_Number = ?\nORDER BY\n    mg.Moto_Number,",
+MOTO_RIDERS_BY_NUMBER = moto_riders_query(
+    include_nickname=False,
+    extra_where="  AND mg.Moto_Number = ?",
+)
+MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME = moto_riders_query(
+    include_nickname=True,
+    extra_where="  AND mg.Moto_Number = ?",
+)
+
+MOTO_RIDERS_BY_GROUP = moto_riders_query(
+    include_nickname=False,
+    extra_where="  AND mg.Motogroup_DBID = ?",
+)
+MOTO_RIDERS_BY_GROUP_WITH_NICKNAME = moto_riders_query(
+    include_nickname=True,
+    extra_where="  AND mg.Motogroup_DBID = ?",
+)
+
+MOTO_RIDERS_BY_CLASS = moto_riders_query(
+    include_nickname=False,
+    extra_where="  AND ac.Age_Class_DBID = ?",
+)
+MOTO_RIDERS_BY_CLASS_WITH_NICKNAME = moto_riders_query(
+    include_nickname=True,
+    extra_where="  AND ac.Age_Class_DBID = ?",
 )

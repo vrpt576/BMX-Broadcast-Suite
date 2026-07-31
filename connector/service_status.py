@@ -24,7 +24,11 @@ class ServiceStatus:
 
     @property
     def healthy(self) -> bool:
-        return self.service == "running" and self.api == "available" and self.database == "connected"
+        return (
+            self.service == "running"
+            and self.api == "available"
+            and self.database == "connected"
+        )
 
 
 def systemd_state(unit: str = "bbs-connector.service") -> str:
@@ -65,7 +69,7 @@ def windows_task_state(task: str = "BMX Broadcast Suite") -> str:
     state = result.stdout.strip().lower()
     if state == "running":
         return "running"
-    if state in {"queued"}:
+    if state == "queued":
         return "starting"
     return "stopped"
 
@@ -78,16 +82,26 @@ def service_state(service_name: str | None = None) -> str:
 
 
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.6"})
+    request = Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.8"},
+    )
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
-def read_status(base_url: str = "http://127.0.0.1:8000", unit: str | None = None) -> ServiceStatus:
+def read_status(
+    base_url: str = "http://127.0.0.1:8000",
+    unit: str | None = None,
+) -> ServiceStatus:
     """Read the platform runner and connector's compact status endpoint."""
     service = service_state(unit)
     if service != "running":
-        return ServiceStatus(service=service, api="unavailable", database="unknown")
+        return ServiceStatus(
+            service=service,
+            api="unavailable",
+            database="unknown",
+        )
 
     try:
         payload = _get_json(f"{base_url.rstrip('/')}/api/status")
@@ -120,6 +134,6 @@ def status_lines(status: ServiceStatus) -> list[str]:
     if status.moto_number is not None:
         label = f"Moto {status.moto_number}"
         if status.class_name:
-            label += f" â€” {status.class_name}"
+            label += f" — {status.class_name}"
         lines.append(label)
     return lines

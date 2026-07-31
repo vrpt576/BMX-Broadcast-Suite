@@ -3,12 +3,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 
-from connector.dependencies import get_current_moto_service
-from connector.models import ActiveGraphic, CurrentMoto, CurrentMotoUpdate
+from connector.dependencies import get_current_moto_service, get_race_program_service
+from connector.models import (
+    ActiveGraphic,
+    CurrentMoto,
+    CurrentMotoUpdate,
+    RacePhase,
+    RaceProgram,
+)
 from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
 )
+from connector.services.race_program_service import RaceProgramService
 
 router = APIRouter(tags=["broadcast control"])
 
@@ -18,6 +25,16 @@ def get_current_moto(
     service: CurrentMotoService = Depends(get_current_moto_service),
 ) -> CurrentMoto:
     return service.get()
+
+
+@router.get("/current/program", response_model=RaceProgram)
+def get_current_program(
+    service: RaceProgramService = Depends(get_race_program_service),
+) -> RaceProgram:
+    try:
+        return service.get_program()
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.put("/current", response_model=CurrentMoto)
@@ -34,29 +51,54 @@ def set_current_moto(
 @router.post("/current/next", response_model=CurrentMoto)
 def next_moto(
     service: CurrentMotoService = Depends(get_current_moto_service),
+    programs: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    return service.next()
+    try:
+        return programs.step_moto(1)
+    except Exception:
+        return service.next()
 
 
 @router.post("/current/previous", response_model=CurrentMoto)
 def previous_moto(
     service: CurrentMotoService = Depends(get_current_moto_service),
+    programs: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    return service.previous()
+    try:
+        return programs.step_moto(-1)
+    except Exception:
+        return service.previous()
 
 
 @router.post("/current/phase/next", response_model=CurrentMoto)
 def next_phase(
-    service: CurrentMotoService = Depends(get_current_moto_service),
+    service: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    return service.next_phase()
+    try:
+        return service.step_phase(1)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.post("/current/phase/previous", response_model=CurrentMoto)
 def previous_phase(
-    service: CurrentMotoService = Depends(get_current_moto_service),
+    service: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    return service.previous_phase()
+    try:
+        return service.step_phase(-1)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/current/phase/select/{phase}", response_model=CurrentMoto)
+def select_phase(
+    phase: RacePhase,
+    service: RaceProgramService = Depends(get_race_program_service),
+) -> CurrentMoto:
+    try:
+        return service.select_phase(phase)
+    except (LookupError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.post("/current/graphic/{graphic}", response_model=CurrentMoto)
@@ -123,14 +165,7 @@ CONTROLLER_HTML = r'''<!doctype html>
   </div>
   <div class="settings">
     <label>Race round
-      <select id="race-phase">
-        <option value="round_1">Round 1</option>
-        <option value="round_2">Round 2</option>
-        <option value="round_3">Round 3</option>
-        <option value="quarterfinal">Quarterfinals</option>
-        <option value="semifinal">Semifinals</option>
-        <option value="main">Mains</option>
-      </select>
+      <select id="race-phase"><option value="round_1">Round 1</option></select>
     </label>
     <label>Class name<input id="class-name" type="text" maxlength="100" placeholder="17-20 Expert"></label>
     <label>Jump to moto<input id="jump" type="number" min="1" inputmode="numeric"></label>
@@ -142,7 +177,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'Round 1', round_2: 'Round 2', round_3: 'Round 3',
-  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Mains'
+  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main', overall: 'Overall'
 };
 const moto = document.querySelector('#moto');
 const phase = document.querySelector('#phase');
@@ -152,16 +187,37 @@ const className = document.querySelector('#class-name');
 const jump = document.querySelector('#jump');
 const maximum = document.querySelector('#maximum');
 const statusBox = document.querySelector('#status');
+let currentState = null;
 
 function render(value) {
+  currentState = value;
   moto.textContent = value.moto_number;
-  phase.textContent = phaseLabels[value.race_phase] || value.race_phase;
+  phase.textContent = value.phase_label || phaseLabels[value.race_phase] || value.race_phase;
   classNameDisplay.textContent = value.class_name || 'Class not set';
   phaseSelect.value = value.race_phase;
   className.value = value.class_name || '';
   jump.value = value.moto_number;
   maximum.value = value.maximum_moto ?? '';
-  statusBox.textContent = `${phaseLabels[value.race_phase]} · Moto ${value.moto_number}${value.maximum_moto ? ` of ${value.maximum_moto}` : ''}`;
+  statusBox.textContent = `${value.phase_label || phaseLabels[value.race_phase]} · Moto ${value.moto_number}${value.maximum_moto ? ` of ${value.maximum_moto}` : ''}`;
+}
+async function loadProgram() {
+  try {
+    const response = await fetch('/api/current/program', {cache: 'no-store'});
+    if (!response.ok) throw new Error();
+    const program = await response.json();
+    phaseSelect.replaceChildren();
+    for (const stage of program.stages) {
+      const option = document.createElement('option');
+      option.value = stage.phase;
+      option.textContent = stage.label;
+      phaseSelect.append(option);
+    }
+    if (currentState) phaseSelect.value = currentState.race_phase;
+  } catch (_) {
+    if (!phaseSelect.options.length) {
+      phaseSelect.add(new Option('Round 1', 'round_1'));
+    }
+  }
 }
 async function request(path, options = {}) {
   statusBox.textContent = 'Updating…';
@@ -171,6 +227,7 @@ async function request(path, options = {}) {
     throw new Error(body.detail || `Request failed: ${response.status}`);
   }
   render(await response.json());
+  await loadProgram();
 }
 async function step(direction) {
   try { await request(`/api/current/${direction}`, {method: 'POST'}); }
@@ -181,7 +238,8 @@ async function stepPhase(direction) {
   catch (error) { statusBox.textContent = error.message; }
 }
 async function apply() {
-  const body = { moto_number: Number(jump.value), race_phase: phaseSelect.value, class_name: className.value, minimum_moto: 1 };
+  const body = { moto_number: Number(jump.value), race_phase: 'round_1', minimum_moto: 1 };
+  if (className.value.trim()) body.class_name = className.value;
   if (maximum.value !== '') body.maximum_moto = Number(maximum.value);
   try { await request('/api/current', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}); }
   catch (error) { statusBox.textContent = error.message; }
@@ -192,6 +250,10 @@ document.querySelector('#next').addEventListener('click', () => step('next'));
 document.querySelector('#previous-phase').addEventListener('click', () => stepPhase('previous'));
 document.querySelector('#next-phase').addEventListener('click', () => stepPhase('next'));
 document.querySelector('#apply').addEventListener('click', apply);
+phaseSelect.addEventListener('change', async () => {
+  try { await request(`/api/current/phase/select/${phaseSelect.value}`, {method: 'POST'}); }
+  catch (error) { statusBox.textContent = error.message; }
+});
 jump.addEventListener('keydown', event => { if (event.key === 'Enter') apply(); });
 className.addEventListener('keydown', event => { if (event.key === 'Enter') apply(); });
 window.addEventListener('keydown', event => {
@@ -234,7 +296,7 @@ OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAINS'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
 };
 const params = new URLSearchParams(location.search);
 let themeName = (params.get('theme') || '').toLowerCase();
@@ -274,7 +336,7 @@ async function refresh() {
     if (response.ok) {
       const state = await response.json();
       number.textContent = state.moto_number;
-      phase.textContent = phaseLabels[state.race_phase] || state.race_phase;
+      phase.textContent = state.phase_label || phaseLabels[state.race_phase] || state.race_phase;
       className.textContent = (state.class_name || 'CLASS NOT SET').toUpperCase();
       document.body.style.visibility = (preview || state.active_graphic === 'current_moto') ? 'visible' : 'hidden';
     }
@@ -286,7 +348,7 @@ let ws;
 function connectSocket(){
   const scheme=location.protocol==='https:'?'wss':'ws';
   ws=new WebSocket(`${scheme}://${location.host}/ws/broadcast`);
-  ws.onmessage=e=>{const payload=JSON.parse(e.data);if(payload.current){const state=payload.current;document.querySelector('#round').textContent=phaseLabels[state.race_phase]||state.race_phase;document.querySelector('#class').textContent=(state.class_name||'CLASS NOT SET').toUpperCase();document.querySelector('#moto').textContent=state.moto_number;document.body.style.visibility=(preview||state.active_graphic==='current_moto')?'visible':'hidden';}};
+  ws.onmessage=e=>{const payload=JSON.parse(e.data);if(payload.current){const state=payload.current;document.querySelector('#phase').textContent=state.phase_label||phaseLabels[state.race_phase]||state.race_phase;document.querySelector('#class-name').textContent=(state.class_name||'CLASS NOT SET').toUpperCase();document.querySelector('#number').textContent=state.moto_number;document.body.style.visibility=(preview||state.active_graphic==='current_moto')?'visible':'hidden';}};
   ws.onclose=()=>setTimeout(connectSocket,1500);
 }
 connectSocket();
