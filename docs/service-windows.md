@@ -1,6 +1,6 @@
 # Windows Background Operation and Tray Icon
 
-BBS 1.2.6 can run on Windows 10/11 without an open PowerShell window. A machine-wide Scheduled Task starts the connector at boot under the built-in `SYSTEM` account and restarts it after failures. A separate notification-area application shows status and controls the background runner.
+BBS 1.2.8 can run on Windows 10/11 without an open PowerShell window. A machine-wide Scheduled Task starts the connector at boot under the built-in `SYSTEM` account and restarts it after failures. A separate notification-area application shows status and controls the background runner.
 
 ## Install
 

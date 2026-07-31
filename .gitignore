@@ -219,3 +219,6 @@ __marimo__/
 
 # Runtime state
 data/
+
+# Connector runtime logs
+connector/logs/

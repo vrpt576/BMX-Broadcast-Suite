@@ -6,7 +6,7 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path "$PSScriptRoot\..").Path
 $staging = Join-Path ([IO.Path]::GetTempPath()) ("bbs-installer-" + [guid]::NewGuid().ToString("N"))
 $payloadRoot = Join-Path $staging "payload"
-$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.6.exe"
+$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.8.exe"
 $temporaryInstaller = Join-Path $staging "BBS-Setup.exe"
 
 $odbcMsi = Join-Path $root "packaging\windows\dependencies\msodbcsql18-x64.msi"
@@ -32,7 +32,7 @@ if ($odbcSignature.SignerCertificate.Subject -notmatch "Microsoft") {
 
 New-Item -ItemType Directory -Force -Path $payloadRoot, $OutputDirectory | Out-Null
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path
-$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.6.exe"
+$installer = Join-Path $OutputDirectory "BMX-Broadcast-Suite-Setup-v1.2.8.exe"
 try {
     Get-ChildItem -LiteralPath $root -Force |
         Where-Object { $_.Name -notin @(".git", ".venv", ".test-venv", ".pytest_cache", "data", "dist", "debug-installer") } |
@@ -74,7 +74,7 @@ InstallPrompt=
 DisplayLicense=
 FinishMessage=
 TargetName=$temporaryInstaller
-FriendlyName=BMX Broadcast Suite 1.2.6 Setup
+FriendlyName=BMX Broadcast Suite 1.2.8 Setup
 AppLaunched=setup.cmd
 PostInstallCmd=<None>
 AdminQuietInstCmd=setup.cmd
