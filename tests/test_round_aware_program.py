@@ -238,9 +238,17 @@ def next_main_rows() -> list[dict[str, object]]:
 
 
 def final_branch_regression_rows() -> list[dict[str, object]]:
-    # The final branch is deliberately Main 30, Overall-only 31, Main 32.
-    points = [{**item, "moto_number": 31} for item in total_points_rows()]
-    return split_class_rows() + points + next_main_rows()
+    """Model the 2025-05-31 boundary: Main 25, Overall 26, Main 27."""
+    current_main = [
+        {
+            **item,
+            "moto_number": 25 if item["moto_number"] == 30 else 26,
+        }
+        for item in split_class_rows()
+    ]
+    points = [{**item, "moto_number": 26} for item in total_points_rows()]
+    next_main = [{**item, "moto_number": 27} for item in next_main_rows()]
+    return current_main + points + next_main
 
 
 def test_duplicate_moto_number_is_not_collapsed_across_branches() -> None:
@@ -356,7 +364,7 @@ def test_phase_aware_next_moto_preserves_round_and_uses_next_motogroup(tmp_path)
     assert state.round_type_id == 123
 
 
-def test_next_moto_during_mains_skips_overall_and_stops_at_last_main(tmp_path) -> None:
+def test_state_qualifier_main_25_skips_overall_and_advances_to_main_27(tmp_path) -> None:
     from connector.models import CurrentMotoUpdate
     from connector.services.current_moto_service import CurrentMotoService
     from connector.services.race_program_service import RaceProgramService
@@ -368,7 +376,7 @@ def test_next_moto_during_mains_skips_overall_and_stops_at_last_main(tmp_path) -
     current = CurrentMotoService(tmp_path / "current.json")
     current.set(
         CurrentMotoUpdate(
-            moto_number=30,
+            moto_number=25,
             race_phase=RacePhase.MAIN,
             minimum_moto=5,
             maximum_moto=50,
@@ -391,7 +399,7 @@ def test_next_moto_during_mains_skips_overall_and_stops_at_last_main(tmp_path) -
     state = programs.step_moto(1)
 
     assert state.race_phase == RacePhase.MAIN
-    assert state.moto_number == 32
+    assert state.moto_number == 27
     assert state.class_id == CLASS_NEXT_MAIN
     assert state.class_name == "13 Expert"
     assert state.round_type_id == 1
@@ -404,7 +412,7 @@ def test_next_moto_during_mains_skips_overall_and_stops_at_last_main(tmp_path) -
     assert state.maximum_moto == 50
     assert state.active_graphic == ActiveGraphic.RESULTS
 
-    # Moto 31 is Overall-only, and there is no compatible Main after Moto 32.
+    # Moto 26 is Overall-only, and there is no compatible Main after Moto 27.
     end_state = programs.step_moto(1)
     assert end_state == state
     assert end_state.race_phase == RacePhase.MAIN

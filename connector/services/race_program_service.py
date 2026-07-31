@@ -53,6 +53,7 @@ class RaceProgramService:
             motoboard_id=board_id,
             program=resolved.program,
             stage=resolved.stage,
+            expected_state=state,
         )
 
     def select_phase(self, phase: RacePhase) -> CurrentMoto:
@@ -184,6 +185,7 @@ class RaceProgramService:
                 motoboard_id=board_id,
                 program=resolved.program,
                 stage=resolved.stage,
+                expected_state=state,
             )
 
         # Already at the beginning/end of the compatible branch.

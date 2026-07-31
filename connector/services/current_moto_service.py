@@ -194,10 +194,20 @@ class CurrentMotoService:
         motoboard_id: UUID,
         program: RaceProgram,
         stage: RaceStage,
+        expected_state: CurrentMoto | None = None,
     ) -> CurrentMoto:
-        """Persist the exact stage returned by RaceManager."""
+        """Persist the exact stage returned by RaceManager.
+
+        Database-backed lineup and results requests resolve outside this
+        service's lock.  ``expected_state`` prevents an older request from
+        overwriting a newer operator selection when its SQL query finishes.
+        """
         with self._lock:
             current = self._read_or_default()
+            if expected_state is not None and not self._same_selection(
+                current, expected_state
+            ):
+                return current
             result = current.model_copy(
                 update={
                     "moto_number": stage.moto_number,
@@ -211,12 +221,15 @@ class CurrentMotoService:
                     "motogroup_id": stage.motogroup_id,
                     "qualifier_motogroup_id": program.qualifier_motogroup_id,
                     "round_index": stage.round_index,
-                    "updated_at": datetime.now(timezone.utc),
                     "source": "racemanager",
                 }
             )
-            if result != current:
-                self._write(result)
+            if result == current:
+                return current
+            result = result.model_copy(
+                update={"updated_at": datetime.now(timezone.utc)}
+            )
+            self._write(result)
             return result
 
     def sync_class_name(self, class_name: str) -> CurrentMoto:
@@ -292,6 +305,34 @@ class CurrentMotoService:
         if len(normalized) > 100:
             raise CurrentMotoValidationError("class_name must be 100 characters or fewer.")
         return normalized
+
+    @staticmethod
+    def _same_selection(current: CurrentMoto, expected: CurrentMoto) -> bool:
+        """Return whether two snapshots represent the same operator choice."""
+        if (
+            current.moto_number != expected.moto_number
+            or current.race_phase != expected.race_phase
+            or current.motoboard_id != expected.motoboard_id
+        ):
+            return False
+
+        for field in (
+            "class_id",
+            "round_type_id",
+            "round_id",
+            "motogroup_id",
+            "qualifier_motogroup_id",
+            "round_index",
+        ):
+            current_value = getattr(current, field)
+            expected_value = getattr(expected, field)
+            if (
+                current_value is not None
+                and expected_value is not None
+                and current_value != expected_value
+            ):
+                return False
+        return True
 
     @staticmethod
     def _validate_bounds(moto_number: int, minimum: int, maximum: int | None) -> None:

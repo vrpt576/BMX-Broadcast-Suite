@@ -135,6 +135,7 @@ class CurrentLineupService:
                     motoboard_id=board_id,
                     program=resolved.program,
                     stage=resolved.stage,
+                    expected_state=state,
                 )
                 moto, stage, program = resolved.moto, resolved.stage, resolved.program
             else:  # compatibility with older adapters and simple test doubles

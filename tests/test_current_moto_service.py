@@ -1,8 +1,15 @@
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 
-from connector.models import ActiveGraphic, CurrentMotoUpdate, RacePhase
+from connector.models import (
+    ActiveGraphic,
+    CurrentMotoUpdate,
+    RacePhase,
+    RaceProgram,
+    RaceStage,
+)
 from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
@@ -134,3 +141,94 @@ def test_old_state_without_active_graphic_remains_compatible(tmp_path: Path) -> 
     )
     state = CurrentMotoService(state_file).get()
     assert state.active_graphic == ActiveGraphic.CURRENT_MOTO
+
+
+def test_stale_background_resolution_cannot_undo_newer_moto(tmp_path: Path) -> None:
+    current = service(tmp_path)
+    board_id = UUID("10000000-0000-0000-0000-000000000001")
+    old_class_id = UUID("20000000-0000-0000-0000-000000000025")
+    new_class_id = UUID("20000000-0000-0000-0000-000000000027")
+    old_round_id = UUID("30000000-0000-0000-0000-000000000025")
+    new_round_id = UUID("30000000-0000-0000-0000-000000000027")
+    old_group_id = UUID("40000000-0000-0000-0000-000000000025")
+    new_group_id = UUID("40000000-0000-0000-0000-000000000027")
+
+    current.set(
+        CurrentMotoUpdate(
+            moto_number=25,
+            race_phase=RacePhase.MAIN,
+            motoboard_id=board_id,
+            class_id=old_class_id,
+            round_type_id=1,
+            round_id=old_round_id,
+            motogroup_id=old_group_id,
+            round_index=1,
+            active_graphic=ActiveGraphic.LINEUP,
+        )
+    )
+    stale_snapshot = current.get()
+
+    def context(
+        moto_number: int,
+        class_id: UUID,
+        round_id: UUID,
+        group_id: UUID,
+        class_name: str,
+    ) -> tuple[RaceProgram, RaceStage]:
+        stage = RaceStage(
+            phase=RacePhase.MAIN,
+            label="Main",
+            kind="main",
+            moto_number=moto_number,
+            class_id=class_id,
+            class_name=class_name,
+            round_type_id=1,
+            round_id=round_id,
+            motogroup_id=group_id,
+            round_index=1,
+        )
+        return (
+            RaceProgram(
+                motoboard_id=board_id,
+                class_id=class_id,
+                class_name=class_name,
+                stages=[stage],
+                available_phases=[RacePhase.MAIN],
+            ),
+            stage,
+        )
+
+    new_program, new_stage = context(
+        27, new_class_id, new_round_id, new_group_id, "7 Intermediate"
+    )
+    advanced = current.sync_race_position(
+        motoboard_id=board_id,
+        program=new_program,
+        stage=new_stage,
+        expected_state=stale_snapshot,
+    )
+
+    old_program, old_stage = context(
+        25, old_class_id, old_round_id, old_group_id, "5 & Under Intermediate"
+    )
+    stale_result = current.sync_race_position(
+        motoboard_id=board_id,
+        program=old_program,
+        stage=old_stage,
+        expected_state=stale_snapshot,
+    )
+
+    assert advanced.moto_number == 27
+    assert advanced.race_phase == RacePhase.MAIN
+    assert advanced.active_graphic == ActiveGraphic.LINEUP
+
+    stable_result = current.sync_race_position(
+        motoboard_id=board_id,
+        program=new_program,
+        stage=new_stage,
+        expected_state=advanced,
+    )
+
+    assert stable_result == advanced
+    assert stale_result == advanced
+    assert current.get() == advanced

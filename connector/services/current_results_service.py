@@ -53,6 +53,7 @@ class CurrentResultsService:
                         motoboard_id=board_id,
                         program=resolved.program,
                         stage=resolved.stage,
+                        expected_state=state,
                     )
                     moto = resolved.moto
                     stage, program = resolved.stage, resolved.program
