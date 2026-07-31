@@ -101,13 +101,14 @@ class ActiveGraphic(StrEnum):
 
 
 class CurrentMoto(ApiModel):
-    """Operator-selected moto, race phase, and class used by broadcast controls."""
+    """Operator-selected race, moto, phase, and class used by broadcast controls."""
 
     moto_number: int
     race_phase: RacePhase = RacePhase.ROUND_1
     class_name: str | None = None
     minimum_moto: int = 1
     maximum_moto: int | None = None
+    motoboard_id: UUID | None = None
     updated_at: datetime | None = None
     source: str = "manual"
     active_graphic: ActiveGraphic = ActiveGraphic.CURRENT_MOTO
@@ -119,6 +120,7 @@ class CurrentMotoUpdate(ApiModel):
     class_name: str | None = None
     minimum_moto: int | None = None
     maximum_moto: int | None = None
+    motoboard_id: UUID | None = None
     active_graphic: ActiveGraphic | None = None
 
 
@@ -137,6 +139,7 @@ class CurrentLineup(ApiModel):
 
     moto_number: int
     race_phase: RacePhase
+    motoboard_id: UUID | None = None
     class_name: str
     riders: list[LineupRider]
     source: str
@@ -156,6 +159,7 @@ class ResultRider(ApiModel):
 class CurrentResults(ApiModel):
     moto_number: int
     race_phase: RacePhase
+    motoboard_id: UUID | None = None
     class_name: str
     riders: list[ResultRider]
     source: str

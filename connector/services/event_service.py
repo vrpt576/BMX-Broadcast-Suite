@@ -16,6 +16,10 @@ class EventService:
     def __init__(self, database: RaceManagerDatabase) -> None:
         self.database = database
 
+    def list_events(self) -> list[Event]:
+        rows = self.database.fetch_all(queries.EVENTS)
+        return [Event.model_validate(row) for row in rows]
+
     def current(self) -> Event:
         row = self.database.fetch_one(queries.CURRENT_EVENT)
         if row is None:

@@ -7,6 +7,11 @@ from connector.services.event_service import EventNotFoundError, EventService
 router = APIRouter(prefix="/event", tags=["event"])
 
 
+@router.get("", response_model=list[Event])
+def list_events(service: EventService = Depends(get_event_service)) -> list[Event]:
+    return service.list_events()
+
+
 @router.get("/current", response_model=Event)
 def current_event(service: EventService = Depends(get_event_service)) -> Event:
     try:

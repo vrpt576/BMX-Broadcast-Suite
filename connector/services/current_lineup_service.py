@@ -32,51 +32,143 @@ DEMO_MOTO = Moto.model_validate({
 class CurrentLineupService:
     """Combines manual state with RaceManager data and a last-known-good cache."""
 
-    def __init__(self, current: CurrentMotoService, events: EventService, motos: MotoboardService, cache_file: Path | None = None) -> None:
+    def __init__(
+        self,
+        current: CurrentMotoService,
+        events: EventService,
+        motos: MotoboardService,
+        cache_file: Path | None = None,
+    ) -> None:
         self.current, self.events, self.motos = current, events, motos
         self.cache_file = cache_file or current.state_file.parent / "last_known_lineup.json"
 
-    def get(self, *, demo: bool = False, motoboard_id: UUID | None = None) -> CurrentLineup:
+    def get(
+        self,
+        *,
+        demo: bool = False,
+        motoboard_id: UUID | None = None,
+    ) -> CurrentLineup:
         state = self.current.get()
         if demo:
-            return self._build(state, DEMO_MOTO, source="demo", is_stale=False)
+            return self._build(
+                state,
+                DEMO_MOTO,
+                source="demo",
+                is_stale=False,
+                motoboard_id=None,
+            )
+
+        selected_board_id = motoboard_id or state.motoboard_id
         try:
-            board_id = motoboard_id or self.events.current().motoboard_id
+            board_id = selected_board_id or self.events.current().motoboard_id
             moto = self.motos.get_moto(board_id, state.moto_number)
-            result = self._build(state, moto, source="racemanager", is_stale=False)
+            result = self._build(
+                state,
+                moto,
+                source="racemanager",
+                is_stale=False,
+                motoboard_id=board_id,
+            )
             self._write_cache(result)
             if result.class_name and result.class_name != state.class_name:
                 self.current.sync_class_name(result.class_name)
             return result
         except Exception as exc:
-            cached = self._read_cache(state)
+            cached = self._read_cache(
+                state,
+                expected_motoboard_id=selected_board_id,
+            )
             if cached is None:
                 raise
-            return cached.model_copy(update={"source":"cache", "is_stale":True, "warning":str(exc)})
+            return cached.model_copy(
+                update={"source": "cache", "is_stale": True, "warning": str(exc)}
+            )
 
     @staticmethod
     def _gate_for_phase(rider: object, phase: RacePhase) -> int | None:
-        preferred = {RacePhase.ROUND_1:getattr(rider,"lane_1",None), RacePhase.ROUND_2:getattr(rider,"lane_2",None), RacePhase.ROUND_3:getattr(rider,"lane_3",None)}.get(phase)
+        preferred = {
+            RacePhase.ROUND_1: getattr(rider, "lane_1", None),
+            RacePhase.ROUND_2: getattr(rider, "lane_2", None),
+            RacePhase.ROUND_3: getattr(rider, "lane_3", None),
+        }.get(phase)
         if preferred is not None:
             return preferred
-        return next((lane for lane in (getattr(rider,"lane_1",None),getattr(rider,"lane_2",None),getattr(rider,"lane_3",None)) if lane is not None), None)
+        return next(
+            (
+                lane
+                for lane in (
+                    getattr(rider, "lane_1", None),
+                    getattr(rider, "lane_2", None),
+                    getattr(rider, "lane_3", None),
+                )
+                if lane is not None
+            ),
+            None,
+        )
 
     @classmethod
-    def _build(cls, state: CurrentMoto, moto: Moto, *, source: str, is_stale: bool = False) -> CurrentLineup:
-        riders=[LineupRider(gate=cls._gate_for_phase(r,state.race_phase),bike_number=r.bike_number,first_name=r.first_name,last_name=r.last_name,nickname=r.nickname) for r in moto.riders]
-        riders.sort(key=lambda r:(r.gate is None,r.gate or 999,r.last_name))
-        return CurrentLineup(moto_number=state.moto_number,race_phase=state.race_phase,class_name=moto.class_name or state.class_name or "Class not set",riders=riders,source=source,updated_at=moto.updated_at,cached_at=datetime.now(timezone.utc),is_stale=is_stale)
+    def _build(
+        cls,
+        state: CurrentMoto,
+        moto: Moto,
+        *,
+        source: str,
+        is_stale: bool = False,
+        motoboard_id: UUID | None = None,
+    ) -> CurrentLineup:
+        riders = [
+            LineupRider(
+                gate=cls._gate_for_phase(rider, state.race_phase),
+                bike_number=rider.bike_number,
+                first_name=rider.first_name,
+                last_name=rider.last_name,
+                nickname=rider.nickname,
+            )
+            for rider in moto.riders
+        ]
+        riders.sort(key=lambda rider: (rider.gate is None, rider.gate or 999, rider.last_name))
+        return CurrentLineup(
+            moto_number=state.moto_number,
+            race_phase=state.race_phase,
+            motoboard_id=motoboard_id,
+            class_name=moto.class_name or state.class_name or "Class not set",
+            riders=riders,
+            source=source,
+            updated_at=moto.updated_at,
+            cached_at=datetime.now(timezone.utc),
+            is_stale=is_stale,
+        )
 
     def _write_cache(self, lineup: CurrentLineup) -> None:
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-        temp=self.cache_file.with_suffix(self.cache_file.suffix+".tmp")
-        temp.write_text(json.dumps(lineup.model_dump(mode="json"),indent=2)+"\n",encoding="utf-8")
-        os.replace(temp,self.cache_file)
+        temporary = self.cache_file.with_suffix(self.cache_file.suffix + ".tmp")
+        temporary.write_text(
+            json.dumps(lineup.model_dump(mode="json"), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, self.cache_file)
 
-    def _read_cache(self, state: CurrentMoto) -> CurrentLineup | None:
+    def _read_cache(
+        self,
+        state: CurrentMoto,
+        *,
+        expected_motoboard_id: UUID | None,
+    ) -> CurrentLineup | None:
         try:
-            cached=CurrentLineup.model_validate_json(self.cache_file.read_text(encoding="utf-8"))
-            if cached.moto_number != state.moto_number or cached.race_phase != state.race_phase:
+            cached = CurrentLineup.model_validate_json(
+                self.cache_file.read_text(encoding="utf-8")
+            )
+            if (
+                cached.moto_number != state.moto_number
+                or cached.race_phase != state.race_phase
+            ):
+                return None
+            # In historic mode, never display a cache from a different race.
+            # Latest / Live mode intentionally accepts the last resolved board.
+            if (
+                expected_motoboard_id is not None
+                and cached.motoboard_id != expected_motoboard_id
+            ):
                 return None
             return cached
         except (OSError, ValueError):

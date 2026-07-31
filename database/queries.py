@@ -49,6 +49,31 @@ JOIN MB.Motoboard AS mb
 WHERE mb.Motoboard_DBID = ?;
 """
 
+EVENTS = """
+SELECT TOP 250
+    e.Event_DBID AS event_id,
+    e.Event_Name AS event_name,
+    e.Location AS location,
+    e.Date_Begin AS date_begin,
+    e.Date_End AS date_end,
+    r.Race_DBID AS race_id,
+    r.Race_Description AS race_description,
+    mb.Motoboard_DBID AS motoboard_id,
+    mb.Total_Motos AS total_motos,
+    mb.Total_Riders AS total_riders,
+    mb.Date_Maintenance AS updated_at
+FROM Evt.Events AS e
+JOIN Evt.Races AS r
+    ON r.Event_ID = e.Event_DBID
+JOIN MB.Motoboard AS mb
+    ON mb.Race_ID = r.Race_DBID
+ORDER BY
+    e.Date_Begin DESC,
+    mb.Date_Maintenance DESC,
+    e.Event_Name,
+    r.Race_Description;
+"""
+
 # Round type 123 is RaceManager's staged/current-lineup branch. It retains the
 # three lane assignments and receives clipboard-entered finishes.
 MOTO_RIDERS_TEMPLATE = """
@@ -94,6 +119,7 @@ ORDER BY
     mg.Moto_Number,
     mgr.Motogroup_Rider_Key;
 """
+
 
 def moto_riders_query(*, include_nickname: bool) -> str:
     """Return a RaceManager rider query compatible with the detected schema."""

@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     sql_driver: str = "ODBC Driver 18 for SQL Server"
     sql_encrypt: bool = True
     sql_trust_server_certificate: bool = True
-    sql_connect_timeout: int = 5
-    sql_query_timeout: int = 10
+    sql_connect_timeout: int = 2
+    sql_query_timeout: int = 5
 
     cors_origins: str = "*"
     current_moto_state_file: Path = Path("data/current_moto.json")

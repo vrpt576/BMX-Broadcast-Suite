@@ -1,4 +1,4 @@
-"""Thread-safe, file-backed manual current-moto state."""
+"""Thread-safe, file-backed manual current-moto and event-selection state."""
 
 from __future__ import annotations
 
@@ -26,10 +26,11 @@ PHASE_ORDER: tuple[RacePhase, ...] = (
 
 
 class CurrentMotoService:
-    """Stores the operator-selected current moto independently of RaceManager.
+    """Stores the operator-selected race position independently of RaceManager.
 
-    The small JSON state file lets the selection survive connector restarts while
-    keeping the keyboard controller usable even when SQL Server is unavailable.
+    The JSON state survives connector restarts and keeps manual controls usable
+    when SQL Server is unavailable. A null motoboard_id means Latest / Live;
+    a UUID pins lineup and results lookups to a historic RaceManager race.
     """
 
     def __init__(
@@ -51,15 +52,33 @@ class CurrentMotoService:
     def set(self, update: CurrentMotoUpdate) -> CurrentMoto:
         with self._lock:
             current = self._read_or_default()
-            minimum = update.minimum_moto if update.minimum_moto is not None else current.minimum_moto
-            maximum = update.maximum_moto if update.maximum_moto is not None else current.maximum_moto
+            minimum = (
+                update.minimum_moto
+                if update.minimum_moto is not None
+                else current.minimum_moto
+            )
+            maximum = (
+                update.maximum_moto
+                if "maximum_moto" in update.model_fields_set
+                else current.maximum_moto
+            )
+            motoboard_id = (
+                update.motoboard_id
+                if "motoboard_id" in update.model_fields_set
+                else current.motoboard_id
+            )
             self._validate_bounds(update.moto_number, minimum, maximum)
             result = CurrentMoto(
                 moto_number=update.moto_number,
                 race_phase=update.race_phase or current.race_phase,
-                class_name=self._normalize_class_name(update.class_name) if update.class_name is not None else current.class_name,
+                class_name=(
+                    self._normalize_class_name(update.class_name)
+                    if update.class_name is not None
+                    else current.class_name
+                ),
                 minimum_moto=minimum,
                 maximum_moto=maximum,
+                motoboard_id=motoboard_id,
                 updated_at=datetime.now(timezone.utc),
                 source="manual",
                 active_graphic=update.active_graphic or current.active_graphic,
@@ -80,6 +99,8 @@ class CurrentMotoService:
                     class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
+                    motoboard_id=current.motoboard_id,
+                    active_graphic=current.active_graphic,
                 )
             )
 
@@ -94,6 +115,8 @@ class CurrentMotoService:
                     class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
+                    motoboard_id=current.motoboard_id,
+                    active_graphic=current.active_graphic,
                 )
             )
 
@@ -115,6 +138,8 @@ class CurrentMotoService:
                     class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
+                    motoboard_id=current.motoboard_id,
+                    active_graphic=current.active_graphic,
                 )
             )
 
@@ -125,11 +150,13 @@ class CurrentMotoService:
             normalized = self._normalize_class_name(class_name)
             if normalized == current.class_name:
                 return current
-            result = current.model_copy(update={
-                "class_name": normalized,
-                "updated_at": datetime.now(timezone.utc),
-                "source": "racemanager",
-            })
+            result = current.model_copy(
+                update={
+                    "class_name": normalized,
+                    "updated_at": datetime.now(timezone.utc),
+                    "source": "racemanager",
+                }
+            )
             self._write(result)
             return result
 
@@ -144,6 +171,7 @@ class CurrentMotoService:
                     class_name=current.class_name,
                     minimum_moto=current.minimum_moto,
                     maximum_moto=current.maximum_moto,
+                    motoboard_id=current.motoboard_id,
                     active_graphic=graphic,
                 )
             )
@@ -156,38 +184,34 @@ class CurrentMotoService:
                 class_name="",
                 minimum_moto=self.default_minimum,
                 maximum_moto=None,
+                motoboard_id=None,
                 active_graphic=ActiveGraphic.CURRENT_MOTO,
             )
         )
 
     def _read_or_default(self) -> CurrentMoto:
         if not self.state_file.exists():
-            return CurrentMoto(
-                moto_number=self.default_moto,
-                race_phase=RacePhase.ROUND_1,
-                class_name=None,
-                minimum_moto=self.default_minimum,
-                maximum_moto=None,
-                updated_at=None,
-                source="manual",
-                active_graphic=ActiveGraphic.CURRENT_MOTO,
-            )
+            return self._default_state()
         try:
             payload = json.loads(self.state_file.read_text(encoding="utf-8"))
             return CurrentMoto.model_validate(payload)
         except (OSError, json.JSONDecodeError, ValueError):
             # A corrupt state file should not take down a live broadcast. Start
             # from the safe default; the next operator action rewrites the file.
-            return CurrentMoto(
-                moto_number=self.default_moto,
-                race_phase=RacePhase.ROUND_1,
-                class_name=None,
-                minimum_moto=self.default_minimum,
-                maximum_moto=None,
-                updated_at=None,
-                source="manual",
-                active_graphic=ActiveGraphic.CURRENT_MOTO,
-            )
+            return self._default_state()
+
+    def _default_state(self) -> CurrentMoto:
+        return CurrentMoto(
+            moto_number=self.default_moto,
+            race_phase=RacePhase.ROUND_1,
+            class_name=None,
+            minimum_moto=self.default_minimum,
+            maximum_moto=None,
+            motoboard_id=None,
+            updated_at=None,
+            source="manual",
+            active_graphic=ActiveGraphic.CURRENT_MOTO,
+        )
 
     def _write(self, state: CurrentMoto) -> None:
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -218,9 +242,7 @@ class CurrentMotoService:
                 "maximum_moto must be greater than or equal to minimum_moto."
             )
         if moto_number < minimum:
-            raise CurrentMotoValidationError(
-                f"moto_number must be at least {minimum}."
-            )
+            raise CurrentMotoValidationError(f"moto_number must be at least {minimum}.")
         if maximum is not None and moto_number > maximum:
             raise CurrentMotoValidationError(
                 f"moto_number must not exceed {maximum}."
