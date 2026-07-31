@@ -121,10 +121,11 @@ DIRECTOR_HTML = r'''<!doctype html>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
-const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Mains'};
+const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main',overall:'Overall'};
 const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results'};
 let state=null;
 let events=[];
+let program=null;
 const $=selector=>document.querySelector(selector);
 
 async function fetchWithTimeout(url,options={},timeoutMs=2800){
@@ -165,7 +166,7 @@ function renderEventSelection(value){
 
 function render(value){
   state=value;
-  $('#round-stat').textContent=phaseLabels[value.race_phase]||value.race_phase;
+  $('#round-stat').textContent=value.phase_label||phaseLabels[value.race_phase]||value.race_phase;
   $('#class-stat').textContent=value.class_name||'Class not set';
   $('#moto-stat').textContent=value.moto_number;
   $('#moto-number').textContent=value.moto_number;
@@ -208,6 +209,30 @@ async function loadEvents(){
   }
 }
 
+
+async function loadProgram(){
+  try{
+    const response=await fetchWithTimeout('/api/current/program',{cache:'no-store'});
+    if(!response.ok)throw new Error();
+    program=await response.json();
+    const select=$('#race-phase');
+    select.replaceChildren();
+    for(const stage of program.stages){
+      const option=document.createElement('option');
+      option.value=stage.phase;
+      option.textContent=stage.label;
+      select.append(option);
+    }
+    if(state)select.value=state.race_phase;
+    $('#previous-round').disabled=program.available_phases.indexOf(state?.race_phase)<=0;
+    $('#next-round').disabled=program.available_phases.indexOf(state?.race_phase)>=program.available_phases.length-1;
+  }catch(_){
+    program=null;
+    const select=$('#race-phase');
+    if(!select.options.length)select.add(new Option('Round 1','round_1'));
+  }
+}
+
 async function request(path,options={}){
   const response=await fetch(path,options);
   if(!response.ok){
@@ -216,6 +241,7 @@ async function request(path,options={}){
   }
   const value=await response.json();
   render(value);
+  await loadProgram();
   await refreshLineup();
   return value;
 }
@@ -223,16 +249,12 @@ async function request(path,options={}){
 async function selectEvent(){
   if(!state)return;
   const boardId=$('#event-select').value||null;
-  const selected=events.find(event=>event.motoboard_id===boardId);
-  const boundsEvent=selected||(boardId===null?events[0]:null);
-  const maximum=boundsEvent&&Number(boundsEvent.total_motos)>0?Number(boundsEvent.total_motos):null;
-  const moto=maximum===null?state.moto_number:Math.min(Math.max(state.moto_number,1),maximum);
+  const moto=Math.max(state.moto_number,1);
   const body={
     moto_number:moto,
-    race_phase:state.race_phase,
-    class_name:state.class_name||'',
+    race_phase:'round_1',
     minimum_moto:1,
-    maximum_moto:maximum,
+    maximum_moto:null,
     motoboard_id:boardId,
     active_graphic:state.active_graphic
   };
@@ -263,8 +285,7 @@ async function apply(){
   if(state&&Number($('#jump').value)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
   const body={
     moto_number:Number($('#jump').value),
-    race_phase:$('#race-phase').value,
-    class_name:$('#class-name').value,
+    race_phase:'round_1',
     minimum_moto:1,
     maximum_moto:$('#maximum').value===''?null:Number($('#maximum').value),
     motoboard_id:state?state.motoboard_id:null
@@ -300,6 +321,10 @@ $('#previous-round').addEventListener('click',()=>round('previous'));
 $('#next-round').addEventListener('click',()=>round('next'));
 $('#apply').addEventListener('click',apply);
 $('#event-select').addEventListener('change',selectEvent);
+$('#race-phase').addEventListener('change',async()=>{
+  try{await request(`/api/current/phase/select/${$('#race-phase').value}`,{method:'POST'})}
+  catch(error){$('#message').textContent=error.message}
+});
 $('#refresh-events').addEventListener('click',loadEvents);
 document.querySelectorAll('[data-graphic]').forEach(button=>button.addEventListener('click',()=>graphic(button.dataset.graphic)));
 window.addEventListener('keydown',event=>{
@@ -316,5 +341,6 @@ window.addEventListener('keydown',event=>{
 request('/api/current').catch(error=>$('#message').textContent=error.message);
 loadEvents();
 setInterval(()=>fetch('/api/current',{cache:'no-store'}).then(response=>response.json()).then(render).catch(()=>{}),1000);
+setInterval(loadProgram,5000);
 </script>
 </body></html>'''

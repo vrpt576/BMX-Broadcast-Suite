@@ -1,18 +1,22 @@
 # BMX Broadcast Suite Roadmap
 
-This roadmap reflects the project status as of v1.2.6. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
+This roadmap reflects the project status as of v1.2.8. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
 
 ## Shipped
 
 ### Foundation and live data
 - Read-only RaceManager SQL Server connector
-- Current event, motoboard, moto, rider, lane, class, and round data
+- Live and historical event/motoboard selection
 - Compatibility with optional RaceManager schema fields
-- Current-moto, lineup, and experimental results APIs
+- Round-aware stage identity using class, round type, round, motogroup, and round index
+- Qualifier (`Round_Type_ID 123`) and final-classification (`Round_Type_ID 1`) resolution
+- Transfer-marker normalization and Main versus Overall classification
+- Current-moto, lineup, results, and race-program APIs
 
 ### Broadcast operation
 - OBS browser-source overlays
-- Race Director controls and active-graphic state
+- Dynamic Race Director phase controls that expose only stages present in RaceManager
+- Phase-aware moto movement within qualifier and final branches
 - WebSocket updates with polling fallback
 - Last-known-good lineup resilience
 - Configuration, diagnostics, logging, backup, and troubleshooting workflows
@@ -20,10 +24,16 @@ This roadmap reflects the project status as of v1.2.6. Priorities may move as mo
 ### Deployment and branding
 - Ubuntu installer and machine-wide `systemd` service
 - Start-at-boot, desktop launcher, and system-tray controller
-- Windows boot-time background runner, desktop/Start Menu launcher, and notification-area controller
-- Track theme packages and expanded v1.2.3 color palette
+- Windows boot-time background runner, setup wizard, desktop/Start Menu launcher, and notification-area controller
+- Track theme packages and expanded color palette
 
 ## Near term
+
+### Elimination-round validation
+- Capture a historical class large enough to contain real quarterfinals and/or semifinals
+- Identify the exact RaceManager tables, round types, group identities, gates, and finishes for those stages
+- Add quarterfinal and semifinal resolvers only after the mapping is proven
+- Add advancement and bracket-oriented APIs once the source data is understood
 
 ### Theme and overlay polish
 - Visual theme editor with live preview and color pickers
@@ -32,15 +42,15 @@ This roadmap reflects the project status as of v1.2.6. Priorities may move as mo
 - Additional bundled theme examples and accessibility/contrast checks
 
 ### Race-day automation
-- Optional automatic lineup display when a moto becomes current
+- Optional automatic lineup display when a stage becomes current
 - Optional results display after finishes are entered
 - Configurable graphic timing, transitions, and producer overrides
 - Improved keyboard shortcuts and broadcast status feedback
 
-### Results validation
-- Validate transfer, elimination, semifinal, and main-event result selection
+### Results hardening
+- Improve incomplete, provisional, corrected, DNS, and DNF handling
 - Add event-specific scoring and advancement display rules
-- Improve incomplete, provisional, and corrected-result handling
+- Continue live validation of transfer and total-points formats
 
 ## Mid term
 
@@ -60,7 +70,8 @@ This roadmap reflects the project status as of v1.2.6. Priorities may move as mo
 ## Guiding principles
 
 - Keep RaceManager access read-only
+- Use stable database identities instead of display numbers when identities can collide
+- Never invent a round mapping that has not been validated against real RaceManager data
 - Favor dependable race-day operation over unnecessary complexity
 - Preserve manual producer control even when automation is enabled
 - Keep track branding separate from core connector logic
-- Validate new race logic at real events before calling it production-ready

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.8
+
+- Added round-aware RaceManager stage resolution using `Motogroup_DBID`, class, round type, round, and lane/finish index instead of treating `Moto_Number` as globally unique.
+- Added dynamic phase programs so the Director exposes only phases actually present for the selected class and qualifier group.
+- Mapped `Round_Type_ID 123` to qualifier progression and `Round_Type_ID 1` to exact final classification.
+- Added evidence-based Main versus Overall classification for transfer and total-points formats.
+- Normalized RaceManager `X` finish values as transfer markers rather than numeric placements.
+- Added phase-aware Next/Previous Moto behavior that stays in the qualifier or final branch currently on air.
+- Added stable motogroup lookup APIs and exact stage metadata to current, lineup, and results payloads.
+- Fixed pyodbc 5.2 Windows compatibility by applying supported connection-level query timeout behavior instead of assigning `Cursor.timeout`.
+- Added regression tests for duplicate moto numbers, split qualifier groups, transfer markers, total-points Overall stages, unavailable semifinals, phase-aware moto movement, and Windows timeout compatibility.
+
+## 1.2.7
+
+- Added historical RaceManager event listing and persistent motoboard selection in the Race Director.
+- Added event-aware lineup and results retrieval for previously completed races.
+- Reduced default SQL connection and query timeouts for faster offline recovery.
+
 ## 1.2.6
 
 - Bundled the Microsoft ODBC Driver 18 x64 MSI for offline Windows installation.

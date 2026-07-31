@@ -3,10 +3,12 @@ from functools import lru_cache
 from database.racemanager import RaceManagerDatabase
 
 from connector.config import get_settings
+from connector.services.current_lineup_service import CurrentLineupService
+from connector.services.current_moto_service import CurrentMotoService
+from connector.services.current_results_service import CurrentResultsService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
-from connector.services.current_moto_service import CurrentMotoService
-from connector.services.current_lineup_service import CurrentLineupService
+from connector.services.race_program_service import RaceProgramService
 
 
 @lru_cache
@@ -36,14 +38,22 @@ def get_current_moto_service() -> CurrentMotoService:
     )
 
 
-def get_current_lineup_service() -> CurrentLineupService:
-    return CurrentLineupService(
+def get_race_program_service() -> RaceProgramService:
+    return RaceProgramService(
         get_current_moto_service(),
         get_event_service(),
         get_motoboard_service(),
     )
 
-from connector.services.current_results_service import CurrentResultsService
+
+def get_current_lineup_service() -> CurrentLineupService:
+    settings = get_settings()
+    return CurrentLineupService(
+        get_current_moto_service(),
+        get_event_service(),
+        get_motoboard_service(),
+        settings.lineup_cache_file,
+    )
 
 
 def get_current_results_service() -> CurrentResultsService:

@@ -24,30 +24,75 @@ BASE_URL = os.environ.get("BBS_TRAY_BASE_URL", "http://127.0.0.1:8000").rstrip("
 class BBSWindowsTray:
     def __init__(self) -> None:
         self.running = True
-        self.status = ServiceStatus(service="starting", api="unavailable", database="unknown")
+        self.status = ServiceStatus(
+            service="starting",
+            api="unavailable",
+            database="unknown",
+        )
         self.icon = pystray.Icon(
             "bbs-tray",
             Image.open(ICON),
-            "BMX Broadcast Suite â€” Checking status",
+            "BMX Broadcast Suite — Checking status",
             menu=self._menu(),
         )
 
     def _menu(self) -> pystray.Menu:
         return pystray.Menu(
-            pystray.MenuItem(lambda _item: f"BMX Broadcast Suite {self.status.version or '1.2.6'}", None, enabled=False),
-            pystray.MenuItem(lambda _item: "\n".join(status_lines(self.status)), None, enabled=False),
+            pystray.MenuItem(
+                lambda _item: (
+                    f"BMX Broadcast Suite {self.status.version or '1.2.8'}"
+                ),
+                None,
+                enabled=False,
+            ),
+            pystray.MenuItem(
+                lambda _item: "\n".join(status_lines(self.status)),
+                None,
+                enabled=False,
+            ),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Open Race Director", lambda _icon, _item: self._open("/director"), default=True),
-            pystray.MenuItem("Open Configuration", lambda _icon, _item: self._open("/configuration")),
-            pystray.MenuItem("Open Diagnostics", lambda _icon, _item: self._open("/diagnostics")),
-            pystray.MenuItem("Open Logs", lambda _icon, _item: self._open("/logs")),
-            pystray.MenuItem("Open Lineup Preview", lambda _icon, _item: self._open("/overlay/lineup?preview=true")),
+            pystray.MenuItem(
+                "Open Race Director",
+                lambda _icon, _item: self._open("/director"),
+                default=True,
+            ),
+            pystray.MenuItem(
+                "Open Configuration",
+                lambda _icon, _item: self._open("/configuration"),
+            ),
+            pystray.MenuItem(
+                "Open Diagnostics",
+                lambda _icon, _item: self._open("/diagnostics"),
+            ),
+            pystray.MenuItem(
+                "Open Logs",
+                lambda _icon, _item: self._open("/logs"),
+            ),
+            pystray.MenuItem(
+                "Open Lineup Preview",
+                lambda _icon, _item: self._open("/overlay/lineup?preview=true"),
+            ),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Start BBS", lambda _icon, _item: self._task_action("run"), enabled=lambda _item: self.status.service != "running"),
-            pystray.MenuItem("Stop BBS", lambda _icon, _item: self._task_action("end"), enabled=lambda _item: self.status.service == "running"),
-            pystray.MenuItem("Restart BBS", lambda _icon, _item: self._restart(), enabled=lambda _item: self.status.service == "running"),
+            pystray.MenuItem(
+                "Start BBS",
+                lambda _icon, _item: self._task_action("run"),
+                enabled=lambda _item: self.status.service != "running",
+            ),
+            pystray.MenuItem(
+                "Stop BBS",
+                lambda _icon, _item: self._task_action("end"),
+                enabled=lambda _item: self.status.service == "running",
+            ),
+            pystray.MenuItem(
+                "Restart BBS",
+                lambda _icon, _item: self._restart(),
+                enabled=lambda _item: self.status.service == "running",
+            ),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Exit Tray Icon", lambda _icon, _item: self._quit()),
+            pystray.MenuItem(
+                "Exit Tray Icon",
+                lambda _icon, _item: self._quit(),
+            ),
         )
 
     def _open(self, page: str) -> None:
@@ -59,7 +104,14 @@ class BBSWindowsTray:
             f"-ArgumentList '{arguments}'"
         )
         subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-Command", command],
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-WindowStyle",
+                "Hidden",
+                "-Command",
+                command,
+            ],
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
 

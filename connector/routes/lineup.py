@@ -69,7 +69,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAINS'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
 };
 const params = new URLSearchParams(location.search);
 const demo = ['1', 'true', 'yes'].includes((params.get('demo') || '').toLowerCase());
@@ -115,7 +115,7 @@ async function applyTheme() {
 }
 
 function render(state) {
-  document.querySelector('#round').textContent = phaseLabels[state.race_phase] || state.race_phase;
+  document.querySelector('#round').textContent = (state.phase_label || phaseLabels[state.race_phase] || state.race_phase).toUpperCase();
   document.querySelector('#class').textContent = (state.class_name || 'CLASS NOT SET').toUpperCase();
   document.querySelector('#moto').textContent = `MOTO ${state.moto_number}`;
   ridersBox.replaceChildren();
