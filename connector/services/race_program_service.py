@@ -67,19 +67,27 @@ class RaceProgramService:
         return self.resolve_and_sync()
 
     def step_moto(self, direction: int) -> CurrentMoto:
-        """Move within the RaceManager branch for the current phase.
+        """Move to the next compatible RaceManager moto.
 
-        Qualifying phases walk Round_Type_ID 123 motogroups. Main/Overall
-        phases walk Round_Type_ID 1 classifications. This prevents a Next
-        Moto command during mains from jumping back into qualifier data.
+        Qualifying phases walk Round_Type_ID 123 motogroups.
+        Main and Overall phases walk Round_Type_ID 1 classifications,
+        skipping classes that do not contain the currently selected phase.
         """
         state = self.current.get()
+        if direction == 0:
+            return state
+
         board_id = self.board_id(state)
-        final_branch = state.race_phase in {RacePhase.MAIN, RacePhase.OVERALL}
+        final_branch = state.race_phase in {
+            RacePhase.MAIN,
+            RacePhase.OVERALL,
+        }
+
         branch = self.motos.list_motos(
             board_id,
             round_type_id=1 if final_branch else 123,
         ).motos
+
         if not branch:
             return state
 
@@ -88,6 +96,7 @@ class RaceProgramService:
             if final_branch
             else state.qualifier_motogroup_id or state.motogroup_id
         )
+
         index = next(
             (
                 item_index
@@ -96,6 +105,7 @@ class RaceProgramService:
             ),
             -1,
         )
+
         if index < 0 and state.class_id is not None:
             index = next(
                 (
@@ -106,6 +116,7 @@ class RaceProgramService:
                 ),
                 -1,
             )
+
         if index < 0:
             index = next(
                 (
@@ -113,37 +124,70 @@ class RaceProgramService:
                     for item_index, moto in enumerate(branch)
                     if moto.moto_number == state.moto_number
                 ),
-                0,
+                -1,
             )
 
-        target_index = max(0, min(index + direction, len(branch) - 1))
-        target = branch[target_index]
-        self.current.set(
-            CurrentMotoUpdate(
-                moto_number=target.moto_number,
-                race_phase=state.race_phase,
-                minimum_moto=state.minimum_moto,
-                maximum_moto=state.maximum_moto,
-                motoboard_id=state.motoboard_id,
-                class_id=target.class_id,
-                round_type_id=target.round_type_id,
-                round_id=target.round_id,
-                motogroup_id=target.motogroup_id,
-                qualifier_motogroup_id=(
-                    target.motogroup_id if target.round_type_id == 123 else None
-                ),
-                active_graphic=state.active_graphic,
+        step = 1 if direction > 0 else -1
+
+        # When the current group cannot be found, start at the appropriate
+        # end of the branch.
+        if index < 0:
+            index = -1 if step > 0 else len(branch)
+
+        candidate_index = index + step
+
+        while 0 <= candidate_index < len(branch):
+            target = branch[candidate_index]
+
+            probe = state.model_copy(
+                update={
+                    "moto_number": target.moto_number,
+                    "class_id": target.class_id,
+                    "round_type_id": target.round_type_id,
+                    "round_id": target.round_id,
+                    "motogroup_id": target.motogroup_id,
+                    "qualifier_motogroup_id": (
+                        target.motogroup_id
+                        if target.round_type_id == 123
+                        else None
+                    ),
+                }
             )
-        )
-        try:
-            return self.resolve_and_sync()
-        except LookupError:
-            # A target may not contain the same qualifier round (for example,
-            # Round 3 on a transfer class). Fall back to its first real phase.
-            program = self.get_program()
-            if not program.available_phases:
-                return self.current.get()
-            return self.select_phase(program.available_phases[0])
+
+            try:
+                resolved = self.motos.resolve_state(board_id, probe)
+            except LookupError:
+                if final_branch:
+                    # Some Round_Type_ID 1 entries are Overall/points
+                    # classifications rather than Mains, or vice versa.
+                    # Skip them without changing the selected phase.
+                    candidate_index += step
+                    continue
+
+                # Preserve the existing qualifier behavior: a target class
+                # may not contain the same qualifying round.
+                try:
+                    program = self.motos.get_program(board_id, probe)
+                    if not program.available_phases:
+                        candidate_index += step
+                        continue
+
+                    probe = probe.model_copy(
+                        update={"race_phase": program.available_phases[0]}
+                    )
+                    resolved = self.motos.resolve_state(board_id, probe)
+                except LookupError:
+                    candidate_index += step
+                    continue
+
+            return self.current.sync_race_position(
+                motoboard_id=board_id,
+                program=resolved.program,
+                stage=resolved.stage,
+            )
+
+        # Already at the beginning/end of the compatible branch.
+        return state
 
     def step_phase(self, direction: int) -> CurrentMoto:
         state = self.current.get()

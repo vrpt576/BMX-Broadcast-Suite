@@ -7,7 +7,7 @@ from uuid import UUID
 
 import pytest
 
-from connector.models import CurrentMoto, RacePhase
+from connector.models import ActiveGraphic, CurrentMoto, RacePhase
 from connector.services.current_results_service import CurrentResultsService
 from connector.services.motoboard_service import (
     MotoboardService,
@@ -27,6 +27,12 @@ ROUND_POINTS_QUAL = UUID("8e046a40-f631-4275-8c57-9a3d0ce7d699")
 ROUND_POINTS_FINAL = UUID("9797955e-49fc-41b9-9ddf-6824495b8a64")
 GROUP_POINTS_QUAL = UUID("a08c767a-b4bd-491b-831a-79e97d85e09f")
 GROUP_POINTS_FINAL = UUID("f1a7f07b-d2cd-42aa-a859-34d248b696b5")
+
+CLASS_NEXT_MAIN = UUID("c2ee596f-3cc3-4e24-98c4-4f4b8d55afc8")
+ROUND_NEXT_QUAL = UUID("61a186e4-a6e1-47d2-a47d-c29b7f19d809")
+ROUND_NEXT_FINAL = UUID("55509203-2f95-488d-9ffb-7b164035855b")
+GROUP_NEXT_QUAL = UUID("cb7d3fbf-9f79-4d96-a163-b11c1aaf29ac")
+GROUP_NEXT_FINAL = UUID("84d5c19a-a87e-4835-be9c-166385553996")
 
 
 def _rider_id(number: int) -> UUID:
@@ -195,6 +201,48 @@ def total_points_rows() -> list[dict[str, object]]:
     return rows
 
 
+def next_main_rows() -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for order, rider_number in enumerate(range(31, 35), 1):
+        rows.append(
+            row(
+                class_id=CLASS_NEXT_MAIN,
+                class_name="13 Expert",
+                round_id=ROUND_NEXT_QUAL,
+                round_type_id=123,
+                motogroup_id=GROUP_NEXT_QUAL,
+                moto_number=32,
+                rider_number=rider_number,
+                rider_order=order,
+                lane_1=order,
+                lane_2=5 - order,
+                finish_1="X" if rider_number in {31, 32} else None,
+            )
+        )
+    for finish, rider_number in enumerate((31, 32), 1):
+        rows.append(
+            row(
+                class_id=CLASS_NEXT_MAIN,
+                class_name="13 Expert",
+                round_id=ROUND_NEXT_FINAL,
+                round_type_id=1,
+                motogroup_id=GROUP_NEXT_FINAL,
+                moto_number=32,
+                rider_number=rider_number,
+                rider_order=finish,
+                lane_1=finish,
+                finish_1=finish,
+            )
+        )
+    return rows
+
+
+def final_branch_regression_rows() -> list[dict[str, object]]:
+    # The final branch is deliberately Main 30, Overall-only 31, Main 32.
+    points = [{**item, "moto_number": 31} for item in total_points_rows()]
+    return split_class_rows() + points + next_main_rows()
+
+
 def test_duplicate_moto_number_is_not_collapsed_across_branches() -> None:
     motos = MotoboardService(FakeDatabase(split_class_rows())).list_motos(
         BOARD_ID,
@@ -306,3 +354,57 @@ def test_phase_aware_next_moto_preserves_round_and_uses_next_motogroup(tmp_path)
     assert state.motogroup_id == GROUP_31
     assert state.qualifier_motogroup_id == GROUP_31
     assert state.round_type_id == 123
+
+
+def test_next_moto_during_mains_skips_overall_and_stops_at_last_main(tmp_path) -> None:
+    from connector.models import CurrentMotoUpdate
+    from connector.services.current_moto_service import CurrentMotoService
+    from connector.services.race_program_service import RaceProgramService
+
+    class Events:
+        def current(self):
+            raise AssertionError("Pinned motoboard should avoid latest-event lookup")
+
+    current = CurrentMotoService(tmp_path / "current.json")
+    current.set(
+        CurrentMotoUpdate(
+            moto_number=30,
+            race_phase=RacePhase.MAIN,
+            minimum_moto=5,
+            maximum_moto=50,
+            motoboard_id=BOARD_ID,
+            class_id=CLASS_SPLIT,
+            round_type_id=1,
+            round_id=ROUND_SPLIT_FINAL,
+            motogroup_id=GROUP_FINAL,
+            qualifier_motogroup_id=GROUP_30,
+            round_index=1,
+            active_graphic=ActiveGraphic.RESULTS,
+        )
+    )
+    programs = RaceProgramService(
+        current,
+        Events(),
+        MotoboardService(FakeDatabase(final_branch_regression_rows())),
+    )
+
+    state = programs.step_moto(1)
+
+    assert state.race_phase == RacePhase.MAIN
+    assert state.moto_number == 32
+    assert state.class_id == CLASS_NEXT_MAIN
+    assert state.class_name == "13 Expert"
+    assert state.round_type_id == 1
+    assert state.round_id == ROUND_NEXT_FINAL
+    assert state.motogroup_id == GROUP_NEXT_FINAL
+    assert state.qualifier_motogroup_id == GROUP_NEXT_QUAL
+    assert state.motoboard_id == BOARD_ID
+    assert state.resolved_motoboard_id == BOARD_ID
+    assert state.minimum_moto == 5
+    assert state.maximum_moto == 50
+    assert state.active_graphic == ActiveGraphic.RESULTS
+
+    # Moto 31 is Overall-only, and there is no compatible Main after Moto 32.
+    end_state = programs.step_moto(1)
+    assert end_state == state
+    assert end_state.race_phase == RacePhase.MAIN
