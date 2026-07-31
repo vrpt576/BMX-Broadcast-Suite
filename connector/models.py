@@ -52,9 +52,9 @@ class Rider(ApiModel):
     lane_1: int | None = None
     lane_2: int | None = None
     lane_3: int | None = None
-    finish_1: int | None = None
-    finish_2: int | None = None
-    finish_3: int | None = None
+    finish_1: int | str | None = None
+    finish_2: int | str | None = None
+    finish_3: int | str | None = None
     did_not_race: bool = False
     updated_at: datetime | None = None
 
