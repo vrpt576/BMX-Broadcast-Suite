@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
-from connector.routes import broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, status as status_route, themes
+from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, status as status_route, themes
 
 settings = get_settings()
 from connector.services.logging_service import configure_logging
@@ -40,6 +40,7 @@ app.include_router(lineup.router, prefix=settings.api_prefix)
 app.include_router(themes.router, prefix=settings.api_prefix)
 app.include_router(diagnostics.router, prefix=settings.api_prefix)
 app.include_router(results.router, prefix=settings.api_prefix)
+app.include_router(breaks.router, prefix=settings.api_prefix)
 app.include_router(configuration.router, prefix=settings.api_prefix)
 app.include_router(logs.router, prefix=settings.api_prefix)
 app.include_router(broadcast_ws.router)
@@ -53,6 +54,7 @@ app.add_api_route("/controller", current.controller_page, methods=["GET"], respo
 app.add_api_route("/overlay/current", current.current_moto_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/lineup", lineup.rider_lineup_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/results", results.results_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
+app.add_api_route("/overlay/break", breaks.break_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 
 
 @app.middleware("http")

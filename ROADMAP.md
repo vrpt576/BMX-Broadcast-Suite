@@ -20,6 +20,7 @@ This roadmap reflects the project status as of v1.2.9. Priorities may move as mo
 - WebSocket updates with polling fallback
 - Last-known-good lineup resilience
 - Official Round 1–3 and Main/Overall results graphic with a server-owned, pausable Results Roll
+- Theme-aware Round 1 Break and Main Break graphics
 - Configuration, diagnostics, logging, backup, and troubleshooting workflows
 
 ### Deployment and branding

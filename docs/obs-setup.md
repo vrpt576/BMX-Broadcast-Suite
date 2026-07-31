@@ -9,6 +9,7 @@ Use the BBS server address when OBS is running on another computer. Use `localho
 - Current moto: `http://BBS-COMPUTER:8000/overlay/current`
 - Rider lineup: `http://BBS-COMPUTER:8000/overlay/lineup`
 - Results: `http://BBS-COMPUTER:8000/overlay/results`
+- Round/Main break: `http://BBS-COMPUTER:8000/overlay/break`
 - Race controller: `http://BBS-COMPUTER:8000/controller`
 
 Add `?preview=true` while building or testing a scene. Preview mode forces the selected overlay to remain visible even when that graphic is not active in the controller:

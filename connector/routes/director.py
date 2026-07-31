@@ -106,6 +106,8 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button data-graphic="lineup">L · Show Rider Lineup</button>
         <button data-graphic="current_moto">M · Show Current Moto</button>
         <button id="show-current-results">R · Show Results for Current Moto</button>
+        <button data-break="round_1">Show Round 1 Break</button>
+        <button data-break="main">Show Main Break</button>
         <button class="danger" data-graphic="hidden">H · Hide All Graphics</button>
       </div>
       <div class="keys">
@@ -146,7 +148,7 @@ const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
 const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main',overall:'Overall'};
-const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results'};
+const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results',round_1_break:'Round 1 Break',main_break:'Main Break'};
 let state=null;
 let events=[];
 let program=null;
@@ -201,6 +203,7 @@ function render(value){
   $('#maximum').value=value.maximum_moto??'';
   renderEventSelection(value);
   document.querySelectorAll('[data-graphic]').forEach(button=>button.classList.toggle('active',button.dataset.graphic===value.active_graphic));
+  document.querySelectorAll('[data-break]').forEach(button=>button.classList.toggle('active',`${button.dataset.break}_break`===value.active_graphic));
   $('#show-current-results').classList.toggle('active',value.active_graphic==='results');
 }
 
@@ -306,6 +309,10 @@ async function graphic(name){
   try{await request(`/api/current/graphic/${name}`,{method:'POST'})}
   catch(error){$('#message').textContent=error.message}
 }
+async function breakGraphic(preset){
+  try{await request(`/api/breaks/show/${preset}`,{method:'POST'})}
+  catch(error){$('#message').textContent=error.message}
+}
 function renderResultsStatus(value){
   const position=value.current_result_index===null?'—':value.current_result_index+1;
   const progress=value.total_available_results?`Moto ${position} of ${value.total_available_results}${value.current_result_moto?` · RaceManager Moto ${value.current_result_moto}`:''}`:'No result loaded';
@@ -381,6 +388,7 @@ $('#results-previous').addEventListener('click',()=>resultsAction('previous'));
 $('#results-next').addEventListener('click',()=>resultsAction('next'));
 $('#results-stop').addEventListener('click',()=>resultsAction('stop'));
 document.querySelectorAll('[data-graphic]').forEach(button=>button.addEventListener('click',()=>graphic(button.dataset.graphic)));
+document.querySelectorAll('[data-break]').forEach(button=>button.addEventListener('click',()=>breakGraphic(button.dataset.break)));
 window.addEventListener('keydown',event=>{
   if(['INPUT','SELECT','TEXTAREA'].includes(event.target.tagName))return;
   if(event.key===' '||event.key==='ArrowRight'){event.preventDefault();step('next')}

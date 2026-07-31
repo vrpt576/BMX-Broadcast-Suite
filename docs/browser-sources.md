@@ -21,6 +21,15 @@ by the server-owned Results Roll. The graphic supports eight riders, includes
 event/class/phase context and progress, and marks incomplete or cached data.
 See [Results Roll](results-roll.md) for operation and data-handling rules.
 
+## Broadcast Break
+
+`/overlay/break`
+
+One shared source displays either **ROUND 1 BREAK** or **MAIN BREAK**, selected
+from the Race Director. For setup, use
+`/overlay/break?preview=true&preset=round_1` or
+`/overlay/break?preview=true&preset=main`.
+
 ## Query parameters
 
 - `theme=default` selects a theme for that source

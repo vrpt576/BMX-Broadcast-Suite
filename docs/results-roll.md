@@ -24,6 +24,9 @@ Playback stops on the final available result and never wraps. Selecting another
 graphic, including **Hide All Graphics**, pauses an active roll so a hidden
 timer cannot unexpectedly replace the operator's next graphic.
 
+Selecting **Round 1 Break** or **Main Break** also pauses the roll before the
+break becomes active, so timed results cannot replace the break unexpectedly.
+
 ## Official-data policy
 
 BBS reads Round 1–3 finish fields from `Round_Type_ID 123` and final Main or

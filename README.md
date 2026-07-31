@@ -55,6 +55,7 @@ Common pages:
 - Current overlay: `http://localhost:8000/overlay/current`
 - Lineup overlay: `http://localhost:8000/overlay/lineup`
 - Results overlay: `http://localhost:8000/overlay/results`
+- Shared Round/Main break overlay: `http://localhost:8000/overlay/break`
 
 Add `?preview=true` when building or testing an OBS scene. Remove it for live controller-driven operation.
 
@@ -69,6 +70,7 @@ Add `?preview=true` when building or testing an OBS scene. Remove it for live co
 - `GET /api/results/current` — numeric placements plus separate transfer status
 - `GET /api/results/status` — persistent server-owned Results Roll state
 - `POST /api/results/start|pause|resume|previous|next|stop` — timed and manual results playback
+- `POST /api/breaks/show/{round_1|main}` — show a validated broadcast-break preset
 
 ## Themes
 

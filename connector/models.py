@@ -127,6 +127,15 @@ class ActiveGraphic(StrEnum):
     CURRENT_MOTO = "current_moto"
     LINEUP = "lineup"
     RESULTS = "results"
+    ROUND_1_BREAK = "round_1_break"
+    MAIN_BREAK = "main_break"
+
+
+class BreakPreset(StrEnum):
+    """Validated presets rendered by the shared break graphic."""
+
+    ROUND_1 = "round_1"
+    MAIN = "main"
 
 
 class CurrentMoto(ApiModel):
