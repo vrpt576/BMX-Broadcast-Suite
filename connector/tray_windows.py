@@ -17,7 +17,8 @@ from connector.service_status import ServiceStatus, read_status, status_lines
 
 TASK_NAME = "BMX Broadcast Suite"
 ROOT = Path(__file__).resolve().parents[1]
-ICON = ROOT / "logo.png"
+ICON = ROOT / "data" / "bbs-icon.png"
+ICON_FALLBACK = ROOT / "assets" / "bbs-icon.png"
 BASE_URL = os.environ.get("BBS_TRAY_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
@@ -31,10 +32,16 @@ class BBSWindowsTray:
         )
         self.icon = pystray.Icon(
             "bbs-tray",
-            Image.open(ICON),
+            self._load_icon(),
             "BMX Broadcast Suite — Checking status",
             menu=self._menu(),
         )
+
+    @staticmethod
+    def _load_icon() -> Image.Image:
+        path = ICON if ICON.is_file() else ICON_FALLBACK
+        with Image.open(path) as image:
+            return image.convert("RGBA")
 
     def _menu(self) -> pystray.Menu:
         return pystray.Menu(

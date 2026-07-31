@@ -19,7 +19,8 @@ The installer:
   `.venv\Scripts\python.exe`, `-m connector.run`, and the installation folder
   as its working directory
 - retries once per minute after an unexpected failure
-- generates `data\bbs.ico` from `logo.png`
+- generates a tightly cropped, multi-resolution `data\bbs.ico` plus the tray
+  image `data\bbs-icon.png` from `assets\bbs-icon.png`
 - creates desktop and Start Menu launchers
 - starts the tray icon automatically at user login
 - starts BBS and the tray immediately
