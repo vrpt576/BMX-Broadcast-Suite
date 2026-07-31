@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from connector.models import ActiveGraphic, ResultsRollStart, ResultsRollState
 from connector.routes.current import select_graphic
 from connector.routes.results import (
+    current_results,
     next_result,
     pause_results_roll,
     previous_result,
@@ -107,6 +108,20 @@ def test_results_control_reports_unavailable_catalog_as_validation_error() -> No
         assert exc.detail == "No official results are available."
     else:  # pragma: no cover
         raise AssertionError("Unavailable Results Roll should return HTTP 422")
+
+
+def test_current_results_rejects_non_main_selection_as_validation_error() -> None:
+    class Unavailable(RecordingRoll):
+        def current_result(self, *, demo=False):
+            raise ResultsRollUnavailableError("Results are Main-only.")
+
+    try:
+        current_results(demo=False, service=Unavailable())
+    except HTTPException as exc:
+        assert exc.status_code == 422
+        assert exc.detail == "Results are Main-only."
+    else:  # pragma: no cover
+        raise AssertionError("Non-Main current results should return HTTP 422")
 
 
 def test_hide_all_pauses_results_roll_before_changing_graphic() -> None:

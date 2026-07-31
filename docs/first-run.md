@@ -13,5 +13,5 @@
 
 Before putting results on air, compare at least one classification with the
 official RaceManager report. Use the Director Results Roll controls to show the
-current result or play available Round 1–3 and final classifications in program order.
+selected Main result or play available Mains in ascending moto order.
 See [Results Roll](results-roll.md).

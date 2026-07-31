@@ -12,7 +12,10 @@ from connector.models import (
     ResultsRollStart,
 )
 from connector.services.current_moto_service import CurrentMotoService
-from connector.services.results_roll_service import ResultsRollService
+from connector.services.results_roll_service import (
+    ResultsRollService,
+    ResultsRollUnavailableError,
+)
 
 
 BOARD_ID = UUID("d726697c-36e3-4a4c-b21b-c65058dc31bf")
@@ -84,11 +87,10 @@ def result(
 class Results:
     def __init__(self) -> None:
         self.items = [
-            result(25, 1, 5, phase=RacePhase.ROUND_1),
-            result(23, 2, 5),
-            result(25, 3, 5),
-            result(27, 4, 5),
-            result(29, 5, 5),
+            result(23, 1, 4),
+            result(25, 2, 4),
+            result(27, 3, 4),
+            result(29, 4, 4),
         ]
         self.catalog_calls = 0
 
@@ -99,7 +101,7 @@ class Results:
         return [item.model_copy(deep=True) for item in self.items]
 
     def get(self):
-        return self.items[2].model_copy(deep=True)
+        return self.items[1].model_copy(deep=True)
 
 
 def service(tmp_path: Path):
@@ -138,9 +140,9 @@ def test_start_from_first_uses_pinned_event_without_mutating_race_position(tmp_p
 
     assert state.active is True
     assert state.paused is False
-    assert state.current_result_moto == 25
-    assert state.total_available_results == 5
-    assert roll.current_result().race_phase == RacePhase.ROUND_1
+    assert state.current_result_moto == 23
+    assert state.total_available_results == 4
+    assert roll.current_result().race_phase == RacePhase.MAIN
     assert current.get().active_graphic == ActiveGraphic.RESULTS
     assert race_position(current) == before
     assert events.by_board_calls == 1
@@ -201,4 +203,27 @@ def test_show_current_and_manual_navigation_keep_result_on_air(tmp_path: Path) -
     assert status.current_result_moto == 25
     assert roll.current_result().moto_number == 25
     assert current.get().active_graphic == ActiveGraphic.RESULTS
+    roll.shutdown()
+
+
+def test_show_current_rejects_non_main_phase_without_changing_graphic(tmp_path: Path) -> None:
+    roll, current, _events, _results, _clock = service(tmp_path)
+    current.set(
+        CurrentMotoUpdate(
+            moto_number=25,
+            race_phase=RacePhase.ROUND_1,
+            motoboard_id=BOARD_ID,
+        )
+    )
+    before = current.get()
+
+    try:
+        roll.show_current()
+    except ResultsRollUnavailableError as exc:
+        assert "Select a Main" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("Non-Main results should not be shown")
+
+    assert current.get().active_graphic == before.active_graphic
+    assert roll.status().total_available_results == 0
     roll.shutdown()

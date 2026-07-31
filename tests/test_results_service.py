@@ -24,6 +24,7 @@ def test_demo_results_are_sorted_by_finish(tmp_path: Path) -> None:
     service = CurrentResultsService(current, Noop(), Noop(), lineups)
     result = service.get(demo=True)
     assert [rider.finish for rider in result.riders] == [1, 2, 3, 4]
+    assert result.race_phase == RacePhase.MAIN
     assert result.result_status == "official"
 
 
@@ -125,10 +126,6 @@ def test_official_catalog_orders_finishes_and_skips_missing_results(tmp_path: Pa
     catalog = service.catalog(board_id, event_name="2025 State Qualifier")
 
     assert [(result.race_phase, result.moto_number) for result in catalog] == [
-        (RacePhase.ROUND_1, 1),
-        (RacePhase.ROUND_1, 2),
-        (RacePhase.ROUND_1, 3),
-        (RacePhase.ROUND_2, 1),
         (RacePhase.MAIN, 1),
         (RacePhase.MAIN, 3),
     ]
@@ -146,14 +143,11 @@ def test_official_catalog_orders_finishes_and_skips_missing_results(tmp_path: Pa
     assert main.result_status == "official"
     assert partial.result_status == "incomplete"
     assert next(rider for rider in partial.riders if rider.finish is None).status is None
-    assert [result.progress_index for result in catalog] == list(range(1, 7))
-    assert all(result.progress_total == 6 for result in catalog)
+    assert [result.progress_index for result in catalog] == [1, 2]
+    assert all(result.progress_total == 2 for result in catalog)
     assert all(result.event_name == "2025 State Qualifier" for result in catalog)
-    assert not any(
-        result.race_phase in {RacePhase.MAIN, RacePhase.OVERALL}
-        and result.moto_number == 2
-        for result in catalog
-    )
+    assert all(result.race_phase == RacePhase.MAIN for result in catalog)
+    assert not any(result.moto_number == 2 for result in catalog)
 
     # The completed catalog is reused without another RaceManager query.
     assert service.catalog(board_id) == catalog

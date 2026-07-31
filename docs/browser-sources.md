@@ -16,7 +16,7 @@ Displays gate, plate, and rider name. During a temporary SQL outage, a matching 
 
 `/overlay/results`
 
-Displays official RaceManager Round 1–3 and final/overall placements selected
+Displays official RaceManager Main placements selected
 by the server-owned Results Roll. The graphic supports eight riders, includes
 event/class/phase context and progress, and marks incomplete or cached data.
 See [Results Roll](results-roll.md) for operation and data-handling rules.

@@ -1,14 +1,15 @@
 # Results Roll
 
-The Race Director can show official RaceManager results for the selected moto
-or play completed Round 1–3, Main, and Overall results in race-program order. The
+The Race Director can show official RaceManager Main results for the selected
+moto or play completed Mains in ascending moto order. The
 timer belongs to the BBS server, so reloading or closing the Director page does
 not interrupt playback.
 
 ## Director controls
 
 - **Show Results for Current Moto** displays the official result associated
-  with the pinned event and selected race position.
+  with the pinned event and selected Main. BBS rejects this action when another
+  phase is selected.
 - **Start Results Roll** starts at either the first available result or the
   selected moto. If the selected moto has no result, BBS starts at the next
   available result, or the last available result when there is no later one.
@@ -29,16 +30,16 @@ break becomes active, so timed results cannot replace the break unexpectedly.
 
 ## Official-data policy
 
-BBS reads Round 1–3 finish fields from `Round_Type_ID 123` and final Main or
-Overall classifications from `Round_Type_ID 1`. It uses only finish values
-supplied by RaceManager and never creates an order from gate, lane, or lineup
-order.
+BBS reads final classifications from `Round_Type_ID 1`, uses qualifier transfer
+data to distinguish true Mains from total-points Overall classifications, and
+includes only Mains in the Results Roll. It uses only finish values supplied by
+RaceManager and never creates an order from gate, lane, or lineup order.
 
 - A fully populated classification is labeled **Official Results**.
 - A classification containing at least one numeric finish and at least one
   pending rider is labeled **Incomplete Results**.
-- A classification with no numeric official finish is logged and skipped by
-  automatic playback.
+- Round 1–3 and Overall classifications are excluded. A Main with no numeric
+  official finish is logged and skipped by automatic playback.
 - RaceManager-provided rider statuses are shown when present. BBS does not
   invent time or points data.
 

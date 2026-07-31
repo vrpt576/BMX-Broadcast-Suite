@@ -13,6 +13,7 @@ import threading
 from connector.models import (
     ActiveGraphic,
     CurrentResults,
+    RacePhase,
     ResultsRollStart,
     ResultsRollState,
 )
@@ -80,10 +81,23 @@ class ResultsRollService:
         with self._lock:
             if self._display_result is not None and not demo:
                 return self._display_result.model_copy(deep=True)
-        return self.results.get(demo=demo)
+        result = self.results.get(demo=demo)
+        if result.race_phase != RacePhase.MAIN:
+            raise ResultsRollUnavailableError(
+                "Results are available only when the selected phase is Main."
+            )
+        return result
 
     def show_current(self) -> ResultsRollState:
+        if self.current.get().race_phase != RacePhase.MAIN:
+            raise ResultsRollUnavailableError(
+                "Select a Main before showing results for the current moto."
+            )
         result = self.results.get()
+        if result.race_phase != RacePhase.MAIN:
+            raise ResultsRollUnavailableError(
+                "Official Main results are unavailable for the selected moto."
+            )
         with self._lock:
             self.current.set_graphic(ActiveGraphic.RESULTS)
             self._catalog = [result]
@@ -116,7 +130,7 @@ class ResultsRollService:
         )
         if not catalog:
             raise ResultsRollUnavailableError(
-                "No official final or overall results are available for this event."
+                "No official Main results are available for this event."
             )
         index = 0
         if request.start_from == "current":
@@ -125,33 +139,15 @@ class ResultsRollService:
                     position
                     for position, result in enumerate(catalog)
                     if result.moto_number == selected.moto_number
-                    and result.race_phase == selected.race_phase
                 ),
                 None,
             )
             if exact is None:
-                phase_order = {
-                    "round_1": 0,
-                    "round_2": 1,
-                    "round_3": 2,
-                    "quarterfinal": 3,
-                    "semifinal": 3,
-                    "main": 3,
-                    "overall": 3,
-                }
-                selected_key = (
-                    phase_order[selected.race_phase.value],
-                    selected.moto_number,
-                )
                 exact = next(
                     (
                         position
                         for position, result in enumerate(catalog)
-                        if (
-                            phase_order[result.race_phase.value],
-                            result.moto_number,
-                        )
-                        > selected_key
+                        if result.moto_number > selected.moto_number
                     ),
                     len(catalog) - 1,
                 )

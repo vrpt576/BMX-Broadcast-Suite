@@ -165,7 +165,7 @@ Open `/diagnostics` to check Python, pyodbc, the configured SQL Server ODBC driv
 - `POST /api/results/start|pause|resume|previous|next|stop` — Results Roll controls
 - `POST /api/breaks/show/{round_1|main}` — pause results and show a broadcast break
 - `WS /ws/broadcast` — changed broadcast snapshots
-- `/overlay/results` — official Round 1–3 and Main/Overall results graphic
+- `/overlay/results` — official Main-only results graphic
 - `/overlay/break` — shared Round 1 Break/Main Break graphic
 
 Cached responses include `is_stale: true`, `source: "cache"`, and a warning for the operator. The OBS lineup remains visible instead of going blank.

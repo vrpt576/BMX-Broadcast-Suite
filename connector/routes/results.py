@@ -17,7 +17,7 @@ def current_results(
     demo: bool = Query(False),
     service: ResultsRollService = Depends(get_results_roll_service),
 ) -> CurrentResults:
-    return service.current_result(demo=demo)
+    return _control(lambda: service.current_result(demo=demo))
 
 
 @router.get("/results/status", response_model=ResultsRollState)

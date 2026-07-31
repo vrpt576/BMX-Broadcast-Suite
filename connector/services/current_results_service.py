@@ -54,8 +54,8 @@ class CurrentResultsService:
                 lineup = self.lineups.get(demo=True)
                 result = self._build_result(
                     DEMO_MOTO,
-                    race_phase=lineup.race_phase,
-                    phase_label=lineup.phase_label or "Round 1",
+                    race_phase=RacePhase.MAIN,
+                    phase_label="Main",
                     round_index=lineup.round_index or 1,
                     motoboard_id=None,
                     event_name="Demo Event",
@@ -104,7 +104,7 @@ class CurrentResultsService:
         event_name: str | None = None,
         refresh: bool = False,
     ) -> list[CurrentResults]:
-        """Return cached official final/overall results in moto order."""
+        """Return cached official Main results in ascending moto order."""
         with self._lock:
             cached = self._catalogs.get(motoboard_id)
             if cached is not None and not refresh:
@@ -121,52 +121,21 @@ class CurrentResultsService:
 
         name = event_name or self._event_name(motoboard_id)
         results: list[CurrentResults] = []
-        qualifier_order = sorted(
-            (moto for motos in qualifiers.values() for moto in motos),
-            key=lambda item: (
-                item.moto_number,
-                item.motogroup_number,
-                str(item.motogroup_id),
-            ),
-        )
-        for round_index, phase, label in (
-            (1, RacePhase.ROUND_1, "Round 1"),
-            (2, RacePhase.ROUND_2, "Round 2"),
-            (3, RacePhase.ROUND_3, "Round 3"),
-        ):
-            for qualifier in qualifier_order:
-                result = self._build_result(
-                    qualifier,
-                    race_phase=phase,
-                    phase_label=label,
-                    round_index=round_index,
-                    motoboard_id=motoboard_id,
-                    event_name=name,
-                    source="racemanager",
-                )
-                if result.result_status == "unavailable":
-                    logger.info(
-                        "Skipping %s results for moto %s (%s): no official finish values.",
-                        label,
-                        qualifier.moto_number,
-                        qualifier.class_name,
-                    )
-                    continue
-                results.append(result)
-
         for final in sorted(
             finals,
             key=lambda item: (item.moto_number, item.motogroup_number, str(item.motogroup_id)),
         ):
-            phase = (
-                RacePhase.MAIN
-                if is_main_classification(qualifiers[final.class_id], final)
-                else RacePhase.OVERALL
-            )
+            if not is_main_classification(qualifiers[final.class_id], final):
+                logger.info(
+                    "Skipping Overall classification for moto %s (%s): Results Roll is Main-only.",
+                    final.moto_number,
+                    final.class_name,
+                )
+                continue
             result = self._build_result(
                 final,
-                race_phase=phase,
-                phase_label="Main" if phase == RacePhase.MAIN else "Overall",
+                race_phase=RacePhase.MAIN,
+                phase_label="Main",
                 round_index=1,
                 motoboard_id=motoboard_id,
                 event_name=name,
