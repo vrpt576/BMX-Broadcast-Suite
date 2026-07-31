@@ -22,6 +22,9 @@ The installer:
 - starts the tray icon automatically at user login
 - starts BBS and the tray immediately
 
+The setup wizard waits for `/health` before opening Configuration, so the
+first page load does not require manually starting BBS from the tray.
+
 Project files, `.env`, themes, logs, cache, and race state remain in the repository directory.
 
 ## Tray status and controls
@@ -78,6 +81,75 @@ Run PowerShell as Administrator:
 ```
 
 This removes the Scheduled Task and shortcuts. It preserves the repository, `.env`, themes, logs, cache, and race state.
+
+## Uninstall the application
+
+For an installation created by the setup EXE:
+
+1. Open **Settings → Apps → Installed apps**.
+2. Find **BMX Broadcast Suite**.
+3. Select **Uninstall** and approve the Windows elevation prompt.
+
+The uninstaller:
+
+- verifies the requested folder is a BBS installation before deleting it
+- stops and removes only the `BMX Broadcast Suite` Scheduled Task whose
+  executable belongs to that installation
+- stops only `connector.run` and `connector.tray_windows` processes using the
+  installation's private `.venv` Python executable
+- removes BBS-owned desktop, Start Menu, and Startup shortcuts
+- removes matching legacy BBS Windows services, if present
+- removes the Apps & Features registry entry
+- removes installed application files
+
+It does not stop unrelated Python processes.
+
+### Preserved operator data
+
+By default these items are copied to:
+
+```text
+%ProgramData%\BMX Broadcast Suite\UserData
+```
+
+Preserved items are:
+
+- `.env` configuration and SQL credentials
+- `config.json`, when present
+- `connector\logs`
+- `themes`, including track customizations
+- `data`, including current-moto state, caches, and local race data
+
+The preserved folder is restricted to the local SYSTEM account and
+Administrators because `.env` can contain SQL credentials.
+
+The setup wizard automatically restores these files during a reinstall.
+
+To remove preserved data manually after uninstall:
+
+```powershell
+Remove-Item "$env:ProgramData\BMX Broadcast Suite\UserData" -Recurse -Force
+```
+
+To uninstall from an Administrator PowerShell:
+
+```powershell
+& "C:\Program Files\BMX Broadcast Suite\scripts\uninstall-windows.ps1"
+```
+
+Quiet uninstall, while still preserving operator data:
+
+```powershell
+& "C:\Program Files\BMX Broadcast Suite\scripts\uninstall-windows.ps1" -Quiet
+```
+
+Explicitly remove both the application and preserved operator data:
+
+```powershell
+& "C:\Program Files\BMX Broadcast Suite\scripts\uninstall-windows.ps1" -PurgeUserData
+```
+
+`-PurgeUserData` is irreversible and is never used by Apps & Features.
 
 ## Troubleshooting
 

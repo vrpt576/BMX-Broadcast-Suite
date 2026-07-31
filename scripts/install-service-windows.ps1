@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 $TaskName = "BMX Broadcast Suite"
 $Root = (Resolve-Path $InstallDir).Path
-$Pythonw = Join-Path $Root ".venv\Scripts\python.exe"
+$Pythonw = Join-Path $Root ".venv\Scripts\pythonw.exe"
 $Logo = Join-Path $Root "logo.png"
 $Icon = Join-Path $Root "data\bbs.ico"
 $TrayScript = Join-Path $Root "scripts\start-tray-windows.ps1"
@@ -52,7 +52,7 @@ $launcher = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidd
 
 $desktop = [Environment]::GetFolderPath("CommonDesktopDirectory")
 $startMenu = Join-Path ([Environment]::GetFolderPath("CommonPrograms")) "BMX Broadcast Suite"
-$startup = [Environment]::GetFolderPath("Startup")
+$startup = [Environment]::GetFolderPath("CommonStartup")
 New-Item -ItemType Directory -Force -Path $startMenu | Out-Null
 
 function New-BBSShortcut([string]$Path, [string]$Arguments = "") {
@@ -76,7 +76,7 @@ if (-not $NoTrayLaunch) {
     & $TrayScript
 }
 
-Write-Host "BBS 1.2.6 Windows background task installed." -ForegroundColor Green
+Write-Host "BBS 1.2.8 Windows background task installed." -ForegroundColor Green
 Write-Host "The connector starts at machine boot and restarts after failures."
 Write-Host "Desktop, Start Menu, and notification-area launchers were installed."
 Write-Host "Diagnostics: http://localhost:8000/diagnostics"

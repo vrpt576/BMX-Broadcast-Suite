@@ -310,7 +310,17 @@ Microsoft SQL ODBC driver: Found
                 Copy-Item `
                     -Destination $target `
                     -Recurse `
-                    -Force
+                -Force
+        }
+
+        $restoreScript = Join-Path `
+            $target `
+            "scripts\restore-user-data-windows.ps1"
+
+        if (Test-Path -LiteralPath $restoreScript) {
+            $status.Text = "Restoring preserved operator data..."
+            [System.Windows.Forms.Application]::DoEvents()
+            & $restoreScript -InstallDir $target
         }
 
         $installScript = Join-Path `
@@ -344,8 +354,53 @@ Microsoft SQL ODBC driver: Found
 
             & $serviceScript `
                 -InstallDir $target `
-                -NoAutoStart `
                 -NoTrayLaunch
+        } else {
+            $backgroundScript = Join-Path `
+                $target `
+                "scripts\start-windows-background.ps1"
+
+            if (-not (Test-Path -LiteralPath $backgroundScript)) {
+                throw "The Windows background launcher is missing."
+            }
+
+            $status.Text = "Starting BMX Broadcast Suite..."
+            [System.Windows.Forms.Application]::DoEvents()
+            & $backgroundScript
+        }
+
+        $registrationScript = Join-Path `
+            $target `
+            "scripts\register-uninstall-windows.ps1"
+
+        if (-not (Test-Path -LiteralPath $registrationScript)) {
+            throw "The Windows uninstall registration script is missing."
+        }
+
+        $status.Text = "Registering Windows uninstall support..."
+        [System.Windows.Forms.Application]::DoEvents()
+        & $registrationScript -InstallDir $target -Version "1.2.8"
+
+        $status.Text = "Waiting for BMX Broadcast Suite to start..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $ready = $false
+        $deadline = [DateTime]::UtcNow.AddSeconds(30)
+        while (-not $ready -and [DateTime]::UtcNow -lt $deadline) {
+            try {
+                $response = Invoke-WebRequest `
+                    -Uri "http://127.0.0.1:8000/health" `
+                    -UseBasicParsing `
+                    -TimeoutSec 2
+                $ready = $response.StatusCode -eq 200
+            } catch {
+                Start-Sleep -Milliseconds 500
+            }
+            [System.Windows.Forms.Application]::DoEvents()
+        }
+
+        if (-not $ready) {
+            throw "BBS was installed, but its local web service did not become ready within 30 seconds. Use the tray icon to restart BBS, then open Diagnostics."
         }
 
         $status.Text = "Installation complete."

@@ -8,6 +8,10 @@ BMX-Broadcast-Suite-Setup-v1.2.8.exe
 
 The wizard checks for Python 3.11+ and Microsoft ODBC Driver 18 for SQL Server, lets the operator choose an installation folder, installs the Python environment, and optionally registers BBS to start at machine boot. It also installs the desktop, Start Menu, and notification-area controls supplied by BBS.
 
+The wizard also registers BBS in Windows **Apps & Features** with a working
+interactive and quiet uninstall command. Reinstalling restores operator data
+preserved by a previous uninstall.
+
 ## Before running the wizard
 
 Install:
@@ -25,7 +29,8 @@ The installer is currently unsigned, so Windows SmartScreen may show an Unknown 
 3. Choose the installation folder.
 4. Leave machine-startup enabled for a race-day computer.
 5. Select **Install**.
-6. Complete RaceManager settings at `http://localhost:8000/configuration`.
+6. The wizard starts BBS without a console window and waits for the local API
+   before opening `http://localhost:8000/configuration`.
 7. Confirm `http://localhost:8000/diagnostics` is healthy.
 
 The original PowerShell installation remains supported for administrators and development installations.
@@ -40,3 +45,9 @@ Set-ExecutionPolicy -Scope Process Bypass
 ```
 
 The generated EXE is written to `dist`. The builder uses Windows IExpress, which is included with supported Windows editions, and embeds a clean source payload plus the setup wizard.
+
+## Uninstall
+
+Open **Settings → Apps → Installed apps**, select **BMX Broadcast Suite**, and
+choose **Uninstall**. See [Windows Background Operation and Tray](service-windows.md#uninstall-the-application)
+for preservation and command-line details.

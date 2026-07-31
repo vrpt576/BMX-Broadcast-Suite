@@ -59,3 +59,13 @@ Allow inbound TCP traffic on the configured BBS port, normally 8000, when OBS or
 ## Updating
 
 Stop BBS, back up `.env` and custom themes, run `git pull`, update dependencies, test diagnostics, then restart. See [Upgrading](upgrading.md).
+
+## Uninstall
+
+Packaged installations appear as **BMX Broadcast Suite** under
+**Settings → Apps → Installed apps**. The default uninstall removes the
+application and Windows integration while preserving operator data under
+`%ProgramData%\BMX Broadcast Suite\UserData`.
+
+For complete details and command-line options, see
+[Windows Background Operation and Tray](service-windows.md#uninstall-the-application).

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Added Windows Apps & Features registration with interactive and quiet uninstall commands.
+- Added a scoped Windows uninstaller that removes only BBS-owned tasks, processes, services, shortcuts, files, and registry entries.
+- Preserved configuration, credentials, logs, themes, and local race state under `%ProgramData%` by default.
+- Added automatic restoration of preserved operator data during reinstall.
+- Added a controlled Windows uninstall/reinstall validation script and packaging regression checks.
+- Started the Windows background task during setup and waited for API readiness before opening Configuration.
+- Switched the background task to `pythonw.exe` and the IExpress bootstrap to a hidden `wscript.exe` launcher so installation and normal operation do not leave console windows open.
+
 ## 1.2.8
 
 - Added round-aware RaceManager stage resolution using `Motogroup_DBID`, class, round type, round, and lane/finish index instead of treating `Moto_Number` as globally unique.

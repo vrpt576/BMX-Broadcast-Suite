@@ -24,6 +24,19 @@ Remove only the background integration with:
 .\scripts\uninstall-service-windows.ps1
 ```
 
+Packaged installations register with Apps & Features. Remove the full
+application while preserving operator data with:
+
+```powershell
+.\scripts\uninstall-windows.ps1
+```
+
+Run the non-administrative packaging smoke test with:
+
+```powershell
+.\scripts\validate-windows-uninstall.ps1
+```
+
 ## Linux / bmxServer01
 
 Microsoft ODBC Driver 18 for SQL Server and the Unix ODBC development package must be installed before `pyodbc` can connect. Then run:
