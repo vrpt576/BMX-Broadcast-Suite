@@ -54,7 +54,6 @@ class RaceManagerDatabase:
         try:
             with self.connection() as connection:
                 cursor = connection.cursor()
-                cursor.timeout = self.query_timeout
                 cursor.execute(query, tuple(params or ()))
                 columns = [column[0] for column in cursor.description or ()]
                 return [dict(zip(columns, row)) for row in cursor.fetchall()]
