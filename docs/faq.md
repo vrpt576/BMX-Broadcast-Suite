@@ -26,9 +26,10 @@ Yes. Copy a theme directory under `themes/`, give it a new slug, edit `theme.jso
 
 ## Is the results overlay production-ready?
 
-Yes for official Main classifications exposed by the RaceManager schema. The
-Results Roll intentionally excludes Round 1–3 and Overall classifications. BBS
-never infers finish order from lanes. A classification
+Yes for official Main-branch classifications exposed by the RaceManager
+schema. The Results Roll intentionally excludes Round 1, Round 2,
+quarterfinal, and semifinal entries. BBS never infers finish order from lanes. A
+classification
 without a numeric official finish is skipped by automatic playback; a partial
 classification is visibly marked incomplete. Quarterfinal and semifinal
 mapping still requires validation against a suitable RaceManager event.

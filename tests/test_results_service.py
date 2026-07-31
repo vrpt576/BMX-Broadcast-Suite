@@ -96,6 +96,18 @@ class CatalogMotos:
             round_type_id=1,
             finishes=[1, None, 2],
         )
+        qualifier_same_riders = _moto(
+            4,
+            class_number=4,
+            round_type_id=123,
+            finishes=[1, 2, 3],
+        )
+        final_same_riders = _moto(
+            4,
+            class_number=4,
+            round_type_id=1,
+            finishes=[2, 3, 1],
+        )
         self.motos = [
             qualifier_main,
             final_main,
@@ -103,6 +115,8 @@ class CatalogMotos:
             final_missing,
             qualifier_partial,
             final_partial,
+            qualifier_same_riders,
+            final_same_riders,
         ]
         self.calls = 0
 
@@ -128,6 +142,7 @@ def test_official_catalog_orders_finishes_and_skips_missing_results(tmp_path: Pa
     assert [(result.race_phase, result.moto_number) for result in catalog] == [
         (RacePhase.MAIN, 1),
         (RacePhase.MAIN, 3),
+        (RacePhase.MAIN, 4),
     ]
     main = next(
         result
@@ -143,8 +158,10 @@ def test_official_catalog_orders_finishes_and_skips_missing_results(tmp_path: Pa
     assert main.result_status == "official"
     assert partial.result_status == "incomplete"
     assert next(rider for rider in partial.riders if rider.finish is None).status is None
-    assert [result.progress_index for result in catalog] == [1, 2]
-    assert all(result.progress_total == 2 for result in catalog)
+    direct_main = next(result for result in catalog if result.moto_number == 4)
+    assert [rider.finish for rider in direct_main.riders] == [1, 2, 3]
+    assert [result.progress_index for result in catalog] == [1, 2, 3]
+    assert all(result.progress_total == 3 for result in catalog)
     assert all(result.event_name == "2025 State Qualifier" for result in catalog)
     assert all(result.race_phase == RacePhase.MAIN for result in catalog)
     assert not any(result.moto_number == 2 for result in catalog)

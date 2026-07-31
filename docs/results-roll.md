@@ -30,16 +30,15 @@ break becomes active, so timed results cannot replace the break unexpectedly.
 
 ## Official-data policy
 
-BBS reads final classifications from `Round_Type_ID 1`, uses qualifier transfer
-data to distinguish true Mains from total-points Overall classifications, and
-includes only Mains in the Results Roll. It uses only finish values supplied by
-RaceManager and never creates an order from gate, lane, or lineup order.
+BBS reads the final Main branch from `Round_Type_ID 1` and excludes the
+qualifier/transfer branch. It uses only finish values supplied by RaceManager
+and never creates an order from gate, lane, or lineup order.
 
 - A fully populated classification is labeled **Official Results**.
 - A classification containing at least one numeric finish and at least one
   pending rider is labeled **Incomplete Results**.
-- Round 1–3 and Overall classifications are excluded. A Main with no numeric
-  official finish is logged and skipped by automatic playback.
+- Round 1, Round 2, quarterfinal, and semifinal entries are excluded. A Main
+  with no numeric official finish is logged and skipped by automatic playback.
 - RaceManager-provided rider statuses are shown when present. BBS does not
   invent time or points data.
 

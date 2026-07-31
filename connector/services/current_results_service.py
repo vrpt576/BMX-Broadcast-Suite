@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 import json
 import logging
 import os
@@ -14,10 +13,7 @@ from connector.models import CurrentResults, Moto, RacePhase, ResultRider
 from connector.services.current_lineup_service import CurrentLineupService, DEMO_MOTO
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
-from connector.services.motoboard_service import (
-    MotoboardService,
-    is_main_classification,
-)
+from connector.services.motoboard_service import MotoboardService
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +107,7 @@ class CurrentResultsService:
                 return [item.model_copy(deep=True) for item in cached]
 
         all_motos = self.motos.list_motos(motoboard_id, round_type_id=None).motos
-        qualifiers: dict[UUID, list[Moto]] = defaultdict(list)
-        finals: list[Moto] = []
-        for moto in all_motos:
-            if moto.round_type_id == 123:
-                qualifiers[moto.class_id].append(moto)
-            elif moto.round_type_id == 1:
-                finals.append(moto)
+        finals = [moto for moto in all_motos if moto.round_type_id == 1]
 
         name = event_name or self._event_name(motoboard_id)
         results: list[CurrentResults] = []
@@ -125,13 +115,6 @@ class CurrentResultsService:
             finals,
             key=lambda item: (item.moto_number, item.motogroup_number, str(item.motogroup_id)),
         ):
-            if not is_main_classification(qualifiers[final.class_id], final):
-                logger.info(
-                    "Skipping Overall classification for moto %s (%s): Results Roll is Main-only.",
-                    final.moto_number,
-                    final.class_name,
-                )
-                continue
             result = self._build_result(
                 final,
                 race_phase=RacePhase.MAIN,
