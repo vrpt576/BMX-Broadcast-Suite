@@ -14,6 +14,7 @@ from connector.services.current_lineup_service import CurrentLineupService, DEMO
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
+from connector.services.race_slot_service import RaceSlotService
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class CurrentResultsService:
         self.motos = motos
         self.lineups = lineups
         self.cache_file = cache_file or current.state_file.parent / "last_known_results.json"
+        self.slots = RaceSlotService(motos)
         self._catalogs: dict[UUID, list[CurrentResults]] = {}
         self._lock = threading.RLock()
 
@@ -83,6 +85,10 @@ class CurrentResultsService:
                     event_name=event_name,
                     source="racemanager",
                 )
+                if state.slot_key and state.class_name:
+                    result = result.model_copy(
+                        update={"class_name": state.class_name}
+                    )
             self._write_cache(result)
             return result
         except Exception as exc:
@@ -107,31 +113,41 @@ class CurrentResultsService:
                 return [item.model_copy(deep=True) for item in cached]
 
         all_motos = self.motos.list_motos(motoboard_id, round_type_id=None).motos
-        finals = [moto for moto in all_motos if moto.round_type_id == 1]
-
         name = event_name or self._event_name(motoboard_id)
+        slots = self.slots.catalog_from_motos(
+            motoboard_id,
+            RacePhase.MAIN,
+            all_motos,
+        )
+        by_group = {moto.motogroup_id: moto for moto in all_motos}
         results: list[CurrentResults] = []
-        for final in sorted(
-            finals,
-            key=lambda item: (item.moto_number, item.motogroup_number, str(item.motogroup_id)),
-        ):
-            result = self._build_result(
-                final,
-                race_phase=RacePhase.MAIN,
-                phase_label="Main",
-                round_index=1,
-                motoboard_id=motoboard_id,
-                event_name=name,
-                source="racemanager",
-            )
-            if result.result_status == "unavailable":
+        for slot in slots:
+            member_results = [
+                self._build_result(
+                    by_group[member.stage.motogroup_id],
+                    race_phase=RacePhase.MAIN,
+                    phase_label=slot.phase_label,
+                    round_index=member.stage.round_index,
+                    motoboard_id=motoboard_id,
+                    event_name=name,
+                    source="racemanager",
+                )
+                for member in slot.members
+                if member.stage.motogroup_id in by_group
+            ]
+            available = [
+                result
+                for result in member_results
+                if result.result_status != "unavailable"
+            ]
+            if not available:
                 logger.warning(
                     "Skipping results for moto %s (%s): no official finish values.",
-                    final.moto_number,
-                    final.class_name,
+                    slot.moto_number,
+                    slot.class_name,
                 )
                 continue
-            results.append(result)
+            results.append(self._combine_slot_results(slot.class_name, available))
 
         total = len(results)
         results = [
@@ -143,6 +159,52 @@ class CurrentResultsService:
         with self._lock:
             self._catalogs[motoboard_id] = results
         return [item.model_copy(deep=True) for item in results]
+
+    @staticmethod
+    def _combine_slot_results(
+        class_name: str,
+        results: list[CurrentResults],
+    ) -> CurrentResults:
+        """Merge combined classification rows into one displayed result."""
+        first = results[0]
+        unique = {}
+        for result in results:
+            for rider in result.riders:
+                key = (
+                    str(rider.bike_number or ""),
+                    rider.first_name.casefold(),
+                    rider.last_name.casefold(),
+                )
+                unique.setdefault(key, rider)
+        riders = sorted(
+            unique.values(),
+            key=lambda rider: (
+                rider.finish is None,
+                rider.finish if rider.finish is not None else 999,
+                rider.status != "Did Not Race",
+                rider.last_name,
+            ),
+        )
+        status = (
+            "official"
+            if all(result.result_status == "official" for result in results)
+            else "incomplete"
+        )
+        return first.model_copy(
+            update={
+                "class_name": class_name,
+                "riders": riders,
+                "result_status": status,
+                "updated_at": max(
+                    (
+                        result.updated_at
+                        for result in results
+                        if result.updated_at is not None
+                    ),
+                    default=first.updated_at,
+                ),
+            }
+        )
 
     def _event_name(self, motoboard_id: UUID) -> str | None:
         try:

@@ -129,6 +129,28 @@ class RaceProgram(ApiModel):
     available_phases: list[RacePhase]
 
 
+class RaceSlotMember(ApiModel):
+    """One class/stage association within a displayed race slot."""
+
+    stage: RaceStage
+    qualifier_motogroup_id: UUID | None = None
+
+
+class RaceSlot(ApiModel):
+    """One displayed moto occurrence in one phase, including combined classes."""
+
+    slot_key: str
+    motoboard_id: UUID
+    phase: RacePhase
+    phase_label: str
+    moto_number: int
+    combined: bool
+    class_name: str
+    class_ids: list[UUID]
+    motogroup_ids: list[UUID]
+    members: list[RaceSlotMember]
+
+
 class RaceProgramSchemaColumn(ApiModel):
     """Allowlisted RaceManager schema metadata included in a safe export."""
 
@@ -249,6 +271,9 @@ class CurrentMoto(ApiModel):
     round_id: UUID | None = None
     motogroup_id: UUID | None = None
     qualifier_motogroup_id: UUID | None = None
+    slot_key: str | None = None
+    slot_class_ids: list[UUID] = Field(default_factory=list)
+    slot_motogroup_ids: list[UUID] = Field(default_factory=list)
     round_index: int | None = Field(default=None, ge=1, le=3)
     updated_at: datetime | None = None
     source: str = "manual"
@@ -268,6 +293,9 @@ class CurrentMotoUpdate(ApiModel):
     round_id: UUID | None = None
     motogroup_id: UUID | None = None
     qualifier_motogroup_id: UUID | None = None
+    slot_key: str | None = None
+    slot_class_ids: list[UUID] | None = None
+    slot_motogroup_ids: list[UUID] | None = None
     round_index: int | None = Field(default=None, ge=1, le=3)
     active_graphic: ActiveGraphic | None = None
 

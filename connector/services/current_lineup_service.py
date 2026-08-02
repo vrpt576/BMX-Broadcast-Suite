@@ -136,6 +136,10 @@ class CurrentLineupService:
                     program=resolved.program,
                     stage=resolved.stage,
                     expected_state=state,
+                    slot_key=state.slot_key,
+                    slot_class_ids=(state.slot_class_ids or None),
+                    slot_motogroup_ids=(state.slot_motogroup_ids or None),
+                    slot_class_name=(state.class_name if state.slot_key else None),
                 )
                 moto, stage, program = resolved.moto, resolved.stage, resolved.program
             else:  # compatibility with older adapters and simple test doubles
@@ -214,7 +218,11 @@ class CurrentLineupService:
             round_id=stage.round_id,
             motogroup_id=stage.motogroup_id,
             round_index=stage.round_index,
-            class_name=moto.class_name or state.class_name or "Class not set",
+            class_name=(
+                state.class_name
+                if state.slot_key and state.class_name
+                else moto.class_name or "Class not set"
+            ),
             riders=riders,
             source=source,
             updated_at=moto.updated_at,

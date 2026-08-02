@@ -8,6 +8,7 @@ from connector.models import CurrentMoto, CurrentMotoUpdate, RacePhase, RaceProg
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
+from connector.services.race_slot_service import RaceSlotService
 
 
 class RaceProgramService:
@@ -20,6 +21,7 @@ class RaceProgramService:
         self.current = current
         self.events = events
         self.motos = motos
+        self.slots = RaceSlotService(motos)
 
     def board_id(
         self,
@@ -68,128 +70,73 @@ class RaceProgramService:
         return self.resolve_and_sync()
 
     def step_moto(self, direction: int) -> CurrentMoto:
-        """Move to the next compatible RaceManager moto.
-
-        Qualifying phases walk Round_Type_ID 123 motogroups.
-        Main and Overall phases walk Round_Type_ID 1 classifications,
-        skipping classes that do not contain the currently selected phase.
-        """
+        """Move exactly one unique displayed race slot in the selected phase."""
         state = self.current.get()
         if direction == 0:
             return state
 
         board_id = self.board_id(state)
-        final_branch = state.race_phase in {
-            RacePhase.MAIN,
-            RacePhase.OVERALL,
-        }
-
-        branch = self.motos.list_motos(
-            board_id,
-            round_type_id=1 if final_branch else 123,
-        ).motos
-
-        if not branch:
+        slots = self.slots.catalog(board_id, state.race_phase)
+        if not slots:
             return state
-
-        current_group_id = (
-            state.motogroup_id
-            if final_branch
-            else state.qualifier_motogroup_id or state.motogroup_id
-        )
-
         index = next(
             (
-                item_index
-                for item_index, moto in enumerate(branch)
-                if moto.motogroup_id == current_group_id
+                item_index for item_index, slot in enumerate(slots)
+                if state.slot_key is not None and slot.slot_key == state.slot_key
             ),
             -1,
         )
-
-        if index < 0 and state.class_id is not None:
-            index = next(
-                (
-                    item_index
-                    for item_index, moto in enumerate(branch)
-                    if moto.class_id == state.class_id
-                    and moto.moto_number == state.moto_number
-                ),
-                -1,
-            )
-
         if index < 0:
             index = next(
                 (
-                    item_index
-                    for item_index, moto in enumerate(branch)
-                    if moto.moto_number == state.moto_number
-                ),
-                -1,
-            )
-
-        step = 1 if direction > 0 else -1
-
-        # When the current group cannot be found, start at the appropriate
-        # end of the branch.
-        if index < 0:
-            index = -1 if step > 0 else len(branch)
-
-        candidate_index = index + step
-
-        while 0 <= candidate_index < len(branch):
-            target = branch[candidate_index]
-
-            probe = state.model_copy(
-                update={
-                    "moto_number": target.moto_number,
-                    "class_id": target.class_id,
-                    "round_type_id": target.round_type_id,
-                    "round_id": target.round_id,
-                    "motogroup_id": target.motogroup_id,
-                    "qualifier_motogroup_id": (
-                        target.motogroup_id
-                        if target.round_type_id == 123
-                        else None
-                    ),
-                }
-            )
-
-            try:
-                resolved = self.motos.resolve_state(board_id, probe)
-            except LookupError:
-                if final_branch:
-                    # Some Round_Type_ID 1 entries are Overall/points
-                    # classifications rather than Mains, or vice versa.
-                    # Skip them without changing the selected phase.
-                    candidate_index += step
-                    continue
-
-                # Preserve the existing qualifier behavior: a target class
-                # may not contain the same qualifying round.
-                try:
-                    program = self.motos.get_program(board_id, probe)
-                    if not program.available_phases:
-                        candidate_index += step
-                        continue
-
-                    probe = probe.model_copy(
-                        update={"race_phase": program.available_phases[0]}
+                    item_index for item_index, slot in enumerate(slots)
+                    if slot.moto_number == state.moto_number
+                    and (
+                        state.class_id is None
+                        or state.class_id in slot.class_ids
                     )
-                    resolved = self.motos.resolve_state(board_id, probe)
-                except LookupError:
-                    candidate_index += step
-                    continue
-
-            return self.current.sync_race_position(
-                motoboard_id=board_id,
-                program=resolved.program,
-                stage=resolved.stage,
-                expected_state=state,
+                ),
+                -1,
             )
+        if index < 0:
+            index = next(
+                (
+                    item_index for item_index, slot in enumerate(slots)
+                    if slot.moto_number == state.moto_number
+                ),
+                -1,
+            )
+        step = 1 if direction > 0 else -1
+        if index < 0:
+            index = -1 if step > 0 else len(slots)
+        target_index = index + step
+        if not 0 <= target_index < len(slots):
+            return state
 
-        # Already at the beginning/end of the compatible branch.
-        return state
+        slot = slots[target_index]
+        member = slot.members[0]
+        probe = state.model_copy(
+            update={
+                "moto_number": slot.moto_number,
+                "race_phase": slot.phase,
+                "class_id": member.stage.class_id,
+                "round_type_id": member.stage.round_type_id,
+                "round_id": member.stage.round_id,
+                "motogroup_id": member.stage.motogroup_id,
+                "qualifier_motogroup_id": member.qualifier_motogroup_id,
+            }
+        )
+        program = self.motos.get_program(board_id, probe)
+        return self.current.sync_race_position(
+            motoboard_id=board_id,
+            program=program,
+            stage=member.stage,
+            expected_state=state,
+            slot_key=slot.slot_key,
+            slot_class_ids=slot.class_ids,
+            slot_motogroup_ids=slot.motogroup_ids,
+            slot_class_name=slot.class_name,
+        )
 
     def step_phase(self, direction: int) -> CurrentMoto:
         state = self.current.get()

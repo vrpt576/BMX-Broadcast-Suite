@@ -108,6 +108,9 @@ class CurrentMotoService:
                 round_id=identity("round_id"),
                 motogroup_id=identity("motogroup_id"),
                 qualifier_motogroup_id=identity("qualifier_motogroup_id"),
+                slot_key=identity("slot_key"),
+                slot_class_ids=identity("slot_class_ids") or [],
+                slot_motogroup_ids=identity("slot_motogroup_ids") or [],
                 round_index=identity("round_index"),
                 updated_at=datetime.now(timezone.utc),
                 source="manual",
@@ -195,6 +198,10 @@ class CurrentMotoService:
         program: RaceProgram,
         stage: RaceStage,
         expected_state: CurrentMoto | None = None,
+        slot_key: str | None = None,
+        slot_class_ids: list[UUID] | None = None,
+        slot_motogroup_ids: list[UUID] | None = None,
+        slot_class_name: str | None = None,
     ) -> CurrentMoto:
         """Persist the exact stage returned by RaceManager.
 
@@ -220,10 +227,21 @@ class CurrentMotoService:
                     "round_id": stage.round_id,
                     "motogroup_id": stage.motogroup_id,
                     "qualifier_motogroup_id": program.qualifier_motogroup_id,
+                    "slot_key": slot_key
+                    or f"{motoboard_id}:{stage.phase.value}:{stage.moto_number}",
+                    "slot_class_ids": slot_class_ids or [stage.class_id],
+                    "slot_motogroup_ids": slot_motogroup_ids
+                    or [stage.motogroup_id],
                     "round_index": stage.round_index,
                     "source": "racemanager",
                 }
             )
+            if slot_class_name is not None:
+                result = result.model_copy(
+                    update={
+                        "class_name": self._normalize_class_name(slot_class_name)
+                    }
+                )
             if result == current:
                 return current
             result = result.model_copy(
@@ -322,6 +340,7 @@ class CurrentMotoService:
             "round_id",
             "motogroup_id",
             "qualifier_motogroup_id",
+            "slot_key",
             "round_index",
         ):
             current_value = getattr(current, field)
