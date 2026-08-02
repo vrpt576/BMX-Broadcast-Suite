@@ -87,6 +87,9 @@ SELECT
     ac.Class_Name_Short AS class_name_short,
     ro.Round_DBID AS round_id,
     ro.Round_Type_ID AS round_type_id,
+    ro.Moto_Number_First AS round_moto_number_first,
+    ro.Moto_Number_Last AS round_moto_number_last,
+    ro.Motogroup_Count AS round_motogroup_count,
     mgr.Motogroup_Rider_DBID AS motogroup_rider_id,
     mgr.Motogroup_Rider_Key AS rider_order,
     mgr.Lane_1 AS lane_1,
@@ -176,3 +179,26 @@ MOTO_RIDERS_BY_CLASS_WITH_NICKNAME = moto_riders_query(
     include_nickname=True,
     extra_where="  AND ac.Age_Class_DBID = ?",
 )
+
+
+# Column names and SQL types are structural metadata, not race registration
+# data.  Keeping this query static prevents the diagnostic export from being
+# turned into an arbitrary schema or data browser.
+PROGRAM_STRUCTURE_SCHEMA_COLUMNS = """
+SELECT
+    c.TABLE_SCHEMA AS table_schema,
+    c.TABLE_NAME AS table_name,
+    c.COLUMN_NAME AS column_name,
+    c.DATA_TYPE AS data_type,
+    c.ORDINAL_POSITION AS ordinal_position
+FROM INFORMATION_SCHEMA.COLUMNS AS c
+WHERE
+    (c.TABLE_SCHEMA = 'Evt' AND c.TABLE_NAME IN (
+        'Events', 'Races', 'Race_Details'
+    ))
+    OR
+    (c.TABLE_SCHEMA = 'MB' AND c.TABLE_NAME IN (
+        'Motoboard', 'Age_Classes', 'Rounds', 'Motogroups'
+    ))
+ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION;
+"""

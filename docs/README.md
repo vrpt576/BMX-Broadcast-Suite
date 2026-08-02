@@ -8,6 +8,7 @@
 - [OBS Setup](obs-setup.md)
 - [Browser Sources](browser-sources.md)
 - [Results Roll](results-roll.md)
+- [Race-program structure export](race-program-export.md)
 - [Theme Customization](themes.md)
 - [Troubleshooting](troubleshooting.md)
 - [FAQ](faq.md)

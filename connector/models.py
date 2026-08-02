@@ -69,6 +69,9 @@ class Moto(ApiModel):
     class_name_short: str | None = None
     round_id: UUID
     round_type_id: int
+    round_moto_number_first: int | None = None
+    round_moto_number_last: int | None = None
+    round_motogroup_count: int | None = None
     state: MotoState
     riders_scored: int
     riders_total: int
@@ -107,6 +110,9 @@ class RaceStage(ApiModel):
     round_id: UUID
     motogroup_id: UUID
     round_index: int = Field(ge=1, le=3)
+    round_moto_number_first: int | None = None
+    round_moto_number_last: int | None = None
+    round_motogroup_count: int | None = None
 
 
 class RaceProgram(ApiModel):
@@ -118,6 +124,90 @@ class RaceProgram(ApiModel):
     qualifier_motogroup_id: UUID | None = None
     stages: list[RaceStage]
     available_phases: list[RacePhase]
+
+
+class RaceProgramSchemaColumn(ApiModel):
+    """Allowlisted RaceManager schema metadata included in a safe export."""
+
+    table_schema: str
+    table_name: str
+    column_name: str
+    data_type: str
+    ordinal_position: int
+
+
+class RaceProgramExportStage(ApiModel):
+    """One RaceManager stage without rider-level registration data."""
+
+    phase: RacePhase
+    round_label: str
+    kind: str
+    displayed_moto: int
+    round_type_id: int
+    round_id: UUID
+    motogroup_id: UUID
+    class_id: UUID
+    class_name: str
+    round_index: int
+    round_moto_number_first: int | None = None
+    round_moto_number_last: int | None = None
+    round_motogroup_count: int | None = None
+
+
+class RaceProgramClassificationEvidence(ApiModel):
+    """Non-identifying evidence used by the current final classifier."""
+
+    qualifier_group_count: int
+    qualifier_rider_count: int
+    final_group_count: int
+    final_rider_count: int
+    has_transfer_markers: bool
+    rider_sets_equal: bool | None = None
+    inferred_phase: RacePhase | None = None
+    inference_reason: str
+
+
+class RaceProgramExportClass(ApiModel):
+    class_id: UUID
+    class_name: str
+    available_stages: list[RacePhase]
+    classification: RaceProgramClassificationEvidence
+    stages: list[RaceProgramExportStage]
+
+
+class RaceProgramExportSlot(ApiModel):
+    """Candidate on-air slot used to diagnose combined classifications."""
+
+    slot_key: str
+    phase: RacePhase
+    round_label: str
+    displayed_moto: int
+    combined: bool
+    class_ids: list[UUID]
+    class_names: list[str]
+    round_type_ids: list[int]
+    round_ids: list[UUID]
+    motogroup_ids: list[UUID]
+
+
+class RaceProgramStructureExport(ApiModel):
+    """Privacy-safe structural snapshot suitable for issue reports."""
+
+    export_version: int = 1
+    generated_at: datetime
+    safe_to_share: bool = True
+    contains_rider_personal_data: bool = False
+    event_id: UUID
+    event_name: str
+    event_date: date | datetime | None = None
+    race_id: UUID
+    race_description: str | None = None
+    motoboard_id: UUID
+    total_motos: int
+    total_riders: int
+    schema_columns: list[RaceProgramSchemaColumn]
+    classes: list[RaceProgramExportClass]
+    slots: list[RaceProgramExportSlot]
 
 
 class ActiveGraphic(StrEnum):

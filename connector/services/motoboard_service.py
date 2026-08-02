@@ -314,6 +314,9 @@ class MotoboardService:
             round_id=moto.round_id,
             motogroup_id=moto.motogroup_id,
             round_index=round_index,
+            round_moto_number_first=moto.round_moto_number_first,
+            round_moto_number_last=moto.round_moto_number_last,
+            round_motogroup_count=moto.round_motogroup_count,
         )
 
     @staticmethod
@@ -358,6 +361,9 @@ class MotoboardService:
                     class_name_short=first.get("class_name_short"),
                     round_id=first["round_id"],
                     round_type_id=int(first["round_type_id"]),
+                    round_moto_number_first=first.get("round_moto_number_first"),
+                    round_moto_number_last=first.get("round_moto_number_last"),
+                    round_motogroup_count=first.get("round_motogroup_count"),
                     state=state,
                     riders_scored=scored,
                     riders_total=total,
