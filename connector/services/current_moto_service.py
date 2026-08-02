@@ -19,6 +19,9 @@ from connector.models import (
 )
 
 
+_UNSET = object()
+
+
 class CurrentMotoValidationError(ValueError):
     """Raised when a requested manual moto value is invalid."""
 
@@ -111,6 +114,7 @@ class CurrentMotoService:
                 slot_key=identity("slot_key"),
                 slot_class_ids=identity("slot_class_ids") or [],
                 slot_motogroup_ids=identity("slot_motogroup_ids") or [],
+                navigation_message=identity("navigation_message"),
                 round_index=identity("round_index"),
                 updated_at=datetime.now(timezone.utc),
                 source="manual",
@@ -202,6 +206,11 @@ class CurrentMotoService:
         slot_class_ids: list[UUID] | None = None,
         slot_motogroup_ids: list[UUID] | None = None,
         slot_class_name: str | None = None,
+        pinned_motoboard_id: UUID | None | object = _UNSET,
+        minimum_moto: int | None = None,
+        maximum_moto: int | None | object = _UNSET,
+        active_graphic: ActiveGraphic | None = None,
+        navigation_message: str | None = None,
     ) -> CurrentMoto:
         """Persist the exact stage returned by RaceManager.
 
@@ -234,7 +243,29 @@ class CurrentMotoService:
                     or [stage.motogroup_id],
                     "round_index": stage.round_index,
                     "source": "racemanager",
+                    "motoboard_id": (
+                        current.motoboard_id
+                        if pinned_motoboard_id is _UNSET
+                        else pinned_motoboard_id
+                    ),
+                    "minimum_moto": (
+                        current.minimum_moto
+                        if minimum_moto is None
+                        else minimum_moto
+                    ),
+                    "maximum_moto": (
+                        current.maximum_moto
+                        if maximum_moto is _UNSET
+                        else maximum_moto
+                    ),
+                    "active_graphic": active_graphic or current.active_graphic,
+                    "navigation_message": navigation_message,
                 }
+            )
+            self._validate_bounds(
+                result.moto_number,
+                result.minimum_moto,
+                result.maximum_moto,
             )
             if slot_class_name is not None:
                 result = result.model_copy(

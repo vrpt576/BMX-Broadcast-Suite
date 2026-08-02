@@ -274,6 +274,7 @@ class CurrentMoto(ApiModel):
     slot_key: str | None = None
     slot_class_ids: list[UUID] = Field(default_factory=list)
     slot_motogroup_ids: list[UUID] = Field(default_factory=list)
+    navigation_message: str | None = None
     round_index: int | None = Field(default=None, ge=1, le=3)
     updated_at: datetime | None = None
     source: str = "manual"
@@ -281,12 +282,12 @@ class CurrentMoto(ApiModel):
 
 
 class CurrentMotoUpdate(ApiModel):
-    moto_number: int
+    moto_number: int = Field(ge=1)
     race_phase: RacePhase | None = None
     phase_label: str | None = None
     class_name: str | None = None
-    minimum_moto: int | None = None
-    maximum_moto: int | None = None
+    minimum_moto: int | None = Field(default=None, ge=1)
+    maximum_moto: int | None = Field(default=None, ge=1)
     motoboard_id: UUID | None = None
     class_id: UUID | None = None
     round_type_id: int | None = None
@@ -296,6 +297,7 @@ class CurrentMotoUpdate(ApiModel):
     slot_key: str | None = None
     slot_class_ids: list[UUID] | None = None
     slot_motogroup_ids: list[UUID] | None = None
+    navigation_message: str | None = None
     round_index: int | None = Field(default=None, ge=1, le=3)
     active_graphic: ActiveGraphic | None = None
 

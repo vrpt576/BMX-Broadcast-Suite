@@ -86,6 +86,10 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button id="previous-round">◀ Previous Round</button>
         <button id="next-round">Next Round ▶</button>
       </div>
+      <div class="two" style="margin-top:10px">
+        <button id="first-moto" class="secondary">First Moto in Round</button>
+        <button id="last-moto" class="secondary">Last Moto in Round</button>
+      </div>
       <label>Race round
         <select id="race-phase">
           <option value="round_1">Round 1</option><option value="round_2">Round 2</option>
@@ -152,6 +156,7 @@ const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider L
 let state=null;
 let events=[];
 let program=null;
+let mutationVersion=0;
 const $=selector=>document.querySelector(selector);
 
 async function fetchWithTimeout(url,options={},timeoutMs=10000){
@@ -205,6 +210,7 @@ function render(value){
   document.querySelectorAll('[data-graphic]').forEach(button=>button.classList.toggle('active',button.dataset.graphic===value.active_graphic));
   document.querySelectorAll('[data-break]').forEach(button=>button.classList.toggle('active',`${button.dataset.break}_break`===value.active_graphic));
   $('#show-current-results').classList.toggle('active',value.active_graphic==='results');
+  if(value.navigation_message)$('#message').textContent=value.navigation_message;
 }
 
 async function loadEvents(){
@@ -238,17 +244,19 @@ async function loadEvents(){
 }
 
 
-async function loadProgram(){
+async function loadProgram(expectedVersion=mutationVersion){
   try{
-    const response=await fetchWithTimeout('/api/current/program',{cache:'no-store'});
+    const response=await fetchWithTimeout('/api/current/phases',{cache:'no-store'});
     if(!response.ok)throw new Error();
-    program=await response.json();
+    const phases=await response.json();
+    if(expectedVersion!==mutationVersion)return;
+    program={available_phases:phases};
     const select=$('#race-phase');
     select.replaceChildren();
-    for(const stage of program.stages){
+    for(const phase of phases){
       const option=document.createElement('option');
-      option.value=stage.phase;
-      option.textContent=stage.label;
+      option.value=phase;
+      option.textContent=phaseLabels[phase]||phase;
       select.append(option);
     }
     if(state)select.value=state.race_phase;
@@ -262,15 +270,18 @@ async function loadProgram(){
 }
 
 async function request(path,options={}){
+  const requestVersion=++mutationVersion;
   const response=await fetch(path,options);
   if(!response.ok){
     const body=await response.json().catch(()=>({}));
     throw new Error(body.detail||`Request failed: ${response.status}`);
   }
   const value=await response.json();
+  if(requestVersion!==mutationVersion)return value;
   render(value);
-  await loadProgram();
-  await refreshLineup();
+  if(!value.navigation_message)$('#message').textContent='';
+  await loadProgram(requestVersion);
+  await refreshLineup(requestVersion);
   return value;
 }
 
@@ -322,6 +333,7 @@ function renderResultsStatus(value){
   $('#results-resume').disabled=!value.active||!value.paused;
 }
 async function resultsAction(path,body=null){
+  const requestVersion=++mutationVersion;
   try{
     const options={method:'POST'};
     if(body){options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body)}
@@ -329,17 +341,25 @@ async function resultsAction(path,body=null){
     if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.detail||`Request failed: ${response.status}`)}
     renderResultsStatus(await response.json());
     const currentResponse=await fetch('/api/current',{cache:'no-store'});
-    if(currentResponse.ok)render(await currentResponse.json());
+    if(currentResponse.ok){
+      const value=await currentResponse.json();
+      if(requestVersion===mutationVersion)render(value);
+    }
   }catch(error){$('#message').textContent=error.message}
 }
 async function loadResultsStatus(){
   try{const response=await fetch('/api/results/status',{cache:'no-store'});if(response.ok)renderResultsStatus(await response.json())}catch(_){}
 }
 async function apply(){
-  if(state&&Number($('#jump').value)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
+  const rawMoto=$('#jump').value.trim();
+  if(!/^\d+$/.test(rawMoto)||Number(rawMoto)<1){
+    $('#message').textContent='Enter a positive whole-number moto.';
+    return;
+  }
+  if(state&&Number(rawMoto)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
   const body={
-    moto_number:Number($('#jump').value),
-    race_phase:'round_1',
+    moto_number:Number(rawMoto),
+    race_phase:$('#race-phase').value,
     minimum_moto:1,
     maximum_moto:$('#maximum').value===''?null:Number($('#maximum').value),
     motoboard_id:state?state.motoboard_id:null
@@ -347,11 +367,12 @@ async function apply(){
   try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
   catch(error){$('#message').textContent=error.message}
 }
-async function refreshLineup(){
+async function refreshLineup(requestVersion=mutationVersion){
   try{
     const response=await fetchWithTimeout(lineupEndpoint,{cache:'no-store'});
     if(!response.ok)throw new Error();
     const lineup=await response.json();
+    if(requestVersion!==mutationVersion)return;
     if((lineup.source==='racemanager'||lineup.source==='cache')&&lineup.class_name)$('#class-stat').textContent=lineup.class_name;
     const box=$('#riders');
     box.replaceChildren();
@@ -373,6 +394,8 @@ $('#previous').addEventListener('click',()=>step('previous'));
 $('#next').addEventListener('click',()=>step('next'));
 $('#previous-round').addEventListener('click',()=>round('previous'));
 $('#next-round').addEventListener('click',()=>round('next'));
+$('#first-moto').addEventListener('click',()=>request('/api/current/phase/first',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
+$('#last-moto').addEventListener('click',()=>request('/api/current/phase/last',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#apply').addEventListener('click',apply);
 $('#event-select').addEventListener('change',selectEvent);
 $('#race-phase').addEventListener('change',async()=>{
@@ -403,7 +426,13 @@ window.addEventListener('keydown',event=>{
 request('/api/current').catch(error=>$('#message').textContent=error.message);
 loadEvents();
 loadResultsStatus();
-setInterval(()=>fetch('/api/current',{cache:'no-store'}).then(response=>response.json()).then(render).catch(()=>{}),1000);
+setInterval(()=>{
+  const requestVersion=mutationVersion;
+  fetch('/api/current',{cache:'no-store'})
+    .then(response=>response.json())
+    .then(value=>{if(requestVersion===mutationVersion)render(value)})
+    .catch(()=>{});
+},1000);
 setInterval(loadProgram,5000);
 setInterval(loadResultsStatus,1000);
 </script>

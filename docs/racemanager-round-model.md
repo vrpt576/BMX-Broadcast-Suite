@@ -25,7 +25,10 @@ The validated type-1 branch contains one final classification for a class:
 - final gate: `Lane_1`
 - final place: numeric `Finish_1`
 
-BBS labels this stage **Main** when qualifier data contains transfer markers or when the final rider set differs from the qualifier rider set. BBS labels it **Overall** when the same riders complete total-points motos and type 1 represents the final standings.
+BBS classifies this stage with the deterministic structural evidence and
+optional per-event override described in
+[Main and Overall classification](phase-classification.md). Transfer markers
+and rider-set differences are supporting evidence, not the sole rule.
 
 ## Transfer markers
 
@@ -57,7 +60,10 @@ This identity prevents qualifier and final records with the same moto number fro
 
 ## Dynamic phase programs
 
-`GET /api/current/program` returns the phases BBS can prove for the selected class and qualifier group. The Director rebuilds its phase menu from that response.
+`GET /api/current/program` returns the stages BBS can prove for the selected
+class and qualifier group. `GET /api/current/phases` returns the event-wide
+phase catalog used by Director, so switching phases remains possible when the
+selected class is not present in the target phase.
 
 Examples:
 
@@ -68,12 +74,24 @@ Quarterfinal and semifinal phases remain in the API enum for future compatibilit
 
 ## Navigation
 
-Next/Previous Moto is branch-aware:
+Next/Previous Moto is slot- and branch-aware:
 
 - Round 1/2/3 navigation walks type-123 motogroups.
 - Main/Overall navigation walks type-1 classifications.
 
 This prevents a producer pressing Next during mains from accidentally returning to qualifier data.
+
+Direct moto selection resolves an exact displayed moto within the pinned event
+and selected phase. Combined classes sharing that displayed moto remain one
+slot. If the requested number is unavailable, the API rejects it and reports
+the nearest previous and next numbers rather than silently changing position.
+
+Changing phases first seeks the same selected class or exact combined class
+group. Because RaceManager can assign a class a very different displayed moto
+in its Main, the numeric moto is allowed to change during this mapping. If no
+matching class exists, BBS chooses the nearest target-phase slot and records an
+operator-facing navigation message. First/last phase-boundary controls use the
+same slot catalog and do not change the pinned event or active graphic.
 
 ## Remaining research
 
