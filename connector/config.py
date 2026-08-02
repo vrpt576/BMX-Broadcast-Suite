@@ -104,6 +104,7 @@ class Settings(BaseSettings):
     lineup_cache_file: Path = Path("data/last_known_lineup.json")
     results_cache_file: Path = Path("data/last_known_results.json")
     results_roll_state_file: Path = Path("data/results_roll.json")
+    phase_override_file: Path = Path("data/race_phase_overrides.json")
     theme_dir: Path = Path("themes")
 
     @property
@@ -140,6 +141,7 @@ def get_settings() -> Settings:
         "lineup_cache_file",
         "results_cache_file",
         "results_roll_state_file",
+        "phase_override_file",
         "theme_dir",
     ):
         value = Path(getattr(settings, field))

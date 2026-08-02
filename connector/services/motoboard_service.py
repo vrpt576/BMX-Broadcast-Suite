@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Iterable
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -20,6 +21,11 @@ from connector.models import (
     RaceProgram,
     RaceStage,
     Rider,
+)
+from connector.services.phase_classification_service import (
+    FinalClassification,
+    PhaseClassificationOverrideStore,
+    classify_final,
 )
 
 
@@ -50,23 +56,9 @@ def _lane_present(value: Any) -> bool:
     return value not in (None, "", 0, "0")
 
 
-def _is_transfer(value: Any) -> bool:
-    return isinstance(value, str) and value.strip().upper() == "X"
-
-
 def is_main_classification(qualifiers: list[Moto], final: Moto) -> bool:
-    """Distinguish a transferred-rider Main from a total-points Overall."""
-    qualifier_riders = {rider.rider_id for moto in qualifiers for rider in moto.riders}
-    final_riders = {rider.rider_id for rider in final.riders}
-    has_transfer_markers = any(
-        _is_transfer(value)
-        for moto in qualifiers
-        for rider in moto.riders
-        for value in (rider.finish_1, rider.finish_2, rider.finish_3)
-    )
-    return has_transfer_markers or (
-        bool(qualifier_riders) and final_riders != qualifier_riders
-    )
+    """Compatibility wrapper for callers that only need a boolean decision."""
+    return classify_final(qualifiers, [final]).classification == FinalClassification.MAIN
 
 
 def _latest(values: Iterable[datetime | None]) -> datetime | None:
@@ -82,9 +74,15 @@ class MotoboardService:
     reuse Moto_Number, so Motogroup_DBID is the stable stage identity.
     """
 
-    def __init__(self, database: RaceManagerDatabase) -> None:
+    def __init__(
+        self,
+        database: RaceManagerDatabase,
+        *,
+        phase_override_file: Path | None = None,
+    ) -> None:
         self.database = database
         self._nickname_supported: bool | None = None
+        self.phase_overrides = PhaseClassificationOverrideStore(phase_override_file)
 
     def _supports_nickname(self) -> bool:
         if self._nickname_supported is None:
@@ -254,16 +252,46 @@ class MotoboardService:
 
         if finals:
             final = finals[0]
-            is_main = is_main_classification(qualifiers, final)
-            stages.append(
-                self._stage(
-                    final,
-                    phase=RacePhase.MAIN if is_main else RacePhase.OVERALL,
-                    label="Main" if is_main else "Overall",
-                    kind="main" if is_main else "overall",
-                    round_index=1,
-                )
+            same_number = self._query(
+                queries.MOTO_RIDERS_BY_NUMBER,
+                queries.MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME,
+                [motoboard_id, final.moto_number],
             )
+            combined_final = len(
+                {
+                    moto.class_id
+                    for moto in same_number
+                    if moto.round_type_id == 1
+                }
+            ) > 1
+            override = self.phase_overrides.get(
+                motoboard_id,
+                final.class_id,
+                final.motogroup_id,
+            )
+            decision = classify_final(
+                qualifiers,
+                finals,
+                combined_final=combined_final,
+                override=override,
+            )
+            if decision.phase is not None:
+                stages.append(
+                    self._stage(
+                        final,
+                        phase=decision.phase,
+                        label=(
+                            "Main"
+                            if decision.classification == FinalClassification.MAIN
+                            else "Overall"
+                        ),
+                        kind=decision.classification.value,
+                        round_index=1,
+                        classification_reason=decision.reason,
+                        classification_ambiguous=decision.ambiguous,
+                        classification_overridden=decision.overridden,
+                    )
+                )
 
         return RaceProgram(
             motoboard_id=motoboard_id,
@@ -302,6 +330,9 @@ class MotoboardService:
         label: str,
         kind: str,
         round_index: int,
+        classification_reason: str | None = None,
+        classification_ambiguous: bool = False,
+        classification_overridden: bool = False,
     ) -> RaceStage:
         return RaceStage(
             phase=phase,
@@ -317,6 +348,9 @@ class MotoboardService:
             round_moto_number_first=moto.round_moto_number_first,
             round_moto_number_last=moto.round_moto_number_last,
             round_motogroup_count=moto.round_motogroup_count,
+            classification_reason=classification_reason,
+            classification_ambiguous=classification_ambiguous,
+            classification_overridden=classification_overridden,
         )
 
     @staticmethod

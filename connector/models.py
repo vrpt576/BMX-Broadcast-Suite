@@ -113,6 +113,9 @@ class RaceStage(ApiModel):
     round_moto_number_first: int | None = None
     round_moto_number_last: int | None = None
     round_motogroup_count: int | None = None
+    classification_reason: str | None = None
+    classification_ambiguous: bool = False
+    classification_overridden: bool = False
 
 
 class RaceProgram(ApiModel):
@@ -165,6 +168,8 @@ class RaceProgramClassificationEvidence(ApiModel):
     rider_sets_equal: bool | None = None
     inferred_phase: RacePhase | None = None
     inference_reason: str
+    ambiguous: bool = False
+    overridden: bool = False
 
 
 class RaceProgramExportClass(ApiModel):

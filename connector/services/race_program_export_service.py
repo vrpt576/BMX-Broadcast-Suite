@@ -24,8 +24,8 @@ from connector.services.event_service import EventService
 from connector.services.motoboard_service import (
     MotoboardService,
     RaceProgramNotFoundError,
-    is_main_classification,
 )
+from connector.services.phase_classification_service import classify_final
 
 
 PHASE_ORDER = {
@@ -37,10 +37,6 @@ PHASE_ORDER = {
     RacePhase.MAIN: 6,
     RacePhase.OVERALL: 7,
 }
-
-
-def _is_transfer(value: object) -> bool:
-    return isinstance(value, str) and value.strip().upper() == "X"
 
 
 class RaceProgramExportService:
@@ -72,11 +68,14 @@ class RaceProgramExportService:
         ]
 
         by_class: dict[UUID, list[Moto]] = defaultdict(list)
+        final_classes_by_moto: dict[int, set[UUID]] = defaultdict(set)
         for moto in motos:
             by_class[moto.class_id].append(moto)
+            if moto.round_type_id == 1:
+                final_classes_by_moto[moto.moto_number].add(moto.class_id)
 
         classes = [
-            self._class_export(board_id, class_motos)
+            self._class_export(board_id, class_motos, final_classes_by_moto)
             for _, class_motos in sorted(
                 by_class.items(),
                 key=lambda item: (
@@ -107,6 +106,7 @@ class RaceProgramExportService:
         self,
         motoboard_id: UUID,
         class_motos: list[Moto],
+        final_classes_by_moto: dict[int, set[UUID]],
     ) -> RaceProgramExportClass:
         ordered = sorted(
             class_motos,
@@ -119,6 +119,9 @@ class RaceProgramExportService:
         )
         qualifiers = [moto for moto in ordered if moto.round_type_id == 123]
         finals = [moto for moto in ordered if moto.round_type_id == 1]
+        combined_final = any(
+            len(final_classes_by_moto[moto.moto_number]) > 1 for moto in finals
+        )
         stages: list[RaceProgramExportStage] = []
         seen: set[tuple[RacePhase, UUID, int]] = set()
         seeds = qualifiers or finals
@@ -180,41 +183,47 @@ class RaceProgramExportService:
             class_id=reference.class_id,
             class_name=reference.class_name,
             available_stages=available_stages,
-            classification=self._classification_evidence(qualifiers, finals),
+            classification=self._classification_evidence(
+                motoboard_id,
+                qualifiers,
+                finals,
+                combined_final=combined_final,
+            ),
             stages=stages,
         )
 
-    @staticmethod
     def _classification_evidence(
+        self,
+        motoboard_id: UUID,
         qualifiers: list[Moto],
         finals: list[Moto],
+        *,
+        combined_final: bool,
     ) -> RaceProgramClassificationEvidence:
         qualifier_riders = {
             rider.rider_id for moto in qualifiers for rider in moto.riders
         }
         final_riders = {rider.rider_id for moto in finals for rider in moto.riders}
         has_transfer_markers = any(
-            _is_transfer(value)
+            isinstance(value, str) and value.strip().upper() == "X"
             for moto in qualifiers
             for rider in moto.riders
             for value in (rider.finish_1, rider.finish_2, rider.finish_3)
         )
 
-        if not finals:
-            inferred_phase = None
-            reason = "no_final_classification"
-        elif has_transfer_markers:
-            inferred_phase = RacePhase.MAIN
-            reason = "qualifier_transfer_marker"
-        elif qualifier_riders and final_riders != qualifier_riders:
-            inferred_phase = RacePhase.MAIN
-            reason = "final_rider_set_differs_from_qualifiers"
-        elif is_main_classification(qualifiers, finals[0]):
-            inferred_phase = RacePhase.MAIN
-            reason = "current_classifier_main"
-        else:
-            inferred_phase = RacePhase.OVERALL
-            reason = "same_rider_set_without_transfer_markers"
+        override = None
+        if finals:
+            override = self.motoboards.phase_overrides.get(
+                motoboard_id,
+                finals[0].class_id,
+                finals[0].motogroup_id,
+            )
+        decision = classify_final(
+            qualifiers,
+            finals,
+            combined_final=combined_final,
+            override=override,
+        )
 
         return RaceProgramClassificationEvidence(
             qualifier_group_count=len(qualifiers),
@@ -227,8 +236,10 @@ class RaceProgramExportService:
                 if qualifier_riders and final_riders
                 else None
             ),
-            inferred_phase=inferred_phase,
-            inference_reason=reason,
+            inferred_phase=decision.phase,
+            inference_reason=decision.reason,
+            ambiguous=decision.ambiguous,
+            overridden=decision.overridden,
         )
 
     @staticmethod

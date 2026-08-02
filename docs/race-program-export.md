@@ -33,3 +33,5 @@ real registration export.
 
 This diagnostic describes what BBS currently sees. It does not modify
 RaceManager and it is not itself an override for ambiguous event structures.
+See [Main and Overall classification](phase-classification.md) for the
+documented inference rules and narrowly scoped override format.

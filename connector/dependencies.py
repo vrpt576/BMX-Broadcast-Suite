@@ -28,7 +28,10 @@ def get_event_service() -> EventService:
 
 
 def get_motoboard_service() -> MotoboardService:
-    return MotoboardService(get_database())
+    return MotoboardService(
+        get_database(),
+        phase_override_file=get_settings().phase_override_file,
+    )
 
 
 @lru_cache
