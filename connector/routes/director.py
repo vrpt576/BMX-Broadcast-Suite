@@ -51,6 +51,14 @@ DIRECTOR_HTML = r'''<!doctype html>
     .rider:first-child { border-top:1px solid #2c3947; }
     .gate,.plate { color:#f3b61f; font-weight:900; }
     #message { min-height:1.4em; color:#f3b61f; margin-top:12px; }
+    .modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:rgba(0,0,0,.72); }
+    .modal-backdrop[hidden] { display:none; }
+    .modal { width:min(460px, 94vw); background:#151d27; border:1px solid #52606d; border-radius:14px; padding:20px; box-shadow:0 18px 50px rgba(0,0,0,.6); }
+    .modal h2 { margin:0 0 10px; }
+    .modal p { color:#c5ced7; line-height:1.45; }
+    .modal-check { display:flex; grid-template-columns:22px 1fr; align-items:center; gap:9px; }
+    .modal-check input { width:18px; height:18px; }
+    .modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
     @media(max-width:900px){ .statusbar{grid-template-columns:repeat(3,1fr)} }
     @media(max-width:800px){ .grid{grid-template-columns:1fr}.moto-number{font-size:6rem} }
     @media(max-width:540px){ .statusbar,.two,.event-picker{grid-template-columns:1fr} }
@@ -103,6 +111,7 @@ DIRECTOR_HTML = r'''<!doctype html>
         <label>Last moto (optional)<input id="maximum" type="number" min="1"></label>
       </div>
       <button id="apply" style="margin-top:12px">Apply Race Position</button>
+      <button id="reset-navigation-confirmation" class="secondary" style="margin-top:10px">Reset navigation confirmation preference</button>
     </section>
     <section class="panel">
       <h2>On-Air Graphic</h2>
@@ -147,6 +156,17 @@ DIRECTOR_HTML = r'''<!doctype html>
     </section>
   </div>
 </main>
+<div id="navigation-confirm-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="navigation-confirm-title" hidden>
+  <section class="modal">
+    <h2 id="navigation-confirm-title">Confirm race navigation</h2>
+    <p id="navigation-confirm-message"></p>
+    <label class="modal-check"><input id="navigation-confirm-suppress" type="checkbox"><span>Do not ask again for this event</span></label>
+    <div class="modal-actions">
+      <button id="navigation-confirm-cancel" class="secondary">Cancel</button>
+      <button id="navigation-confirm-accept">Continue</button>
+    </div>
+  </section>
+</div>
 <script>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
@@ -157,7 +177,44 @@ let state=null;
 let events=[];
 let program=null;
 let mutationVersion=0;
+let pendingNavigation=null;
+const navigationPreferencePrefix='bbs.navigation.confirm.suppressed.';
 const $=selector=>document.querySelector(selector);
+
+function navigationEventId(){
+  return state?.motoboard_id||state?.resolved_motoboard_id||null;
+}
+
+function navigationPreferenceKey(eventId=navigationEventId()){
+  return eventId?`${navigationPreferencePrefix}${eventId}`:null;
+}
+
+function navigationConfirmationSuppressed(){
+  const key=navigationPreferenceKey();
+  if(!key)return false;
+  try{return localStorage.getItem(key)==='true'}catch(_){return false}
+}
+
+function updateNavigationPreferenceControl(){
+  const button=$('#reset-navigation-confirmation');
+  const eventId=navigationEventId();
+  button.disabled=!eventId||!navigationConfirmationSuppressed();
+  button.title=eventId?'Reset the remembered choice for this event.':'Select an event before saving a preference.';
+}
+
+function closeNavigationConfirmation(){
+  $('#navigation-confirm-modal').hidden=true;
+  $('#navigation-confirm-suppress').checked=false;
+}
+
+function confirmRaceNavigation(message,action){
+  if(navigationConfirmationSuppressed())return action();
+  pendingNavigation={action,preferenceKey:navigationPreferenceKey()};
+  $('#navigation-confirm-message').textContent=message;
+  $('#navigation-confirm-suppress').checked=false;
+  $('#navigation-confirm-modal').hidden=false;
+  $('#navigation-confirm-accept').focus();
+}
 
 async function fetchWithTimeout(url,options={},timeoutMs=10000){
   const controller=new AbortController();
@@ -211,6 +268,7 @@ function render(value){
   document.querySelectorAll('[data-break]').forEach(button=>button.classList.toggle('active',`${button.dataset.break}_break`===value.active_graphic));
   $('#show-current-results').classList.toggle('active',value.active_graphic==='results');
   if(value.navigation_message)$('#message').textContent=value.navigation_message;
+  updateNavigationPreferenceControl();
 }
 
 async function loadEvents(){
@@ -307,10 +365,15 @@ async function selectEvent(){
   }
 }
 
-async function step(direction){
-  if(direction==='previous'&&!confirm('Move backward one moto?'))return;
+async function performStep(direction){
   try{await request(`/api/current/${direction}`,{method:'POST'})}
   catch(error){$('#message').textContent=error.message}
+}
+function step(direction){
+  if(direction==='previous'){
+    return confirmRaceNavigation('Move backward one moto?',()=>performStep(direction));
+  }
+  return performStep(direction);
 }
 async function round(direction){
   try{await request(`/api/current/phase/${direction}`,{method:'POST'})}
@@ -356,7 +419,6 @@ async function apply(){
     $('#message').textContent='Enter a positive whole-number moto.';
     return;
   }
-  if(state&&Number(rawMoto)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
   const body={
     moto_number:Number(rawMoto),
     race_phase:$('#race-phase').value,
@@ -364,8 +426,14 @@ async function apply(){
     maximum_moto:$('#maximum').value===''?null:Number($('#maximum').value),
     motoboard_id:state?state.motoboard_id:null
   };
-  try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
-  catch(error){$('#message').textContent=error.message}
+  const submit=async()=>{
+    try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
+    catch(error){$('#message').textContent=error.message}
+  };
+  if(state&&Number(rawMoto)<state.moto_number){
+    return confirmRaceNavigation('Jump backward to an earlier moto?',submit);
+  }
+  return submit();
 }
 async function refreshLineup(requestVersion=mutationVersion){
   try{
@@ -397,6 +465,26 @@ $('#next-round').addEventListener('click',()=>round('next'));
 $('#first-moto').addEventListener('click',()=>request('/api/current/phase/first',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#last-moto').addEventListener('click',()=>request('/api/current/phase/last',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#apply').addEventListener('click',apply);
+$('#navigation-confirm-cancel').addEventListener('click',()=>{
+  pendingNavigation=null;
+  closeNavigationConfirmation();
+});
+$('#navigation-confirm-accept').addEventListener('click',()=>{
+  const pending=pendingNavigation;
+  pendingNavigation=null;
+  if(pending&&$('#navigation-confirm-suppress').checked&&pending.preferenceKey){
+    try{localStorage.setItem(pending.preferenceKey,'true')}catch(_){}
+  }
+  closeNavigationConfirmation();
+  updateNavigationPreferenceControl();
+  if(pending)pending.action();
+});
+$('#reset-navigation-confirmation').addEventListener('click',()=>{
+  const key=navigationPreferenceKey();
+  if(key){try{localStorage.removeItem(key)}catch(_){}}
+  updateNavigationPreferenceControl();
+  $('#message').textContent='Navigation confirmations restored for this event.';
+});
 $('#event-select').addEventListener('change',selectEvent);
 $('#race-phase').addEventListener('change',async()=>{
   try{await request(`/api/current/phase/select/${$('#race-phase').value}`,{method:'POST'})}
