@@ -8,6 +8,12 @@ The MSI contains an offline Python 3.12.10 runtime and hash-locked wheels. It do
 
 Install the 64-bit Microsoft ODBC Driver 18 for SQL Server from Microsoft, then run the MSI as administrator. Legacy v1.2.9/v1.2.10 upgrades stop and delete only the exact old BBS task and preserve `%ProgramData%\BMX Broadcast Suite\UserData`.
 
+The MSI never owns or replaces the protected `.env`. On first service start,
+BBS creates it from the packaged example only when it is absent. During an
+upgrade, BBS appends newly supported keys only when missing. Existing SQL,
+network, theme, event, and secret values remain unchanged. Reinstalling the
+same build is idempotent and does not rewrite the file.
+
 ## Uninstall
 
 Use **Settings → Apps → Installed apps**. Operator data remains in ProgramData. To explicitly purge that data:

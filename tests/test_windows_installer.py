@@ -27,6 +27,8 @@ def test_msi_is_offline_native_and_preserves_programdata():
     assert "PURGEUSERDATA" in product and "RemoveFolderEx" in product
     assert "ProgramFiles64Folder" in product
     assert "RegistrySearch" in product and "ODBC Driver 18 for SQL Server" in product
+    assert 'Name="UserDataInitialized"' in product
+    assert 'Source="$(var.SeedRoot)\\bbs.env"' not in product
 
 
 def test_legacy_upgrade_is_narrowly_scoped():

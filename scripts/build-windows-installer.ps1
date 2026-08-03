@@ -16,7 +16,6 @@ $Staging = Join-Path ([IO.Path]::GetTempPath()) ("bbs-msi-" + [guid]::NewGuid().
 $Indexed = Join-Path $Staging "indexed"
 $Payload = Join-Path $Staging "payload"
 $Runtime = Join-Path $Payload "runtime"
-$Seed = Join-Path $Staging "seed"
 $InstallerName = "BMX-Broadcast-Suite-Setup-v$Version.msi"
 $Installer = Join-Path $OutputDirectory $InstallerName
 
@@ -112,7 +111,7 @@ foreach ($Artifact in $Lock.artifacts) {
     Assert-Hash (Join-Path $Packaging ($Artifact.path -replace "/", "\")) $Artifact.sha256
 }
 
-New-Item -ItemType Directory -Force -Path $Staging, $Indexed, $Payload, $Runtime, $Seed, $OutputDirectory | Out-Null
+New-Item -ItemType Directory -Force -Path $Staging, $Indexed, $Payload, $Runtime, $OutputDirectory | Out-Null
 try {
     $Prefix = $Indexed.TrimEnd("\") + "\"
     & git -C $Root checkout-index --all --force --prefix=$Prefix
@@ -149,8 +148,6 @@ try {
     } finally { Pop-Location }
     Copy-Item (Join-Path $Payload "data\bbs.ico") (Join-Path $Payload "assets\bbs.ico") -Force
     Remove-Item (Join-Path $Payload "data") -Recurse -Force
-    Copy-Item (Join-Path $Indexed "connector\.env.example") (Join-Path $Seed "bbs.env")
-
     if ($CertificateThumbprint) { Sign-File (Join-Path $Payload "BBSService.exe") }
 
     $ManifestItems = Get-ChildItem $Payload -File -Recurse | Sort-Object FullName | ForEach-Object {
@@ -185,7 +182,7 @@ try {
     $Wix = Join-Path $ToolDir "tools\net6.0\any\wix.dll"
     $Util = Join-Path $UtilDir "wixext4\WixToolset.Util.wixext.dll"
     & dotnet $Wix build (Join-Path $Packaging "Product.wxs") $ApplicationComponents -arch x64 -d "ProductVersion=$Version" `
-        -d "PayloadRoot=$Payload" -d "SeedRoot=$Seed" -ext $Util -pdbtype none -o $Installer
+        -d "PayloadRoot=$Payload" -ext $Util -pdbtype none -o $Installer
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Installer)) { throw "WiX did not produce the MSI." }
     if ($CertificateThumbprint) { Sign-File $Installer }
 
