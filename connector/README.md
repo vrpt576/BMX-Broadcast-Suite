@@ -105,7 +105,9 @@ Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
 ## Race phases
 
 The broadcast state supports Round 1, Round 2, Round 3, Quarterfinals,
-Semifinals, Mains, and Overall when those phases exist in the selected event.
+Semifinals, and Main when those program segments exist in the selected event.
+Transfer/LST and Total Points are scoring methods. Total Points classifications
+never appear as a separate Director round.
 Use `[` and `]` on the controller page to move between available phases, or
 select a phase directly. A phase change first maps the selected class or
 combined class group into the target phase even when its displayed moto number

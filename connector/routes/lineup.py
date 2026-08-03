@@ -69,7 +69,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
 const demo = ['1', 'true', 'yes'].includes((params.get('demo') || '').toLowerCase());

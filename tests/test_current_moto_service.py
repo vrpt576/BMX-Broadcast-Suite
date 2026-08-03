@@ -5,10 +5,13 @@ import pytest
 
 from connector.models import (
     ActiveGraphic,
+    CompetitionStage,
     CurrentMotoUpdate,
+    FinalizationMethod,
     RacePhase,
     RaceProgram,
     RaceStage,
+    ScoringMethod,
 )
 from connector.services.current_moto_service import (
     CurrentMotoService,
@@ -141,6 +144,49 @@ def test_old_state_without_active_graphic_remains_compatible(tmp_path: Path) -> 
     )
     state = CurrentMotoService(state_file).get()
     assert state.active_graphic == ActiveGraphic.CURRENT_MOTO
+
+
+def test_legacy_overall_state_migrates_to_main_without_losing_selection(tmp_path: Path) -> None:
+    state_file = tmp_path / "current.json"
+    state_file.write_text(
+        '{"moto_number":29,"race_phase":"overall","phase_label":"Overall",'
+        '"class_name":"5 & Under Intermediate","minimum_moto":1,'
+        '"maximum_moto":65,"motoboard_id":"10000000-0000-0000-0000-000000000001",'
+        '"class_id":"20000000-0000-0000-0000-000000000029",'
+        '"slot_key":"legacy:overall:29","active_graphic":"results"}',
+        encoding="utf-8",
+    )
+
+    state = CurrentMotoService(state_file).get()
+
+    assert state.moto_number == 29
+    assert state.race_phase == RacePhase.MAIN
+    assert state.phase_label == "Main"
+    assert state.class_name == "5 & Under Intermediate"
+    assert state.maximum_moto == 65
+    assert state.motoboard_id == UUID("10000000-0000-0000-0000-000000000001")
+    assert state.class_id == UUID("20000000-0000-0000-0000-000000000029")
+    assert state.slot_key is None
+    assert state.active_graphic == ActiveGraphic.RESULTS
+
+
+def test_manual_selection_change_clears_stale_classification_metadata(tmp_path: Path) -> None:
+    current = service(tmp_path)
+    current.set(
+        CurrentMotoUpdate(
+            moto_number=29,
+            race_phase=RacePhase.MAIN,
+            competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,
+            scoring_method=ScoringMethod.TOTAL_POINTS,
+            finalization_method=FinalizationMethod.ACCUMULATED_POINTS,
+        )
+    )
+
+    state = current.set(CurrentMotoUpdate(moto_number=30))
+
+    assert state.competition_stage == CompetitionStage.UNKNOWN
+    assert state.scoring_method == ScoringMethod.UNKNOWN
+    assert state.finalization_method == FinalizationMethod.UNKNOWN
 
 
 def test_stale_background_resolution_cannot_undo_newer_moto(tmp_path: Path) -> None:

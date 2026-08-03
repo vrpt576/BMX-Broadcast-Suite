@@ -25,10 +25,10 @@ The validated type-1 branch contains one final classification for a class:
 - final gate: `Lane_1`
 - final place: numeric `Finish_1`
 
-BBS classifies this stage with the deterministic structural evidence and
-optional per-event override described in
-[Main and Overall classification](phase-classification.md). Transfer markers
-and rider-set differences are supporting evidence, not the sole rule.
+BBS classifies this record as either a separately raced final or an accumulated
+Total Points classification using the structural evidence and optional
+per-event override described in
+[Program segments and scoring classification](phase-classification.md).
 
 ## Transfer markers
 
@@ -68,7 +68,14 @@ selected class is not present in the target phase.
 Examples:
 
 - transfer class: Round 1, Round 2, Main
-- total-points class: Round 1, Round 2, Round 3, Overall
+- total-points class whose third moto is in the final block: Round 1, Round 2, Main
+- total-points class with a separate qualifying block: Round 1, Round 2, Round 3
+
+Because the validated RaceManager records do not expose an event-wide Main
+start, Director stores an optional boundary by Motoboard ID. The first Transfer
+final is displayed only as low-confidence supporting evidence; it is not used
+as an automatic range rule. See
+[Program segments and scoring classification](phase-classification.md).
 
 Quarterfinal and semifinal phases remain in the API enum for future compatibility but are not offered unless an exact validated resolver exists.
 
@@ -77,7 +84,9 @@ Quarterfinal and semifinal phases remain in the API enum for future compatibilit
 Next/Previous Moto is slot- and branch-aware:
 
 - Round 1/2/3 navigation walks type-123 motogroups.
-- Main/Overall navigation walks type-1 classifications.
+- Main navigation walks physical final-block race slots. It can use a type-123
+  third Total Points moto or a type-1 physical record while retaining a type-1
+  accumulated record as the official results source.
 
 This prevents a producer pressing Next during mains from accidentally returning to qualifier data.
 

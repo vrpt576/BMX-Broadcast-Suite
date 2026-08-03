@@ -95,6 +95,10 @@ def test_export_contains_structure_and_combined_slot_without_rider_data() -> Non
     assert result.contains_rider_personal_data is False
     assert result.event_id == EVENT_ID
     assert result.motoboard_id == BOARD_ID
+    assert result.export_version == 3
+    assert result.main_program_boundary.start_moto is None
+    assert result.main_program_boundary.suggested_start_moto == 30
+    assert result.main_program_boundary.confidence.value == "low"
     assert result.schema_columns[0].column_name == "Round_Type_ID"
     assert any(
         slot.phase.value == "main"
@@ -106,7 +110,9 @@ def test_export_contains_structure_and_combined_slot_without_rider_data() -> Non
     split_class = next(
         item for item in result.classes if item.class_name == "12 Intermediate"
     )
-    assert split_class.classification.inferred_phase.value == "main"
+    assert split_class.classification.program_segment.value == "main"
+    assert split_class.classification.scoring_method.value == "transfer"
+    assert split_class.classification.finalization_method.value == "final_race"
     assert split_class.classification.has_transfer_markers is True
     assert split_class.stages[0].round_moto_number_first == 30
 

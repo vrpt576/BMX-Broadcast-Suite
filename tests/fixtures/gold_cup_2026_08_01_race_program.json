@@ -9,6 +9,16 @@
     "total_riders": 304,
     "contains_rider_personal_data": false
   },
+  "main_program_boundary": {
+    "start_moto": 28,
+    "source": "operator_override",
+    "confidence": "confirmed",
+    "operator_confirmed": true,
+    "explanation": "The sanitized RaceManager structure does not expose an event-wide Main-program boundary. The operator confirmed that Moto 27 ran in Round 3 and Moto 28 began the Main program.",
+    "automatic_suggestion": 28,
+    "automatic_suggestion_confidence": "low",
+    "automatic_suggestion_evidence": "Moto 28 is the first independently classified Transfer final; this is supporting evidence only, not the boundary rule."
+  },
   "classification_window": [
     {
       "displayed_moto": 28,
@@ -21,7 +31,10 @@
       "qualifier_rider_count": 4,
       "final_rider_count": 3,
       "qualifier_rounds_scored": 2,
-      "expected_phase": "main",
+      "expected_program_segment": "main",
+      "expected_competition_stage": "main_event",
+      "expected_scoring_method": "transfer",
+      "expected_finalization_method": "final_race",
       "classification_reason": "final_rider_set_differs_from_qualifiers",
       "slot_key": "main:28"
     },
@@ -36,9 +49,15 @@
       "qualifier_rider_count": 3,
       "final_rider_count": 3,
       "qualifier_rounds_scored": 3,
-      "expected_phase": "overall",
+      "expected_program_segment": "main",
+      "expected_competition_stage": "total_points_final_moto",
+      "expected_scoring_method": "total_points",
+      "expected_finalization_method": "accumulated_points",
       "classification_reason": "same_riders_with_accumulated_round_scores",
-      "slot_key": "overall:29"
+      "physical_motogroup_id": "45fa5b35-211c-4179-9795-b6b2cbca38e4",
+      "physical_round_id": "301eb310-46fc-470c-b115-915f826ade3f",
+      "physical_round_index": 3,
+      "slot_key": "main:29"
     },
     {
       "displayed_moto": 30,
@@ -51,9 +70,15 @@
       "qualifier_rider_count": 7,
       "final_rider_count": 7,
       "qualifier_rounds_scored": 2,
-      "expected_phase": "overall",
+      "expected_program_segment": "main",
+      "expected_competition_stage": "total_points_final_moto",
+      "expected_scoring_method": "total_points",
+      "expected_finalization_method": "accumulated_points",
       "classification_reason": "same_riders_with_accumulated_round_scores",
-      "slot_key": "overall:30"
+      "physical_motogroup_id": "e445bc3c-ebd1-498b-818b-1a438727a728",
+      "physical_round_id": "a23ed3ac-b413-4b9c-a334-3af5ce41f316",
+      "physical_round_index": 1,
+      "slot_key": "main:30"
     },
     {
       "displayed_moto": 31,
@@ -69,12 +94,21 @@
       "qualifier_rider_count": 9,
       "final_rider_count": 8,
       "qualifier_rounds_scored": 2,
-      "expected_phase": "main",
+      "expected_program_segment": "main",
+      "expected_competition_stage": "main_event",
+      "expected_scoring_method": "transfer",
+      "expected_finalization_method": "final_race",
       "classification_reason": "multiple_qualifier_motogroups_feed_final",
       "slot_key": "main:31"
     }
   ],
-  "expected_main_slots": [
+  "expected_main_window": [
+    [28, "51-55 Novice"],
+    [29, "5 & Under Intermediate"],
+    [30, "6 Intermediate"],
+    [31, "7 Intermediate"]
+  ],
+  "observed_transfer_main_slots": [
     [28, "51-55 Novice"],
     [31, "7 Intermediate"],
     [32, "8 Intermediate"],

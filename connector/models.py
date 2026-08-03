@@ -85,8 +85,8 @@ class MotoList(ApiModel):
     motos: list[Moto]
 
 
-class RacePhase(StrEnum):
-    """Broadcast phase backed by an exact RaceManager stage."""
+class ProgramSegment(StrEnum):
+    """Operator-facing block in the physical race-day running order."""
 
     ROUND_1 = "round_1"
     ROUND_2 = "round_2"
@@ -94,7 +94,73 @@ class RacePhase(StrEnum):
     QUARTERFINAL = "quarterfinal"
     SEMIFINAL = "semifinal"
     MAIN = "main"
-    OVERALL = "overall"
+
+
+# ``RacePhase`` remains as an API/source compatibility name.  It now means a
+# program segment only; scoring classifications such as Overall never belong
+# in this enum.
+RacePhase = ProgramSegment
+
+
+class CompetitionStage(StrEnum):
+    """What a class record represents competitively."""
+
+    UNKNOWN = "unknown"
+    QUALIFYING_MOTO_1 = "qualifying_moto_1"
+    QUALIFYING_MOTO_2 = "qualifying_moto_2"
+    QUALIFYING_MOTO_3 = "qualifying_moto_3"
+    QUARTER = "quarter"
+    SEMI = "semi"
+    MAIN_EVENT = "main_event"
+    TOTAL_POINTS_FINAL_MOTO = "total_points_final_moto"
+    TOTAL_POINTS_CLASSIFICATION = "total_points_classification"
+
+
+class ScoringMethod(StrEnum):
+    """RaceManager qualifying/scoring method for one class."""
+
+    UNKNOWN = "unknown"
+    TRANSFER = "transfer"
+    TRANSFER_LST = "transfer_lst"
+    TOTAL_POINTS = "total_points"
+
+
+class FinalizationMethod(StrEnum):
+    """How the official class placing is produced."""
+
+    UNKNOWN = "unknown"
+    FINAL_RACE = "final_race"
+    ACCUMULATED_POINTS = "accumulated_points"
+
+
+class MainProgramBoundarySource(StrEnum):
+    """Authority used to place Total Points third motos in the Main block."""
+
+    OPERATOR_OVERRIDE = "operator_override"
+    UNRESOLVED = "unresolved"
+
+
+class MainProgramBoundaryConfidence(StrEnum):
+    """Confidence attached to an event-level Main-boundary determination."""
+
+    CONFIRMED = "confirmed"
+    LOW = "low"
+    NONE = "none"
+
+
+class MainProgramBoundary(ApiModel):
+    """Event-scoped boundary and non-authoritative RaceManager evidence."""
+
+    motoboard_id: UUID
+    start_moto: int | None = Field(default=None, ge=1)
+    source: MainProgramBoundarySource = MainProgramBoundarySource.UNRESOLVED
+    confidence: MainProgramBoundaryConfidence = MainProgramBoundaryConfidence.NONE
+    suggested_start_moto: int | None = Field(default=None, ge=1)
+    evidence: list[str] = Field(default_factory=list)
+
+
+class MainProgramBoundaryUpdate(ApiModel):
+    start_moto: int = Field(ge=1)
 
 
 class RaceStage(ApiModel):
@@ -110,6 +176,13 @@ class RaceStage(ApiModel):
     round_id: UUID
     motogroup_id: UUID
     round_index: int = Field(ge=1, le=3)
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
+    result_round_type_id: int | None = None
+    result_round_id: UUID | None = None
+    result_motogroup_id: UUID | None = None
+    result_round_index: int | None = Field(default=None, ge=1, le=3)
     round_moto_number_first: int | None = None
     round_moto_number_last: int | None = None
     round_motogroup_count: int | None = None
@@ -174,6 +247,13 @@ class RaceProgramExportStage(ApiModel):
     class_id: UUID
     class_name: str
     round_index: int
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
+    physical_race: bool = True
+    result_round_type_id: int | None = None
+    result_round_id: UUID | None = None
+    result_motogroup_id: UUID | None = None
     round_moto_number_first: int | None = None
     round_moto_number_last: int | None = None
     round_motogroup_count: int | None = None
@@ -188,7 +268,10 @@ class RaceProgramClassificationEvidence(ApiModel):
     final_rider_count: int
     has_transfer_markers: bool
     rider_sets_equal: bool | None = None
-    inferred_phase: RacePhase | None = None
+    program_segment: ProgramSegment | None = None
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
     inference_reason: str
     ambiguous: bool = False
     overridden: bool = False
@@ -215,12 +298,15 @@ class RaceProgramExportSlot(ApiModel):
     round_type_ids: list[int]
     round_ids: list[UUID]
     motogroup_ids: list[UUID]
+    competition_stages: list[CompetitionStage] = Field(default_factory=list)
+    scoring_methods: list[ScoringMethod] = Field(default_factory=list)
+    finalization_methods: list[FinalizationMethod] = Field(default_factory=list)
 
 
 class RaceProgramStructureExport(ApiModel):
     """Privacy-safe structural snapshot suitable for issue reports."""
 
-    export_version: int = 1
+    export_version: int = 3
     generated_at: datetime
     safe_to_share: bool = True
     contains_rider_personal_data: bool = False
@@ -232,6 +318,7 @@ class RaceProgramStructureExport(ApiModel):
     motoboard_id: UUID
     total_motos: int
     total_riders: int
+    main_program_boundary: MainProgramBoundary
     schema_columns: list[RaceProgramSchemaColumn]
     classes: list[RaceProgramExportClass]
     slots: list[RaceProgramExportSlot]
@@ -276,6 +363,9 @@ class CurrentMoto(ApiModel):
     slot_motogroup_ids: list[UUID] = Field(default_factory=list)
     navigation_message: str | None = None
     round_index: int | None = Field(default=None, ge=1, le=3)
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
     updated_at: datetime | None = None
     source: str = "manual"
     active_graphic: ActiveGraphic = ActiveGraphic.CURRENT_MOTO
@@ -299,6 +389,9 @@ class CurrentMotoUpdate(ApiModel):
     slot_motogroup_ids: list[UUID] | None = None
     navigation_message: str | None = None
     round_index: int | None = Field(default=None, ge=1, le=3)
+    competition_stage: CompetitionStage | None = None
+    scoring_method: ScoringMethod | None = None
+    finalization_method: FinalizationMethod | None = None
     active_graphic: ActiveGraphic | None = None
 
 
@@ -325,6 +418,9 @@ class CurrentLineup(ApiModel):
     round_id: UUID | None = None
     motogroup_id: UUID | None = None
     round_index: int | None = None
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
     class_name: str
     riders: list[LineupRider]
     source: str
@@ -355,6 +451,9 @@ class CurrentResults(ApiModel):
     round_id: UUID | None = None
     motogroup_id: UUID | None = None
     round_index: int | None = None
+    competition_stage: CompetitionStage = CompetitionStage.UNKNOWN
+    scoring_method: ScoringMethod = ScoringMethod.UNKNOWN
+    finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN
     class_name: str
     riders: list[ResultRider]
     source: str

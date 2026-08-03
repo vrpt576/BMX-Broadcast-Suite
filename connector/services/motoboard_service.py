@@ -13,7 +13,10 @@ from database import queries
 from database.racemanager import RaceManagerDatabase
 
 from connector.models import (
+    CompetitionStage,
     CurrentMoto,
+    FinalizationMethod,
+    MainProgramBoundary,
     Moto,
     MotoList,
     MotoState,
@@ -21,11 +24,13 @@ from connector.models import (
     RaceProgram,
     RaceStage,
     Rider,
+    ScoringMethod,
 )
 from connector.services.phase_classification_service import (
-    FinalClassification,
     PhaseClassificationOverrideStore,
     classify_final,
+    classify_event_finals,
+    resolve_main_program_boundary,
 )
 
 
@@ -58,7 +63,10 @@ def _lane_present(value: Any) -> bool:
 
 def is_main_classification(qualifiers: list[Moto], final: Moto) -> bool:
     """Compatibility wrapper for callers that only need a boolean decision."""
-    return classify_final(qualifiers, [final]).classification == FinalClassification.MAIN
+    return (
+        classify_final(qualifiers, [final]).finalization_method
+        == FinalizationMethod.FINAL_RACE
+    )
 
 
 def _latest(values: Iterable[datetime | None]) -> datetime | None:
@@ -163,6 +171,35 @@ class MotoboardService:
             )
         return motos
 
+    def get_main_program_boundary(self, motoboard_id: UUID) -> MainProgramBoundary:
+        motos = self.list_motos(motoboard_id, round_type_id=None).motos
+        decisions = classify_event_finals(
+            motoboard_id,
+            motos,
+            self.phase_overrides,
+        )
+        return resolve_main_program_boundary(
+            motoboard_id,
+            motos,
+            decisions,
+            self.phase_overrides,
+        )
+
+    def set_main_program_boundary(
+        self,
+        motoboard_id: UUID,
+        start_moto: int,
+    ) -> MainProgramBoundary:
+        self.phase_overrides.set_main_program_start(motoboard_id, start_moto)
+        return self.get_main_program_boundary(motoboard_id)
+
+    def reset_main_program_boundary(
+        self,
+        motoboard_id: UUID,
+    ) -> MainProgramBoundary:
+        self.phase_overrides.set_main_program_start(motoboard_id, None)
+        return self.get_main_program_boundary(motoboard_id)
+
     def get_program(self, motoboard_id: UUID, state: CurrentMoto) -> RaceProgram:
         class_id = state.class_id
         if (
@@ -186,11 +223,7 @@ class MotoboardService:
                 raise RaceProgramNotFoundError(
                     f"Moto {state.moto_number} was not found on motoboard {motoboard_id}."
                 )
-            preferred_type = (
-                1
-                if state.race_phase in {RacePhase.MAIN, RacePhase.OVERALL}
-                else 123
-            )
+            preferred_type = 1 if state.race_phase == RacePhase.MAIN else 123
             seed = next(
                 (moto for moto in candidates if moto.round_type_id == preferred_type),
                 candidates[0],
@@ -229,6 +262,25 @@ class MotoboardService:
                 f"No broadcast stages were found for class {class_id}."
             )
 
+        event_motos = self.list_motos(motoboard_id, round_type_id=None).motos
+        decisions = classify_event_finals(
+            motoboard_id,
+            event_motos,
+            self.phase_overrides,
+        )
+        decision = decisions.get(class_id) or classify_final(qualifiers, finals)
+        main_boundary = resolve_main_program_boundary(
+            motoboard_id,
+            event_motos,
+            decisions,
+            self.phase_overrides,
+        )
+        total_points_in_main = bool(
+            finals
+            and main_boundary.start_moto is not None
+            and finals[0].moto_number >= main_boundary.start_moto
+        )
+
         stages: list[RaceStage] = []
         if selected_qualifier is not None:
             for index, phase, label in (
@@ -236,6 +288,11 @@ class MotoboardService:
                 (2, RacePhase.ROUND_2, "Round 2"),
                 (3, RacePhase.ROUND_3, "Round 3"),
             ):
+                if index == 3 and decision.scoring_method == ScoringMethod.TOTAL_POINTS:
+                    # The physical Total Points final is added below with its
+                    # correct Round 3 or Main program segment and official
+                    # accumulated-results source.
+                    continue
                 if any(
                     _lane_present(getattr(rider, f"lane_{index}"))
                     for rider in selected_qualifier.riders
@@ -247,46 +304,67 @@ class MotoboardService:
                             label=label,
                             kind="qualifier",
                             round_index=index,
+                            competition_stage={
+                                1: CompetitionStage.QUALIFYING_MOTO_1,
+                                2: CompetitionStage.QUALIFYING_MOTO_2,
+                                3: CompetitionStage.QUALIFYING_MOTO_3,
+                            }[index],
+                            scoring_method=decision.scoring_method,
+                            finalization_method=decision.finalization_method,
                         )
                     )
 
         if finals:
             final = finals[0]
-            same_number = self._query(
-                queries.MOTO_RIDERS_BY_NUMBER,
-                queries.MOTO_RIDERS_BY_NUMBER_WITH_NICKNAME,
-                [motoboard_id, final.moto_number],
-            )
-            combined_final = len(
-                {
-                    moto.class_id
-                    for moto in same_number
-                    if moto.round_type_id == 1
-                }
-            ) > 1
-            override = self.phase_overrides.get(
-                motoboard_id,
-                final.class_id,
-                final.motogroup_id,
-            )
-            decision = classify_final(
-                qualifiers,
-                finals,
-                combined_final=combined_final,
-                override=override,
-            )
-            if decision.phase is not None:
+            if decision.finalization_method == FinalizationMethod.ACCUMULATED_POINTS:
+                third_moto = (
+                    selected_qualifier
+                    if selected_qualifier is not None
+                    and any(
+                        _lane_present(rider.lane_3)
+                        for rider in selected_qualifier.riders
+                    )
+                    else final
+                )
+                third_index = 3 if third_moto.round_type_id == 123 else 1
+                stages.append(
+                    self._stage(
+                        third_moto,
+                        phase=(
+                            RacePhase.MAIN
+                            if total_points_in_main
+                            else RacePhase.ROUND_3
+                        ),
+                        label="Main" if total_points_in_main else "Round 3",
+                        kind=CompetitionStage.TOTAL_POINTS_FINAL_MOTO.value,
+                        round_index=third_index,
+                        competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,
+                        scoring_method=ScoringMethod.TOTAL_POINTS,
+                        finalization_method=FinalizationMethod.ACCUMULATED_POINTS,
+                        result_round_type_id=final.round_type_id,
+                        result_round_id=final.round_id,
+                        result_motogroup_id=final.motogroup_id,
+                        result_round_index=1,
+                        classification_reason=decision.reason,
+                        classification_ambiguous=decision.ambiguous,
+                        classification_overridden=decision.overridden,
+                    )
+                )
+            else:
                 stages.append(
                     self._stage(
                         final,
-                        phase=decision.phase,
-                        label=(
-                            "Main"
-                            if decision.classification == FinalClassification.MAIN
-                            else "Overall"
-                        ),
-                        kind=decision.classification.value,
+                        phase=RacePhase.MAIN,
+                        label="Main",
+                        kind=CompetitionStage.MAIN_EVENT.value,
                         round_index=1,
+                        competition_stage=CompetitionStage.MAIN_EVENT,
+                        scoring_method=decision.scoring_method,
+                        finalization_method=decision.finalization_method,
+                        result_round_type_id=final.round_type_id,
+                        result_round_id=final.round_id,
+                        result_motogroup_id=final.motogroup_id,
+                        result_round_index=1,
                         classification_reason=decision.reason,
                         classification_ambiguous=decision.ambiguous,
                         classification_overridden=decision.overridden,
@@ -330,6 +408,13 @@ class MotoboardService:
         label: str,
         kind: str,
         round_index: int,
+        competition_stage: CompetitionStage = CompetitionStage.UNKNOWN,
+        scoring_method: ScoringMethod = ScoringMethod.UNKNOWN,
+        finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN,
+        result_round_type_id: int | None = None,
+        result_round_id: UUID | None = None,
+        result_motogroup_id: UUID | None = None,
+        result_round_index: int | None = None,
         classification_reason: str | None = None,
         classification_ambiguous: bool = False,
         classification_overridden: bool = False,
@@ -345,6 +430,13 @@ class MotoboardService:
             round_id=moto.round_id,
             motogroup_id=moto.motogroup_id,
             round_index=round_index,
+            competition_stage=competition_stage,
+            scoring_method=scoring_method,
+            finalization_method=finalization_method,
+            result_round_type_id=result_round_type_id,
+            result_round_id=result_round_id,
+            result_motogroup_id=result_motogroup_id,
+            result_round_index=result_round_index,
             round_moto_number_first=moto.round_moto_number_first,
             round_moto_number_last=moto.round_moto_number_last,
             round_motogroup_count=moto.round_motogroup_count,

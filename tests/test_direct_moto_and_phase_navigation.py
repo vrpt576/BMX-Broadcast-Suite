@@ -155,7 +155,7 @@ def test_go_to_moto_rejects_non_positive_values(moto_number: int) -> None:
         CurrentMotoUpdate(moto_number=moto_number)
 
 
-def test_go_to_moto_selects_true_overall_and_keeps_historic_pin(
+def test_go_to_total_points_final_moto_keeps_round_three_and_historic_pin(
     tmp_path: Path,
 ) -> None:
     programs = service_for(tmp_path, total_points_rows())
@@ -163,15 +163,16 @@ def test_go_to_moto_selects_true_overall_and_keeps_historic_pin(
     state = programs.select_moto(
         CurrentMotoUpdate(
             moto_number=3,
-            race_phase=RacePhase.OVERALL,
+            race_phase=RacePhase.ROUND_3,
             motoboard_id=BOARD_ID,
         )
     )
 
     assert state.moto_number == 3
-    assert state.race_phase == RacePhase.OVERALL
+    assert state.race_phase == RacePhase.ROUND_3
     assert state.class_id == CLASS_POINTS
     assert state.motoboard_id == BOARD_ID
+    assert state.scoring_method.value == "total_points"
 
 
 def test_round_change_maps_same_class_to_different_moto(tmp_path: Path) -> None:

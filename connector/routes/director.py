@@ -38,6 +38,9 @@ DIRECTOR_HTML = r'''<!doctype html>
     .event-picker { display:grid; grid-template-columns:1fr 150px; gap:10px; align-items:end; margin-bottom:8px; }
     .event-picker label { margin-top:0; }
     .event-detail { color:#9eabb8; min-height:1.3em; font-size:.86rem; margin:4px 0 14px; }
+    .boundary-control { margin:0 0 14px; padding:12px; border:1px solid #2c3947; border-radius:10px; background:#151d27; }
+    .boundary-grid { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; align-items:end; }
+    .boundary-detail { color:#9eabb8; min-height:1.3em; margin-top:8px; font-size:.84rem; }
     .graphic-buttons { display:grid; gap:10px; }
     .graphic-buttons button { min-height:68px; font-size:1.15rem; }
     .keys { margin-top:16px; display:grid; grid-template-columns:repeat(2,1fr); gap:6px 16px; color:#aeb8c4; font-size:.9rem; }
@@ -61,7 +64,7 @@ DIRECTOR_HTML = r'''<!doctype html>
     .modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
     @media(max-width:900px){ .statusbar{grid-template-columns:repeat(3,1fr)} }
     @media(max-width:800px){ .grid{grid-template-columns:1fr}.moto-number{font-size:6rem} }
-    @media(max-width:540px){ .statusbar,.two,.event-picker{grid-template-columns:1fr} }
+    @media(max-width:540px){ .statusbar,.two,.event-picker,.boundary-grid{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -85,6 +88,16 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button id="refresh-events" class="secondary">Refresh Events</button>
       </div>
       <div id="event-detail" class="event-detail">Uses the newest RaceManager motoboard automatically.</div>
+      <div class="boundary-control">
+        <div class="boundary-grid">
+          <label>Main program starts at moto
+            <input id="main-program-start" type="number" min="1" placeholder="Optional">
+          </label>
+          <button id="save-main-program-start">Save</button>
+          <button id="reset-main-program-start" class="secondary">Reset</button>
+        </div>
+        <div id="main-program-boundary-detail" class="boundary-detail">Select an event to review Main-program evidence.</div>
+      </div>
       <details>
         <summary>Remote control access</summary>
         <label>Control token for this browser session<input id="remote-control-token" type="password" autocomplete="off"></label>
@@ -176,7 +189,7 @@ DIRECTOR_HTML = r'''<!doctype html>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
-const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main',overall:'Overall'};
+const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
 const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results',round_1_break:'Round 1 Break',main_break:'Main Break'};
 let state=null;
 let events=[];
@@ -342,6 +355,64 @@ async function loadProgram(expectedVersion=mutationVersion){
   }
 }
 
+function renderMainProgramBoundary(value){
+  $('#main-program-start').value=value.start_moto??'';
+  const suggestion=value.suggested_start_moto?` Suggested moto ${value.suggested_start_moto} (${value.confidence} confidence; not applied).`:'';
+  const status=value.start_moto
+    ? `Operator-confirmed Main program start: moto ${value.start_moto}.`
+    : 'Main program start is unresolved.';
+  const evidence=(value.evidence||[]).join('; ');
+  $('#main-program-boundary-detail').textContent=`${status}${suggestion}${evidence?` Evidence: ${evidence}.`:''}`;
+}
+
+async function loadMainProgramBoundary(){
+  const boardId=navigationEventId();
+  if(!boardId){
+    $('#main-program-start').value='';
+    $('#main-program-boundary-detail').textContent='Waiting for the current RaceManager event.';
+    return;
+  }
+  try{
+    const response=await fetchWithTimeout(`/api/current/main-program-boundary/${boardId}`,{cache:'no-store'});
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    renderMainProgramBoundary(await response.json());
+  }catch(error){
+    $('#main-program-boundary-detail').textContent=`Main-program boundary unavailable: ${error.message}`;
+  }
+}
+
+async function saveMainProgramBoundary(){
+  const boardId=navigationEventId();
+  const raw=$('#main-program-start').value.trim();
+  if(!boardId){$('#message').textContent='Select a RaceManager event first.';return}
+  if(!/^\d+$/.test(raw)||Number(raw)<1){$('#message').textContent='Enter a positive whole-number Main start moto.';return}
+  try{
+    const response=await fetch(
+      `/api/current/main-program-boundary/${boardId}`,
+      authorizedOptions({method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_moto:Number(raw)})})
+    );
+    if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.detail||`Request failed: ${response.status}`)}
+    renderMainProgramBoundary(await response.json());
+    $('#message').textContent='Main-program boundary saved for this event.';
+    await loadProgram();
+  }catch(error){$('#message').textContent=error.message}
+}
+
+async function resetMainProgramBoundary(){
+  const boardId=navigationEventId();
+  if(!boardId){$('#message').textContent='Select a RaceManager event first.';return}
+  try{
+    const response=await fetch(
+      `/api/current/main-program-boundary/${boardId}/reset`,
+      authorizedOptions({method:'POST'})
+    );
+    if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.detail||`Request failed: ${response.status}`)}
+    renderMainProgramBoundary(await response.json());
+    $('#message').textContent='Main-program boundary reset for this event.';
+    await loadProgram();
+  }catch(error){$('#message').textContent=error.message}
+}
+
 async function request(path,options={}){
   const requestVersion=++mutationVersion;
   const response=await fetch(path,authorizedOptions(options));
@@ -354,6 +425,7 @@ async function request(path,options={}){
   render(value);
   if(!value.navigation_message)$('#message').textContent='';
   await loadProgram(requestVersion);
+  await loadMainProgramBoundary();
   await refreshLineup(requestVersion);
   return value;
 }
@@ -480,6 +552,8 @@ $('#next-round').addEventListener('click',()=>round('next'));
 $('#first-moto').addEventListener('click',()=>request('/api/current/phase/first',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#last-moto').addEventListener('click',()=>request('/api/current/phase/last',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#apply').addEventListener('click',apply);
+$('#save-main-program-start').addEventListener('click',saveMainProgramBoundary);
+$('#reset-main-program-start').addEventListener('click',resetMainProgramBoundary);
 $('#navigation-confirm-cancel').addEventListener('click',()=>{
   pendingNavigation=null;
   closeNavigationConfirmation();

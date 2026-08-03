@@ -51,6 +51,13 @@ def test_director_uses_global_phase_catalog_and_round_boundaries() -> None:
     assert "request('/api/current/phase/last',{method:'POST'})" in DIRECTOR_HTML
 
 
+def test_director_round_selector_has_program_segments_but_no_overall() -> None:
+    assert '<option value="main">Mains</option>' in DIRECTOR_HTML
+    assert "main:'Main'" in DIRECTOR_HTML
+    assert 'value="overall"' not in DIRECTOR_HTML
+    assert "overall:'Overall'" not in DIRECTOR_HTML
+
+
 def test_director_ignores_stale_mutation_and_lineup_responses() -> None:
     assert "let mutationVersion=0;" in DIRECTOR_HTML
     assert "const requestVersion=++mutationVersion;" in DIRECTOR_HTML
@@ -61,3 +68,13 @@ def test_director_ignores_stale_mutation_and_lineup_responses() -> None:
 
 def test_director_renders_actionable_navigation_message() -> None:
     assert "if(value.navigation_message)$('#message').textContent=value.navigation_message;" in DIRECTOR_HTML
+
+
+def test_director_exposes_event_scoped_main_program_boundary_controls() -> None:
+    assert 'id="main-program-start"' in DIRECTOR_HTML
+    assert 'id="save-main-program-start"' in DIRECTOR_HTML
+    assert 'id="reset-main-program-start"' in DIRECTOR_HTML
+    assert "/api/current/main-program-boundary/${boardId}" in DIRECTOR_HTML
+    assert "/api/current/main-program-boundary/${boardId}/reset" in DIRECTOR_HTML
+    assert "${value.confidence} confidence; not applied" in DIRECTOR_HTML
+    assert "(value.evidence||[]).join('; ')" in DIRECTOR_HTML

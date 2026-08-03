@@ -7,20 +7,23 @@ import json
 from pathlib import Path
 from uuid import UUID
 
-import pytest
-
-from connector.models import CurrentMotoUpdate, Event, RacePhase, ResultsRollStart
+from connector.models import (
+    CompetitionStage,
+    CurrentMotoUpdate,
+    Event,
+    FinalizationMethod,
+    RacePhase,
+    ResultsRollStart,
+    ScoringMethod,
+)
 from connector.services.current_lineup_service import CurrentLineupService
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.current_results_service import CurrentResultsService
 from connector.services.motoboard_service import MotoboardService
-from connector.services.race_program_service import (
-    RaceProgramService,
-    RaceSlotUnavailableError,
-)
+from connector.services.race_program_service import RaceProgramService
 from connector.services.race_slot_service import RaceSlotService
 from connector.services.results_roll_service import ResultsRollService
-from tests.test_round_aware_program import FakeDatabase, row
+from tests.test_round_aware_program import FakeDatabase, row, total_points_rows
 
 
 FIXTURE_PATH = (
@@ -90,6 +93,26 @@ def synthetic_rows() -> list[dict[str, object]]:
     return rows
 
 
+def preceding_gold_cup_total_points_rows() -> list[dict[str, object]]:
+    """Sanitized structural analogue of Moto 27 before the proven Main block."""
+    class_id = UUID("33502e22-2234-41b6-854d-089bfa2984c8")
+    qualifier_round = UUID("6076bdc3-3c0b-423e-86dc-20b99adf8d2f")
+    qualifier_group = UUID("387b4732-69fe-4eea-aca7-2f62eea3b725")
+    final_round = UUID("1885be9d-7722-4c80-bbb6-7f5222a88477")
+    final_group = UUID("cf876391-797d-4f6a-a4ec-d64c53731a3a")
+    return [
+        {
+            **item,
+            "class_id": class_id,
+            "class_name": "41-45 Novice",
+            "round_id": final_round if item["round_type_id"] == 1 else qualifier_round,
+            "motogroup_id": final_group if item["round_type_id"] == 1 else qualifier_group,
+            "moto_number": 27,
+        }
+        for item in total_points_rows()
+    ]
+
+
 class GoldCupEvents:
     def __init__(self, board_id: UUID) -> None:
         self.board_id = board_id
@@ -114,40 +137,102 @@ class GoldCupEvents:
 def services(tmp_path: Path):
     payload = fixture()
     board_id = UUID(payload["source"]["motoboard_id"])
-    motoboards = MotoboardService(FakeDatabase(synthetic_rows()))
+    motoboards = gold_cup_motoboards(tmp_path, synthetic_rows())
     current = CurrentMotoService(tmp_path / "current.json")
     events = GoldCupEvents(board_id)
     programs = RaceProgramService(current, events, motoboards)
     return payload, board_id, motoboards, current, events, programs
 
 
-def test_fixture_records_complete_observed_main_catalog() -> None:
-    payload = fixture()
-    assert payload["source"]["contains_rider_personal_data"] is False
-    assert [item[0] for item in payload["expected_main_slots"]] == [
-        28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-        45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-        60, 61, 62,
-    ]
-
-
-def test_gold_cup_window_classifies_29_and_30_as_overall() -> None:
+def gold_cup_motoboards(
+    tmp_path: Path,
+    rows: list[dict[str, object]],
+) -> MotoboardService:
     payload = fixture()
     board_id = UUID(payload["source"]["motoboard_id"])
-    slots = RaceSlotService(MotoboardService(FakeDatabase(synthetic_rows())))
+    service = MotoboardService(
+        FakeDatabase(rows),
+        phase_override_file=tmp_path / "race-phase-overrides.json",
+    )
+    service.phase_overrides.set_main_program_start(
+        board_id,
+        int(payload["main_program_boundary"]["start_moto"]),
+    )
+    return service
+
+
+def test_fixture_records_real_gold_cup_main_window_without_rider_data() -> None:
+    payload = fixture()
+    assert payload["source"]["contains_rider_personal_data"] is False
+    assert payload["source"]["safe_export_sha256"] == (
+        "5ADCE078C857C20B8716243D2A8B95C837A574C071AC0C4046C3596DC7122E81"
+    )
+    assert payload["expected_main_window"] == [
+        [28, "51-55 Novice"],
+        [29, "5 & Under Intermediate"],
+        [30, "6 Intermediate"],
+        [31, "7 Intermediate"],
+    ]
+    assert payload["main_program_boundary"]["start_moto"] == 28
+    assert payload["main_program_boundary"]["source"] == "operator_override"
+    assert payload["main_program_boundary"]["operator_confirmed"] is True
+
+
+def test_gold_cup_window_is_one_mixed_main_program(tmp_path: Path) -> None:
+    payload = fixture()
+    board_id = UUID(payload["source"]["motoboard_id"])
+    slots = RaceSlotService(gold_cup_motoboards(tmp_path, synthetic_rows()))
 
     mains = slots.catalog(board_id, RacePhase.MAIN)
-    overalls = slots.catalog(board_id, RacePhase.OVERALL)
+    boundary = slots.motoboards.get_main_program_boundary(board_id)
 
     assert [(slot.moto_number, slot.class_name) for slot in mains] == [
-        (28, "51-55 Novice"),
-        (31, "7 Intermediate"),
+        tuple(item) for item in payload["expected_main_window"]
     ]
-    assert [(slot.moto_number, slot.class_name) for slot in overalls] == [
-        (29, "5 & Under Intermediate"),
-        (30, "6 Intermediate"),
+    assert all(slot.phase == RacePhase.MAIN for slot in mains)
+    assert all(not slot.combined for slot in mains)
+    assert boundary.start_moto == 28
+    assert boundary.suggested_start_moto == 28
+    assert boundary.source.value == "operator_override"
+    by_number = {slot.moto_number: slot.members[0].stage for slot in mains}
+    assert by_number[28].competition_stage == CompetitionStage.MAIN_EVENT
+    assert by_number[28].scoring_method == ScoringMethod.TRANSFER
+    assert by_number[29].competition_stage == CompetitionStage.TOTAL_POINTS_FINAL_MOTO
+    assert by_number[29].scoring_method == ScoringMethod.TOTAL_POINTS
+    assert by_number[29].finalization_method == FinalizationMethod.ACCUMULATED_POINTS
+    assert by_number[29].round_index == 3
+    assert str(by_number[29].motogroup_id) == payload["classification_window"][1]["physical_motogroup_id"]
+    assert str(by_number[29].result_motogroup_id) == payload["classification_window"][1]["final_motogroup_id"]
+    assert by_number[30].competition_stage == CompetitionStage.TOTAL_POINTS_FINAL_MOTO
+    assert by_number[30].round_index == 1
+    assert str(by_number[30].motogroup_id) == payload["classification_window"][2]["physical_motogroup_id"]
+    assert by_number[31].competition_stage == CompetitionStage.MAIN_EVENT
+
+
+def test_gold_cup_total_points_before_main_stays_in_round_three(
+    tmp_path: Path,
+) -> None:
+    payload = fixture()
+    board_id = UUID(payload["source"]["motoboard_id"])
+    service = RaceSlotService(
+        gold_cup_motoboards(
+            tmp_path,
+            preceding_gold_cup_total_points_rows() + synthetic_rows(),
+        )
+    )
+
+    assert [slot.moto_number for slot in service.catalog(board_id, RacePhase.MAIN)] == [
+        28,
+        29,
+        30,
+        31,
     ]
-    assert all(not slot.combined for slot in mains + overalls)
+    round_three = service.catalog(board_id, RacePhase.ROUND_3)
+    moto_27 = next(slot for slot in round_three if slot.moto_number == 27)
+    assert moto_27.phase == RacePhase.ROUND_3
+    assert moto_27.members[0].stage.competition_stage == (
+        CompetitionStage.TOTAL_POINTS_FINAL_MOTO
+    )
 
 
 def test_gold_cup_main_next_previous_are_exact_inverses(tmp_path: Path) -> None:
@@ -171,11 +256,19 @@ def test_gold_cup_main_next_previous_are_exact_inverses(tmp_path: Path) -> None:
     )
     original = current.get()
 
-    advanced = programs.step_moto(1)
+    first = programs.step_moto(1)
+    second = programs.step_moto(1)
+    third = programs.step_moto(1)
+    restored_second = programs.step_moto(-1)
+    restored_first = programs.step_moto(-1)
     restored = programs.step_moto(-1)
 
-    assert advanced.moto_number == 31
-    assert advanced.race_phase == RacePhase.MAIN
+    assert [first.moto_number, second.moto_number, third.moto_number] == [29, 30, 31]
+    assert all(
+        state.race_phase == RacePhase.MAIN
+        for state in (first, second, third, restored_second, restored_first, restored)
+    )
+    assert [restored_second.moto_number, restored_first.moto_number, restored.moto_number] == [30, 29, 28]
     assert restored.moto_number == 28
     assert restored.race_phase == RacePhase.MAIN
     assert restored.slot_key == original.slot_key
@@ -184,7 +277,7 @@ def test_gold_cup_main_next_previous_are_exact_inverses(tmp_path: Path) -> None:
 
 
 def test_direct_jump_and_results_roll_share_gold_cup_main_slots(tmp_path: Path) -> None:
-    _payload, board_id, motoboards, current, events, programs = services(tmp_path)
+    payload, board_id, motoboards, current, events, programs = services(tmp_path)
     current.set(
         CurrentMotoUpdate(
             moto_number=28,
@@ -192,25 +285,16 @@ def test_direct_jump_and_results_roll_share_gold_cup_main_slots(tmp_path: Path) 
             motoboard_id=board_id,
         )
     )
-    with pytest.raises(RaceSlotUnavailableError) as caught:
-        programs.select_moto(
+    for expected in (29, 30, 31, 28):
+        selected = programs.select_moto(
             CurrentMotoUpdate(
-                moto_number=29,
+                moto_number=expected,
                 race_phase=RacePhase.MAIN,
                 motoboard_id=board_id,
             )
         )
-    assert caught.value.previous_moto == 28
-    assert caught.value.next_moto == 31
-
-    selected = programs.select_moto(
-        CurrentMotoUpdate(
-            moto_number=31,
-            race_phase=RacePhase.MAIN,
-            motoboard_id=board_id,
-        )
-    )
-    assert selected.moto_number == 31
+        assert selected.moto_number == expected
+        assert selected.race_phase == RacePhase.MAIN
 
     lineups = CurrentLineupService(
         current, events, motoboards, tmp_path / "lineup.json"
@@ -222,7 +306,21 @@ def test_direct_jump_and_results_roll_share_gold_cup_main_slots(tmp_path: Path) 
         lineups,
         tmp_path / "results.json",
     )
-    assert [item.moto_number for item in results.catalog(board_id)] == [28, 31]
+    catalog = results.catalog(board_id)
+    assert [item.moto_number for item in catalog] == [28, 29, 30, 31]
+    assert [item.phase_label for item in catalog] == [
+        "Main",
+        "Total Points Results",
+        "Total Points Results",
+        "Main",
+    ]
+    assert len({item.class_id for item in catalog}) == 4
+    assert len({(item.moto_number, item.class_id) for item in catalog}) == 4
+    assert catalog[1].class_name == "5 & Under Intermediate"
+    assert catalog[1].scoring_method == ScoringMethod.TOTAL_POINTS
+    assert catalog[1].motogroup_id == UUID(
+        payload["classification_window"][1]["final_motogroup_id"]
+    )
 
     roll = ResultsRollService(
         current,
@@ -232,7 +330,9 @@ def test_direct_jump_and_results_roll_share_gold_cup_main_slots(tmp_path: Path) 
     )
     status = roll.start(ResultsRollStart(start_from="first", interval_seconds=10))
     assert status.current_result_moto == 28
-    assert status.total_available_results == 2
+    assert status.total_available_results == 4
+    assert roll.next().current_result_moto == 29
+    assert roll.next().current_result_moto == 30
     assert roll.next().current_result_moto == 31
-    assert roll.previous().current_result_moto == 28
+    assert roll.previous().current_result_moto == 30
     roll.shutdown()

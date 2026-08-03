@@ -2,9 +2,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from uuid import UUID
 
 from connector.dependencies import (
     get_current_moto_service,
+    get_motoboard_service,
     get_race_program_service,
     get_results_roll_service,
 )
@@ -12,6 +14,8 @@ from connector.models import (
     ActiveGraphic,
     CurrentMoto,
     CurrentMotoUpdate,
+    MainProgramBoundary,
+    MainProgramBoundaryUpdate,
     RacePhase,
     RaceProgram,
 )
@@ -19,11 +23,46 @@ from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
 )
+from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_service import RaceSlotUnavailableError
 from connector.services.results_roll_service import ResultsRollService
 
 router = APIRouter(tags=["broadcast control"])
+
+
+@router.get(
+    "/current/main-program-boundary/{motoboard_id}",
+    response_model=MainProgramBoundary,
+)
+def get_main_program_boundary(
+    motoboard_id: UUID,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.get_main_program_boundary(motoboard_id)
+
+
+@router.put(
+    "/current/main-program-boundary/{motoboard_id}",
+    response_model=MainProgramBoundary,
+)
+def set_main_program_boundary(
+    motoboard_id: UUID,
+    update: MainProgramBoundaryUpdate,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.set_main_program_boundary(motoboard_id, update.start_moto)
+
+
+@router.post(
+    "/current/main-program-boundary/{motoboard_id}/reset",
+    response_model=MainProgramBoundary,
+)
+def reset_main_program_boundary(
+    motoboard_id: UUID,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.reset_main_program_boundary(motoboard_id)
 
 
 @router.get("/current", response_model=CurrentMoto)
@@ -204,7 +243,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'Round 1', round_2: 'Round 2', round_3: 'Round 3',
-  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main', overall: 'Overall'
+  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main'
 };
 const moto = document.querySelector('#moto');
 const phase = document.querySelector('#phase');
@@ -337,7 +376,7 @@ OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
 let themeName = (params.get('theme') || '').toLowerCase();

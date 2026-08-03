@@ -9,7 +9,16 @@ from pathlib import Path
 import threading
 from uuid import UUID
 
-from connector.models import CurrentResults, Moto, RacePhase, ResultRider
+from connector.models import (
+    CompetitionStage,
+    CurrentResults,
+    FinalizationMethod,
+    Moto,
+    RacePhase,
+    RaceStage,
+    ResultRider,
+    ScoringMethod,
+)
 from connector.services.current_lineup_service import CurrentLineupService, DEMO_MOTO
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
@@ -63,10 +72,15 @@ class CurrentResultsService:
                 board_id = selected_board_id or self.events.current().motoboard_id
                 if hasattr(self.motos, "resolve_state"):
                     resolved = self.motos.resolve_state(board_id, state)
-                    moto = resolved.moto
+                    stage = resolved.stage
+                    moto = (
+                        self.motos.get_group(board_id, stage.result_motogroup_id)
+                        if stage.result_motogroup_id is not None
+                        else resolved.moto
+                    )
                     race_phase = resolved.stage.phase
-                    phase_label = resolved.stage.label
-                    round_index = resolved.stage.round_index
+                    phase_label = self._result_label(stage)
+                    round_index = stage.result_round_index or stage.round_index
                 else:  # compatibility with older adapters and test doubles
                     moto = self.motos.get_moto(board_id, state.moto_number)
                     stage, _program = CurrentLineupService._legacy_context(
@@ -84,6 +98,10 @@ class CurrentResultsService:
                     motoboard_id=board_id,
                     event_name=event_name,
                     source="racemanager",
+                    competition_stage=stage.competition_stage,
+                    scoring_method=stage.scoring_method,
+                    finalization_method=stage.finalization_method,
+                    display_moto_number=stage.moto_number,
                 )
                 if state.slot_key and state.class_name:
                     result = result.model_copy(
@@ -122,19 +140,28 @@ class CurrentResultsService:
         by_group = {moto.motogroup_id: moto for moto in all_motos}
         results: list[CurrentResults] = []
         for slot in slots:
-            member_results = [
-                self._build_result(
-                    by_group[member.stage.motogroup_id],
+            member_results: list[CurrentResults] = []
+            for member in slot.members:
+                stage = member.stage
+                result_group_id = stage.result_motogroup_id or stage.motogroup_id
+                result_moto = by_group.get(result_group_id)
+                if result_moto is None:
+                    continue
+                member_results.append(
+                    self._build_result(
+                    result_moto,
                     race_phase=RacePhase.MAIN,
-                    phase_label=slot.phase_label,
-                    round_index=member.stage.round_index,
+                    phase_label=self._result_label(stage),
+                    round_index=stage.result_round_index or stage.round_index,
                     motoboard_id=motoboard_id,
                     event_name=name,
                     source="racemanager",
+                    competition_stage=stage.competition_stage,
+                    scoring_method=stage.scoring_method,
+                    finalization_method=stage.finalization_method,
+                    display_moto_number=slot.moto_number,
                 )
-                for member in slot.members
-                if member.stage.motogroup_id in by_group
-            ]
+                )
             available = [
                 result
                 for result in member_results
@@ -223,6 +250,10 @@ class CurrentResultsService:
         motoboard_id: UUID | None,
         event_name: str | None,
         source: str,
+        competition_stage: CompetitionStage = CompetitionStage.UNKNOWN,
+        scoring_method: ScoringMethod = ScoringMethod.UNKNOWN,
+        finalization_method: FinalizationMethod = FinalizationMethod.UNKNOWN,
+        display_moto_number: int | None = None,
     ) -> CurrentResults:
         riders: list[ResultRider] = []
         official_count = 0
@@ -264,7 +295,7 @@ class CurrentResultsService:
             result_status = "incomplete"
         return CurrentResults(
             event_name=event_name,
-            moto_number=moto.moto_number,
+            moto_number=display_moto_number or moto.moto_number,
             race_phase=race_phase,
             phase_label=phase_label,
             available_phases=[race_phase],
@@ -274,12 +305,21 @@ class CurrentResultsService:
             round_id=moto.round_id,
             motogroup_id=moto.motogroup_id,
             round_index=round_index,
+            competition_stage=competition_stage,
+            scoring_method=scoring_method,
+            finalization_method=finalization_method,
             class_name=moto.class_name,
             riders=riders,
             source=source,
             updated_at=moto.updated_at,
             result_status=result_status,
         )
+
+    @staticmethod
+    def _result_label(stage: RaceStage) -> str:
+        if stage.finalization_method == FinalizationMethod.ACCUMULATED_POINTS:
+            return "Total Points Results"
+        return "Main"
 
     def _write_cache(self, result: CurrentResults) -> None:
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)

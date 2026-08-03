@@ -1,13 +1,13 @@
 # Race slots and combined motos
 
 BBS navigation uses a **race slot** rather than an individual RaceManager
-class row. A race slot is one displayed moto number in one selected phase on
-one pinned Motoboard.
+class row. A race slot is one physical scheduled race occurrence in one
+selected program segment on one pinned Motoboard.
 
 Its stable key contains:
 
 ```text
-motoboard-id : phase : displayed-moto
+motoboard-id : program-segment : displayed-moto
 ```
 
 The slot retains every associated class ID and motogroup ID. If RaceManager
@@ -22,8 +22,11 @@ This means:
 
 - Next advances one displayed race slot;
 - Previous is the inverse of Next;
-- missing numbers are skipped only when the selected phase has no slot there;
-- an Overall-only number is skipped while navigating Mains;
+- missing numbers are skipped only when the selected segment has no physical slot there;
+- Transfer Main events and Total Points final motos remain interleaved in scheduled order;
+- an event-scoped Main start determines whether a Total Points third moto is a
+  Round 3 or Main slot; Transfer-final ranges are never used as the boundary;
+- an accumulated Total Points classification does not create another slot;
 - historic Motoboard selection remains pinned; and
 - Results Roll uses the same Main-slot ordering and shows a combined moto once.
 

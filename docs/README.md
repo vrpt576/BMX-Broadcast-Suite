@@ -10,7 +10,7 @@
 - [Browser Sources](browser-sources.md)
 - [Results Roll](results-roll.md)
 - [Race-program structure export](race-program-export.md)
-- [Main and Overall classification](phase-classification.md)
+- [Program segments and scoring classification](phase-classification.md)
 - [Race slots and combined motos](race-slots.md)
 - [Theme Customization](themes.md)
 - [Troubleshooting](troubleshooting.md)

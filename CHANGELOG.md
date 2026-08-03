@@ -4,12 +4,12 @@
 
 ## 1.2.11 - 2026-08-01
 
-- Corrected Main versus Overall classification using RaceManager stage
-  structure, with consistent phase labels across Director, APIs, overlays,
-  individual results, and Results Roll.
-- Rebuilt navigation around unique race slots so combined motos appear once,
-  Next and Previous are symmetric, and incompatible Overall-only stages are
-  skipped while navigating Mains.
+- Separated physical program segments, competition stages, scoring methods,
+  and finalization methods; Total Points classifications no longer appear as
+  an operator-facing Overall round.
+- Rebuilt navigation around physical race slots so combined motos appear once,
+  Next and Previous are symmetric, and Transfer Main events and final Total
+  Points motos remain interleaved in scheduled Main-program order.
 - Fixed direct Go to Moto selection, actionable unavailable-moto feedback,
   stale-response protection, and class-aware transitions between rounds.
 - Added per-event race-position confirmation preferences with an explicit
@@ -18,6 +18,9 @@
   order, playback controls, and break-graphic coordination.
 - Added safe race-program structure export for anonymized schema diagnostics
   and regression fixtures.
+- Added a persistent, resettable Main-program start per Motoboard for events
+  whose RaceManager records do not expose an explicit running-order boundary;
+  Transfer finals are retained as low-confidence suggestions only.
 - Hardened network administration with localhost binding by default,
   configured CORS origins, explicit remote administration, mutation tokens,
   and credential redaction.

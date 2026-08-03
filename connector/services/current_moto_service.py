@@ -11,11 +11,14 @@ from uuid import UUID
 
 from connector.models import (
     ActiveGraphic,
+    CompetitionStage,
     CurrentMoto,
     CurrentMotoUpdate,
+    FinalizationMethod,
     RacePhase,
     RaceProgram,
     RaceStage,
+    ScoringMethod,
 )
 
 
@@ -91,6 +94,13 @@ class CurrentMotoService:
                     return None
                 return getattr(current, name)
 
+            def classification(name: str, unknown):
+                if name in update.model_fields_set:
+                    return getattr(update, name) or unknown
+                if selection_changed or phase_changed:
+                    return unknown
+                return getattr(current, name)
+
             class_name = (
                 self._normalize_class_name(update.class_name)
                 if "class_name" in update.model_fields_set
@@ -116,6 +126,15 @@ class CurrentMotoService:
                 slot_motogroup_ids=identity("slot_motogroup_ids") or [],
                 navigation_message=identity("navigation_message"),
                 round_index=identity("round_index"),
+                competition_stage=classification(
+                    "competition_stage", CompetitionStage.UNKNOWN
+                ),
+                scoring_method=classification(
+                    "scoring_method", ScoringMethod.UNKNOWN
+                ),
+                finalization_method=classification(
+                    "finalization_method", FinalizationMethod.UNKNOWN
+                ),
                 updated_at=datetime.now(timezone.utc),
                 source="manual",
                 active_graphic=update.active_graphic or current.active_graphic,
@@ -242,6 +261,9 @@ class CurrentMotoService:
                     "slot_motogroup_ids": slot_motogroup_ids
                     or [stage.motogroup_id],
                     "round_index": stage.round_index,
+                    "competition_stage": stage.competition_stage,
+                    "scoring_method": stage.scoring_method,
+                    "finalization_method": stage.finalization_method,
                     "source": "racemanager",
                     "motoboard_id": (
                         current.motoboard_id
@@ -323,6 +345,13 @@ class CurrentMotoService:
             return self._default_state()
         try:
             payload = json.loads(self.state_file.read_text(encoding="utf-8"))
+            if payload.get("race_phase") == "overall":
+                # Overall was exposed incorrectly as a navigation phase before
+                # v1.2.11.  Preserve the selected moto while migrating it into
+                # the final Main program segment.
+                payload["race_phase"] = RacePhase.MAIN.value
+                payload["phase_label"] = "Main"
+                payload["slot_key"] = None
             return CurrentMoto.model_validate(payload)
         except (OSError, json.JSONDecodeError, ValueError):
             return self._default_state()
@@ -373,6 +402,9 @@ class CurrentMotoService:
             "qualifier_motogroup_id",
             "slot_key",
             "round_index",
+            "competition_stage",
+            "scoring_method",
+            "finalization_method",
         ):
             current_value = getattr(current, field)
             expected_value = getattr(expected, field)

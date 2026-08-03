@@ -8,7 +8,7 @@ BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for liv
 
 ## Current status — v1.2.11
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official Main-results, and break graphics in OBS. Version 1.2.11 corrects Main/Overall classification and combined-moto navigation, repairs direct jumps and round transitions, hardens local administration, and replaces the Defender-flagged IExpress bootstrap with an offline WiX MSI and native Windows service.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.11 models Total Points within the physical Main race program, repairs combined-moto navigation and direct jumps, hardens local administration, and replaces the Defender-flagged IExpress bootstrap with an offline WiX MSI and native Windows service.
 
 Validated RaceManager behavior in this release:
 
@@ -16,7 +16,12 @@ Validated RaceManager behavior in this release:
 - `Round_Type_ID 1` contains final classification.
 - `Moto_Number` is not globally unique; exact stages use `Motogroup_DBID` and round identity.
 - `X` finish values are transfer-to-main markers, not numeric placements.
-- Small total-points classes expose an **Overall** stage; transfer formats expose a **Main** stage.
+- Transfer/LST and Total Points are scoring methods, not Director rounds.
+- The Main program can interleave Transfer Main events and final Total Points motos in physical gate-drop order.
+- Director stores an optional Main-program start per event when RaceManager
+  does not expose a reliable event-wide boundary; automatic Transfer evidence
+  is advisory only.
+- Total Points results use the accumulated official classification while the Director remains in **Main**.
 - Quarterfinal and semifinal controls are shown only when a future validated mapping proves those stages exist in the selected RaceManager data.
 
 ### Available now
@@ -39,7 +44,10 @@ Validated RaceManager behavior in this release:
 ### Known limitations
 
 - Actual quarterfinal and semifinal storage has not yet been validated against a sufficiently large historical RaceManager class, so BBS does not invent those mappings.
-- Main versus Overall is inferred from transfer markers and rider-set differences discovered in real RaceManager data.
+- Transfer versus Total Points finalization is inferred from structural evidence and can be overridden per event without creating another navigation phase.
+- Total Points Round-3-versus-Main placement requires an explicit event boundary
+  when RaceManager does not provide one; Director shows a low-confidence
+  suggestion and lets the operator save or reset the event-scoped value.
 - Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated.
 - Themes are edited as JSON files; a visual theme editor is planned.
 
@@ -64,6 +72,8 @@ Add `?preview=true` when building or testing an OBS scene. Remove it for live co
 
 - `GET /api/event` — recent live and historical RaceManager events
 - `GET /api/current/program` — phases actually available for the selected class/group
+- `GET|PUT /api/current/main-program-boundary/{motoboard_id}` — inspect or save the event Main start
+- `POST /api/current/main-program-boundary/{motoboard_id}/reset` — clear the event Main start
 - `POST /api/current/phase/select/{phase}` — select an exact available phase
 - `GET /api/motos?all_rounds=true` — inspect qualifier and final branches without collapsing duplicate moto numbers
 - `GET /api/motos/group/{motogroup_id}` — retrieve one exact motogroup

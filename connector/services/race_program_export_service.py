@@ -35,7 +35,6 @@ PHASE_ORDER = {
     RacePhase.QUARTERFINAL: 4,
     RacePhase.SEMIFINAL: 5,
     RacePhase.MAIN: 6,
-    RacePhase.OVERALL: 7,
 }
 
 
@@ -97,6 +96,7 @@ class RaceProgramExportService:
             motoboard_id=board_id,
             total_motos=event.total_motos,
             total_riders=event.total_riders,
+            main_program_boundary=self.motoboards.get_main_program_boundary(board_id),
             schema_columns=schema_columns,
             classes=classes,
             slots=slots,
@@ -132,7 +132,7 @@ class RaceProgramExportService:
                 race_phase=(
                     RacePhase.ROUND_1
                     if seed.round_type_id == 123
-                    else RacePhase.OVERALL
+                    else RacePhase.MAIN
                 ),
                 motoboard_id=motoboard_id,
                 class_id=seed.class_id,
@@ -164,6 +164,13 @@ class RaceProgramExportService:
                         class_id=stage.class_id,
                         class_name=stage.class_name,
                         round_index=stage.round_index,
+                        competition_stage=stage.competition_stage,
+                        scoring_method=stage.scoring_method,
+                        finalization_method=stage.finalization_method,
+                        physical_race=True,
+                        result_round_type_id=stage.result_round_type_id,
+                        result_round_id=stage.result_round_id,
+                        result_motogroup_id=stage.result_motogroup_id,
                         round_moto_number_first=stage.round_moto_number_first,
                         round_moto_number_last=stage.round_moto_number_last,
                         round_motogroup_count=stage.round_motogroup_count,
@@ -236,7 +243,10 @@ class RaceProgramExportService:
                 if qualifier_riders and final_riders
                 else None
             ),
-            inferred_phase=decision.phase,
+            program_segment=decision.program_segment,
+            competition_stage=decision.competition_stage,
+            scoring_method=decision.scoring_method,
+            finalization_method=decision.finalization_method,
             inference_reason=decision.reason,
             ambiguous=decision.ambiguous,
             overridden=decision.overridden,
@@ -274,6 +284,16 @@ class RaceProgramExportService:
                     ),
                     motogroup_ids=sorted(
                         {stage.motogroup_id for stage in stages}, key=str
+                    ),
+                    competition_stages=sorted(
+                        {stage.competition_stage for stage in stages},
+                        key=str,
+                    ),
+                    scoring_methods=sorted(
+                        {stage.scoring_method for stage in stages}, key=str
+                    ),
+                    finalization_methods=sorted(
+                        {stage.finalization_method for stage in stages}, key=str
                     ),
                 )
             )

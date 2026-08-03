@@ -25,7 +25,6 @@ PHASE_ORDER = (
     RacePhase.QUARTERFINAL,
     RacePhase.SEMIFINAL,
     RacePhase.MAIN,
-    RacePhase.OVERALL,
 )
 
 _UNSET = object()

@@ -218,6 +218,9 @@ class CurrentLineupService:
             round_id=stage.round_id,
             motogroup_id=stage.motogroup_id,
             round_index=stage.round_index,
+            competition_stage=stage.competition_stage,
+            scoring_method=stage.scoring_method,
+            finalization_method=stage.finalization_method,
             class_name=(
                 state.class_name
                 if state.slot_key and state.class_name

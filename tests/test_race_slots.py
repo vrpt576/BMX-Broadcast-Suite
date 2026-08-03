@@ -69,7 +69,11 @@ def test_two_classes_share_one_main_slot_and_next_previous_are_symmetric(
     tmp_path: Path,
 ) -> None:
     database = FakeDatabase(combined_boundary_rows())
-    motoboards = MotoboardService(database)
+    motoboards = MotoboardService(
+        database,
+        phase_override_file=tmp_path / "race-phase-overrides.json",
+    )
+    motoboards.phase_overrides.set_main_program_start(BOARD_ID, 30)
     slots = RaceSlotService(motoboards).catalog(BOARD_ID, RacePhase.MAIN)
     assert [slot.moto_number for slot in slots] == [30, 31]
     assert slots[0].combined is True
@@ -158,7 +162,11 @@ def test_results_catalog_uses_same_combined_slot_order(tmp_path: Path) -> None:
 
 def test_slot_boundaries_do_not_wrap(tmp_path: Path) -> None:
     database = FakeDatabase(combined_boundary_rows())
-    motoboards = MotoboardService(database)
+    motoboards = MotoboardService(
+        database,
+        phase_override_file=tmp_path / "race-phase-overrides.json",
+    )
+    motoboards.phase_overrides.set_main_program_start(BOARD_ID, 30)
     slots = RaceSlotService(motoboards).catalog(BOARD_ID, RacePhase.MAIN)
     last = slots[-1]
     member = last.members[0]
