@@ -49,16 +49,10 @@ def systemd_state(unit: str = "bbs-connector.service") -> str:
     return "stopped"
 
 
-def windows_task_state(task: str = "BMX Broadcast Suite") -> str:
-    """Return a stable state for the Windows boot-time scheduled task."""
-    escaped = task.replace("'", "''")
+def windows_service_state(service: str = "BMXBroadcastSuite") -> str:
+    """Return a stable state for the native Windows service."""
     result = subprocess.run(
-        [
-            "powershell.exe",
-            "-NoProfile",
-            "-Command",
-            f"(Get-ScheduledTask -TaskName '{escaped}' -ErrorAction SilentlyContinue).State.ToString()",
-        ],
+        ["sc.exe", "query", service],
         check=False,
         capture_output=True,
         text=True,
@@ -66,25 +60,30 @@ def windows_task_state(task: str = "BMX Broadcast Suite") -> str:
     )
     if result.returncode != 0:
         return "stopped"
-    state = result.stdout.strip().lower()
-    if state == "running":
+    state = result.stdout.lower()
+    if "state" in state and "running" in state:
         return "running"
-    if state == "queued":
+    if "start_pending" in state or "continue_pending" in state:
         return "starting"
+    if "stop_pending" in state:
+        return "stopping"
     return "stopped"
+
+
+windows_task_state = windows_service_state
 
 
 def service_state(service_name: str | None = None) -> str:
     """Read the native background runner state for the current platform."""
     if platform.system() == "Windows":
-        return windows_task_state(service_name or "BMX Broadcast Suite")
+        return windows_service_state(service_name or "BMXBroadcastSuite")
     return systemd_state(service_name or "bbs-connector.service")
 
 
 def _get_json(url: str, timeout: float = 2.5) -> dict[str, Any]:
     request = Request(
         url,
-        headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.10"},
+        headers={"Accept": "application/json", "User-Agent": "BBS-Tray/1.2.11"},
     )
     with urlopen(request, timeout=timeout) as response:
         return json.load(response)

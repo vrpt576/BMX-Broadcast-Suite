@@ -45,7 +45,7 @@ Validated RaceManager behavior in this release:
 
 ## Quick start
 
-Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows Setup Wizard](docs/wizard-installer-windows.md), and the Windows background/tray documentation included with the installer. See [RaceManager Round Model](docs/racemanager-round-model.md) for the v1.2.8 architecture.
+Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows MSI Installer](docs/wizard-installer-windows.md), and [Windows Service and Tray](docs/service-windows.md). See [RaceManager Round Model](docs/racemanager-round-model.md) for the v1.2.8 architecture.
 
 Common pages:
 

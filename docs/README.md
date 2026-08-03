@@ -1,7 +1,8 @@
 # BBS Documentation
 
 - [Windows Installation](installation-windows.md)
-- [Windows Setup Wizard](wizard-installer-windows.md)
+- [Windows MSI Installer](wizard-installer-windows.md)
+- [Windows installer security and antivirus policy](windows-installer-security.md)
 - [Linux Installation](installation-linux.md)
 - [First Run](first-run.md)
 - [Track Configuration](configuration.md)

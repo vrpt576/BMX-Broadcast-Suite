@@ -1,151 +1,71 @@
+import hashlib
+import json
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE_VERSION = "1.2.10"
-INSTALLER_NAME = f"BMX-Broadcast-Suite-Setup-v{RELEASE_VERSION}.exe"
-WIZARD_SCRIPTS = (
-    "install-windows.ps1",
-    "install-service-windows.ps1",
-    "start-windows-background.ps1",
-    "start-tray-windows.ps1",
-    "restore-user-data-windows.ps1",
-    "register-uninstall-windows.ps1",
-    "uninstall-service-windows.ps1",
-    "uninstall-windows.ps1",
-    "uninstall-worker-windows.ps1",
-)
+PACKAGING = ROOT / "packaging" / "windows"
 
 
-def test_windows_wizard_and_builder_are_present():
-    assert (ROOT / "scripts" / "install-wizard-windows.ps1").is_file()
-    assert (ROOT / "scripts" / "build-windows-installer.ps1").is_file()
-    assert (ROOT / "scripts" / "uninstall-windows.ps1").is_file()
-    assert (ROOT / "scripts" / "uninstall-worker-windows.ps1").is_file()
-    assert (ROOT / "scripts" / "register-uninstall-windows.ps1").is_file()
-    assert (ROOT / "scripts" / "restore-user-data-windows.ps1").is_file()
-    for script in WIZARD_SCRIPTS:
-        assert (ROOT / "scripts" / script).is_file()
+def test_msi_sources_replace_iexpress_chain():
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+    assert '$InstallerName = "BMX-Broadcast-Suite-Setup-v$Version.msi"' in builder
+    assert "wix.dll" in builder and "Product.wxs" in builder
+    forbidden = ("iexpress", "wextract", "setup.vbs", "wscript.exe", "ExecutionPolicy Bypass")
+    for value in forbidden:
+        assert value.lower() not in (builder + product).lower()
 
 
-def test_builder_requires_and_packages_every_wizard_script_from_git():
-    text = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(
-        encoding="utf-8"
-    )
-    for script in WIZARD_SCRIPTS:
-        assert f"scripts/{script}" in text
-    assert "ls-files --error-unmatch" in text
-    assert "checkout-index --all --force" in text
-    assert "Indexed installer payload is incomplete" in text
+def test_msi_is_offline_native_and_preserves_programdata():
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+    assert "--no-index" in builder and "--require-hashes" in builder
+    assert "ServiceInstall" in product and 'Name="BMXBroadcastSuite"' in product
+    assert "MajorUpgrade" in product and "ServiceControl" in product
+    assert "CommonAppDataFolder" in product and 'Permanent="yes"' in product
+    assert "PURGEUSERDATA" in product and "RemoveFolderEx" in product
+    assert "ProgramFiles64Folder" in product
+    assert "RegistrySearch" in product and "ODBC Driver 18 for SQL Server" in product
 
 
-def test_wizard_uses_existing_supported_installers():
-    text = (ROOT / "scripts" / "install-wizard-windows.ps1").read_text(encoding="utf-8")
-    assert "install-windows.ps1" in text
-    assert "install-service-windows.ps1" in text
-    assert "restore-user-data-windows.ps1" in text
-    assert "register-uninstall-windows.ps1" in text
-    assert "start-windows-background.ps1" in text
-    assert "Start-ScheduledTask" not in text
-    assert f"BMX Broadcast Suite {RELEASE_VERSION}" in text
+def test_legacy_upgrade_is_narrowly_scoped():
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+    assert 'schtasks.exe /End /TN &quot;BMX Broadcast Suite&quot;' in product
+    assert 'schtasks.exe /Delete /F /TN &quot;BMX Broadcast Suite&quot;' in product
+    assert "taskkill" not in product.lower()
+    assert "LEGACYINSTALLDIR = INSTALLFOLDER" in product
+    assert "BMXBroadcastSuite" in product
 
 
-def test_windows_release_version_is_consistent():
-    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(
-        encoding="utf-8"
-    )
-    wizard = (ROOT / "scripts" / "install-wizard-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    registration = (ROOT / "scripts" / "register-uninstall-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    documentation = (ROOT / "docs" / "wizard-installer-windows.md").read_text(
-        encoding="utf-8"
-    )
-
-    assert INSTALLER_NAME in builder
-    assert f"FriendlyName=BMX Broadcast Suite {RELEASE_VERSION} Setup" in builder
-    assert f'Version "{RELEASE_VERSION}"' in wizard
-    assert f'[string]$Version = "{RELEASE_VERSION}"' in registration
-    assert INSTALLER_NAME in documentation
+def test_every_locked_build_artifact_exists_and_matches_hash():
+    lock = json.loads((PACKAGING / "dependency-lock.json").read_text(encoding="utf-8"))
+    for artifact in lock["artifacts"]:
+        path = PACKAGING / artifact["path"]
+        assert path.is_file(), artifact["path"]
+        assert hashlib.sha256(path.read_bytes()).hexdigest().upper() == artifact["sha256"]
 
 
-def test_wizard_documentation_is_linked():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    docs_index = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
-    assert "wizard-installer-windows.md" in readme
-    assert "wizard-installer-windows.md" in docs_index
+def test_wheel_lock_covers_exact_wheelhouse():
+    lock = (PACKAGING / "requirements-lock.txt").read_text(encoding="utf-8").lower()
+    wheels = list((PACKAGING / "dependencies" / "wheels").glob("*.whl"))
+    assert wheels
+    for wheel in wheels:
+        digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
+        assert f"sha256:{digest}" in lock, wheel.name
 
 
-def test_windows_uninstaller_is_scoped_and_preserves_operator_data():
-    worker = (ROOT / "scripts" / "uninstall-worker-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    registration = (ROOT / "scripts" / "register-uninstall-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-
-    assert "Test-PathInsideRoot" in worker
-    assert "connector\\.(run|tray_windows)" in worker
-    assert "Win32_Process" in worker
-    assert "Stop-Process" in worker
-    assert "BMXBroadcastSuite" in registration
-    assert "UninstallString" in registration
-    assert "QuietUninstallString" in registration
-    for path in (".env", "connector\\logs", "themes", "data"):
-        assert path in worker
+def test_release_gate_records_signature_defender_and_exact_hash():
+    gate = (ROOT / "scripts" / "test-windows-release-artifact.ps1").read_text(encoding="utf-8")
+    for value in ("Get-AuthenticodeSignature", "Update-MpSignature", "Start-MpScan", "Get-MpComputerStatus", "Get-FileHash"):
+        assert value in gate
+    assert "Do not publish" in gate
 
 
-def test_windows_background_start_is_console_free_and_installer_waits_for_health():
-    service = (ROOT / "scripts" / "install-service-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    wizard = (ROOT / "scripts" / "install-wizard-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(
-        encoding="utf-8"
-    )
-
-    background = (ROOT / "scripts" / "start-windows-background.ps1").read_text(
-        encoding="utf-8"
-    )
-
-    assert ".venv\\Scripts\\python.exe" in service
-    assert "pythonw.exe" not in service
-    assert "-m connector.run" in service
-    assert "WorkingDirectory" in service
-    assert "Scheduled Task was created with an unexpected action" in service
-    assert "Scheduled Task exited during startup" in service
-    assert ".venv\\Scripts\\python.exe" in background
-    assert "WindowStyle Hidden" in background
-    assert "startup-error.log" in background
-    assert "-NoAutoStart" not in wizard
-    assert "/health" in wizard
-    assert "did not become ready within 30 seconds" in wizard
-    assert "Machine startup was requested" in wizard
-    assert "Remove-PartialIntegration" in wizard
-    assert "-DataDir $DataRoot" in wizard
-    assert wizard.index("register-uninstall-windows.ps1") > wizard.index(
-        "if (-not $ready)"
-    )
-    assert "setup.vbs" in builder
-    assert "wscript.exe setup.vbs" in builder
-
-
-def test_windows_runtime_data_is_outside_program_files():
-    installer = (ROOT / "scripts" / "install-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    restore = (ROOT / "scripts" / "restore-user-data-windows.ps1").read_text(
-        encoding="utf-8"
-    )
-    config = (ROOT / "connector" / "config.py").read_text(encoding="utf-8")
-
-    assert "[string]$DataDir" in installer
-    assert "connector\\logs" in installer
-    assert "BMX Broadcast Suite\\UserData" in restore
-    assert "WINDOWS_DATA_DIRECTORY" in config
-    assert "windows_user_data_root" in config
-    assert "runtime_root()" in config
+def test_obsolete_script_bootstrap_is_not_present():
+    for name in (
+        "install-wizard-windows.ps1", "register-uninstall-windows.ps1",
+        "uninstall-windows.ps1", "uninstall-worker-windows.ps1",
+        "start-windows-background.ps1",
+    ):
+        assert not (ROOT / "scripts" / name).exists()

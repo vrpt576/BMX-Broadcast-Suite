@@ -3,11 +3,12 @@
 ## PowerShell says the script is not digitally signed
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+Unblock-File .\scripts\start-windows.ps1
 .\scripts\start-windows.ps1
 ```
 
-This only changes the current PowerShell session.
+Only unblock a script after verifying that it came from the official project
+repository. The MSI installation does not depend on PowerShell scripts.
 
 ## SQL will not connect
 
