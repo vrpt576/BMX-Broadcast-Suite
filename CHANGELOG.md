@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 1.2.11 - 2026-08-01
+
+- Corrected Main versus Overall classification using RaceManager stage
+  structure, with consistent phase labels across Director, APIs, overlays,
+  individual results, and Results Roll.
+- Rebuilt navigation around unique race slots so combined motos appear once,
+  Next and Previous are symmetric, and incompatible Overall-only stages are
+  skipped while navigating Mains.
+- Fixed direct Go to Moto selection, actionable unavailable-moto feedback,
+  stale-response protection, and class-aware transitions between rounds.
+- Added per-event race-position confirmation preferences with an explicit
+  reset control.
+- Preserved and expanded Results Roll combined-moto ordering, official finish
+  order, playback controls, and break-graphic coordination.
+- Added safe race-program structure export for anonymized schema diagnostics
+  and regression fixtures.
+- Hardened network administration with localhost binding by default,
+  configured CORS origins, explicit remote administration, mutation tokens,
+  and credential redaction.
+- Replaced the Defender-flagged IExpress/hidden-script installer architecture
+  with a native WiX Toolset v4 MSI and pinned WinSW Windows service.
+- Added offline hash-locked Windows dependencies, build-input validation,
+  Authenticode signing support, artifact manifest, CycloneDX SBOM, SHA-256,
+  and an exact-artifact Microsoft Defender release gate.
+
 ## 1.2.10 - 2026-07-31
 
 - Fixed historic-event Director navigation so Main stepping renders the server
