@@ -79,6 +79,8 @@
                            Action="removeOnInstall" />
         <util:RemoveFolderEx Property="LEGACYINSTALLDIR" On="install"
                              Condition="LEGACYINSTALLDIR AND LEGACYINSTALLDIR = INSTALLFOLDER AND NOT WIX_UPGRADE_DETECTED" />
+        <util:RemoveFolderEx Property="INSTALLFOLDER" On="uninstall"
+                             Condition="REMOVE = &quot;ALL&quot;" />
         <util:RemoveFolderEx Property="BBSUSERDATAPATH" On="uninstall"
                              Condition="PURGEUSERDATA = 1 AND REMOVE = &quot;ALL&quot;" />
       </Component>
@@ -96,13 +98,13 @@
     <DirectoryRef Id="BBSStartMenuFolder">
       <Component Id="ShortcutComponent" Guid="D6953671-E154-499F-BDFC-31FA9EF74B22" Bitness="always64">
         <Shortcut Id="StartMenuShortcut" Name="BMX Broadcast Suite" Description="BMX Broadcast Suite status and controls"
-                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-m connector.tray_windows"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
                   WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
         <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="BMX Broadcast Suite"
-                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-m connector.tray_windows"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
                   WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
         <Shortcut Id="StartupShortcut" Directory="StartupFolder" Name="BMX Broadcast Suite Tray"
-                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-m connector.tray_windows"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
                   WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
         <RegistryValue Root="HKLM" Key="Software\BMX Broadcast Suite" Name="ShortcutsInstalled"
                        Value="1" Type="integer" KeyPath="yes" />

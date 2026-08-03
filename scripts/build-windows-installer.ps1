@@ -148,6 +148,10 @@ try {
     } finally { Pop-Location }
     Copy-Item (Join-Path $Payload "data\bbs.ico") (Join-Path $Payload "assets\bbs.ico") -Force
     Remove-Item (Join-Path $Payload "data") -Recurse -Force
+    Get-ChildItem -LiteralPath $Payload -Directory -Filter "__pycache__" -Recurse |
+        Remove-Item -Recurse -Force
+    Get-ChildItem -LiteralPath $Payload -File -Filter "*.pyc" -Recurse |
+        Remove-Item -Force
     if ($CertificateThumbprint) { Sign-File (Join-Path $Payload "BBSService.exe") }
 
     $ManifestItems = Get-ChildItem $Payload -File -Recurse | Sort-Object FullName | ForEach-Object {

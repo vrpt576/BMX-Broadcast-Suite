@@ -22,6 +22,14 @@ Use **Settings → Apps → Installed apps**. Operator data remains in ProgramDa
 msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.2.11.msi PURGEUSERDATA=1
 ```
 
+Normal uninstall stops and removes only the `BMXBroadcastSuite` service, then
+removes the complete application-owned `%ProgramFiles%\BMX Broadcast Suite`
+tree, shortcuts, and registration. Python bytecode generation is disabled for
+the installed runtime, so the read-only Program Files tree does not accumulate
+untracked caches. Unrelated Python processes are never searched for or stopped.
+The protected ProgramData user-data directory remains unless
+`PURGEUSERDATA=1` is explicitly supplied.
+
 ## Build and release gate
 
 The build is offline and validates every pinned artifact:

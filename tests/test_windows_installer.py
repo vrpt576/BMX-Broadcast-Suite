@@ -31,6 +31,26 @@ def test_msi_is_offline_native_and_preserves_programdata():
     assert 'Source="$(var.SeedRoot)\\bbs.env"' not in product
 
 
+def test_program_files_is_read_only_at_runtime_and_fully_removed():
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+    service = (PACKAGING / "BBSService.xml").read_text(encoding="utf-8")
+
+    assert "PYTHONDONTWRITEBYTECODE" in service
+    assert "-B -m connector.run" in service
+    assert 'Property="INSTALLFOLDER" On="uninstall"' in product
+    assert 'Condition="REMOVE = &quot;ALL&quot;"' in product
+    assert "__pycache__" in builder and 'Filter "*.pyc"' in builder
+    assert "taskkill" not in (product + service + builder).lower()
+
+
+def test_programdata_is_preserved_unless_explicitly_purged():
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+    assert 'Property="BBSUSERDATAPATH" On="uninstall"' in product
+    assert 'Condition="PURGEUSERDATA = 1 AND REMOVE = &quot;ALL&quot;"' in product
+    assert 'Permanent="yes"' in product
+
+
 def test_legacy_upgrade_is_narrowly_scoped():
     product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
     assert 'schtasks.exe /End /TN &quot;BMX Broadcast Suite&quot;' in product
