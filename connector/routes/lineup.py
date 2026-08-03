@@ -83,7 +83,7 @@ const ridersBox = document.querySelector('#riders');
 
 async function applyTheme() {
   try {
-    if (!themeName) { const cfg = await fetch('/api/configuration',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
+    if (!themeName) { const cfg = await fetch('/api/configuration/public',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
     if (!themeName) themeName='default';
     const response = await fetch(`/api/themes/${encodeURIComponent(themeName)}`, {cache:'no-store'});
     if (!response.ok) return;

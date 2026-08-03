@@ -85,6 +85,11 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button id="refresh-events" class="secondary">Refresh Events</button>
       </div>
       <div id="event-detail" class="event-detail">Uses the newest RaceManager motoboard automatically.</div>
+      <details>
+        <summary>Remote control access</summary>
+        <label>Control token for this browser session<input id="remote-control-token" type="password" autocomplete="off"></label>
+        <button id="use-remote-control-token" class="secondary" style="margin-top:10px">Use control token</button>
+      </details>
       <div id="moto-number" class="moto-number">1</div>
       <div class="two">
         <button id="previous">◀ Previous Moto</button>
@@ -178,8 +183,18 @@ let events=[];
 let program=null;
 let mutationVersion=0;
 let pendingNavigation=null;
+let controlToken='';
 const navigationPreferencePrefix='bbs.navigation.confirm.suppressed.';
 const $=selector=>document.querySelector(selector);
+
+try{controlToken=sessionStorage.getItem('bbs.control.token')||''}catch(_){}
+
+function authorizedOptions(options={}){
+  if(!controlToken)return options;
+  const headers=new Headers(options.headers||{});
+  headers.set('X-BBS-Control-Token',controlToken);
+  return {...options,headers};
+}
 
 function navigationEventId(){
   return state?.motoboard_id||state?.resolved_motoboard_id||null;
@@ -219,7 +234,7 @@ function confirmRaceNavigation(message,action){
 async function fetchWithTimeout(url,options={},timeoutMs=10000){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{return await fetch(url,{...options,signal:controller.signal})}
+  try{return await fetch(url,{...authorizedOptions(options),signal:controller.signal})}
   finally{clearTimeout(timer)}
 }
 
@@ -329,7 +344,7 @@ async function loadProgram(expectedVersion=mutationVersion){
 
 async function request(path,options={}){
   const requestVersion=++mutationVersion;
-  const response=await fetch(path,options);
+  const response=await fetch(path,authorizedOptions(options));
   if(!response.ok){
     const body=await response.json().catch(()=>({}));
     throw new Error(body.detail||`Request failed: ${response.status}`);
@@ -400,7 +415,7 @@ async function resultsAction(path,body=null){
   try{
     const options={method:'POST'};
     if(body){options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body)}
-    const response=await fetch(`/api/results/${path}`,options);
+    const response=await fetch(`/api/results/${path}`,authorizedOptions(options));
     if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.detail||`Request failed: ${response.status}`)}
     renderResultsStatus(await response.json());
     const currentResponse=await fetch('/api/current',{cache:'no-store'});
@@ -484,6 +499,15 @@ $('#reset-navigation-confirmation').addEventListener('click',()=>{
   if(key){try{localStorage.removeItem(key)}catch(_){}}
   updateNavigationPreferenceControl();
   $('#message').textContent='Navigation confirmations restored for this event.';
+});
+$('#remote-control-token').value=controlToken;
+$('#use-remote-control-token').addEventListener('click',()=>{
+  controlToken=$('#remote-control-token').value.trim();
+  try{
+    if(controlToken)sessionStorage.setItem('bbs.control.token',controlToken);
+    else sessionStorage.removeItem('bbs.control.token');
+  }catch(_){}
+  $('#message').textContent=controlToken?'Remote control token set for this browser session.':'Remote control token cleared.';
 });
 $('#event-select').addEventListener('change',selectEvent);
 $('#race-phase').addEventListener('change',async()=>{

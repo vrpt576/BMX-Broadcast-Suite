@@ -43,7 +43,7 @@ Microsoft ODBC Driver 18 for SQL Server and the Unix ODBC development package mu
 
 ```bash
 ./scripts/install-linux.sh
-./.venv/bin/python -m uvicorn connector.main:app --host 0.0.0.0 --port 8000
+./.venv/bin/python -m uvicorn connector.main:app --host 127.0.0.1 --port 8000
 ```
 
 For boot-time operation, copy and edit `bbs-connector.service.example`, then install it with systemd.

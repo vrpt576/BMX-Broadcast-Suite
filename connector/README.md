@@ -79,8 +79,10 @@ Keyboard controls on the operator page:
 - Optionally enter the final moto to prevent advancing past it
 
 The selection is saved to `data/current_moto.json`, so it survives service
-restarts. The controller and overlay may be opened on different computers as
-long as both can reach the connector.
+restarts. Opening the controller or overlays on another computer requires the
+explicit LAN binding and remote-access policy documented in
+`docs/configuration.md`. Read-only overlays and authenticated operator controls
+have separate access rules.
 
 Manual API endpoints:
 

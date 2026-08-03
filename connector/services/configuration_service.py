@@ -20,14 +20,31 @@ FIELDS = {
     'cors_origins':'BBS_CORS_ORIGINS','current_moto_state_file':'BBS_CURRENT_MOTO_STATE_FILE',
     'current_moto_default':'BBS_CURRENT_MOTO_DEFAULT','lineup_cache_file':'BBS_LINEUP_CACHE_FILE',
     'results_cache_file':'BBS_RESULTS_CACHE_FILE','results_roll_state_file':'BBS_RESULTS_ROLL_STATE_FILE',
+    'remote_control_enabled':'BBS_REMOTE_CONTROL_ENABLED','control_token':'BBS_CONTROL_TOKEN',
+    'remote_admin_enabled':'BBS_REMOTE_ADMIN_ENABLED','admin_token':'BBS_ADMIN_TOKEN',
 }
 
 class ConfigurationService:
+    def get_broadcast_public(self, settings: Settings) -> dict[str, Any]:
+        return {
+            'track_name': settings.track_name,
+            'default_theme': settings.default_theme,
+            'public_base_url': settings.public_base_url,
+        }
+
     def get_public(self, settings: Settings) -> dict[str, Any]:
-        data = {key: getattr(settings,key) for key in FIELDS if key != 'sql_password'}
+        secret_fields = {'sql_password','control_token','admin_token'}
+        data = {key: getattr(settings,key) for key in FIELDS if key not in secret_fields}
         data['sql_password_configured'] = bool(settings.sql_password)
         data['sql_password'] = ''
-        data['restart_required_for'] = ['app_host','app_port','cors_origins']
+        data['control_token_configured'] = bool(settings.control_token)
+        data['control_token'] = ''
+        data['admin_token_configured'] = bool(settings.admin_token)
+        data['admin_token'] = ''
+        data['restart_required_for'] = [
+            'app_host','app_port','cors_origins','remote_control_enabled',
+            'control_token','remote_admin_enabled','admin_token'
+        ]
         return data
 
     def save(self, values: dict[str, Any]) -> Settings:
@@ -36,11 +53,16 @@ class ConfigurationService:
             if field not in values:
                 continue
             value = values[field]
-            if field == 'sql_password' and (value is None or str(value) == ''):
+            if field in {'sql_password','control_token','admin_token'} and (
+                value is None or str(value) == ''
+            ):
                 continue
             if field in {'app_port','sql_port','sql_connect_timeout','sql_query_timeout','current_moto_default'}:
                 value = '' if value in (None,'') else str(int(value))
-            elif field in {'sql_encrypt','sql_trust_server_certificate'}:
+            elif field in {
+                'sql_encrypt','sql_trust_server_certificate',
+                'remote_control_enabled','remote_admin_enabled'
+            }:
                 value = 'true' if bool(value) else 'false'
             else:
                 value = str(value).strip()

@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
+from connector.security import evaluate_http_access
 from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, status as status_route, themes
 
 settings = get_settings()
@@ -28,7 +29,12 @@ app.add_middleware(
     allow_origins=settings.cors_origin_list,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-BBS-Control-Token",
+        "X-BBS-Admin-Token",
+    ],
 )
 
 app.include_router(health.router)
@@ -55,6 +61,23 @@ app.add_api_route("/overlay/current", current.current_moto_overlay, methods=["GE
 app.add_api_route("/overlay/lineup", lineup.rider_lineup_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/results", results.results_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/break", breaks.break_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
+
+
+@app.middleware("http")
+async def access_control(request: Request, call_next):
+    decision = evaluate_http_access(
+        settings,
+        method=request.method,
+        path=request.url.path,
+        client_host=request.client.host if request.client else None,
+        headers=request.headers,
+    )
+    if not decision.allowed:
+        return JSONResponse(
+            status_code=decision.status_code,
+            content={"detail": decision.detail},
+        )
+    return await call_next(request)
 
 
 @app.middleware("http")
