@@ -196,6 +196,8 @@ let events=[];
 let program=null;
 let mutationVersion=0;
 let pendingNavigation=null;
+let jumpDraft=null;
+let jumpDirty=false;
 let controlToken='';
 const navigationPreferencePrefix='bbs.navigation.confirm.suppressed.';
 const $=selector=>document.querySelector(selector);
@@ -257,6 +259,30 @@ function eventOptionLabel(event){
   return `${date} — ${event.event_name} — ${race}`;
 }
 
+function captureJumpDraft(){
+  const field=$('#jump');
+  if(field&&(jumpDirty||document.activeElement===field))jumpDraft=field.value;
+}
+
+function restoreJumpDraft(){
+  const field=$('#jump');
+  if(field&&jumpDraft!==null)field.value=jumpDraft;
+}
+
+function syncJumpInput(motoNumber){
+  const field=$('#jump');
+  if(!field)return;
+  if(jumpDirty||document.activeElement===field){restoreJumpDraft();return}
+  jumpDraft=null;
+  field.value=motoNumber;
+}
+
+function markJumpDirty(event){
+  if(!event.target||event.target.id!=='jump')return;
+  jumpDraft=event.target.value;
+  jumpDirty=true;
+}
+
 function renderEventSelection(value){
   const select=$('#event-select');
   const boardId=value.motoboard_id||'';
@@ -281,6 +307,7 @@ function renderEventSelection(value){
 }
 
 function render(value){
+  captureJumpDraft();
   state=value;
   $('#round-stat').textContent=value.phase_label||phaseLabels[value.race_phase]||value.race_phase;
   $('#class-stat').textContent=value.class_name||'Class not set';
@@ -289,7 +316,7 @@ function render(value){
   $('#graphic-stat').textContent=graphicLabels[value.active_graphic]||value.active_graphic;
   $('#race-phase').value=value.race_phase;
   $('#class-name').value=value.class_name||'';
-  $('#jump').value=value.moto_number;
+  syncJumpInput(value.moto_number);
   $('#maximum').value=value.maximum_moto??'';
   renderEventSelection(value);
   document.querySelectorAll('[data-graphic]').forEach(button=>button.classList.toggle('active',button.dataset.graphic===value.active_graphic));
@@ -501,7 +528,9 @@ async function loadResultsStatus(){
   try{const response=await fetch('/api/results/status',{cache:'no-store'});if(response.ok)renderResultsStatus(await response.json())}catch(_){}
 }
 async function apply(){
-  const rawMoto=$('#jump').value.trim();
+  const field=$('#jump');
+  captureJumpDraft();
+  const rawMoto=(jumpDraft??field.value).trim();
   if(!/^\d+$/.test(rawMoto)||Number(rawMoto)<1){
     $('#message').textContent='Enter a positive whole-number moto.';
     return;
@@ -514,8 +543,19 @@ async function apply(){
     motoboard_id:state?state.motoboard_id:null
   };
   const submit=async()=>{
-    try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
-    catch(error){$('#message').textContent=error.message}
+    try{
+      const confirmed=await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      mutationVersion++;
+      jumpDraft=null;
+      jumpDirty=false;
+      const currentField=$('#jump');
+      if(currentField)currentField.value=confirmed.moto_number;
+    }catch(error){
+      jumpDraft=rawMoto;
+      jumpDirty=true;
+      restoreJumpDraft();
+      $('#message').textContent=error.message;
+    }
   };
   if(state&&Number(rawMoto)<state.moto_number){
     return confirmRaceNavigation('Jump backward to an earlier moto?',submit);
@@ -552,6 +592,8 @@ $('#next-round').addEventListener('click',()=>round('next'));
 $('#first-moto').addEventListener('click',()=>request('/api/current/phase/first',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#last-moto').addEventListener('click',()=>request('/api/current/phase/last',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#apply').addEventListener('click',apply);
+document.addEventListener('input',markJumpDirty);
+document.addEventListener('change',markJumpDirty);
 $('#save-main-program-start').addEventListener('click',saveMainProgramBoundary);
 $('#reset-main-program-start').addEventListener('click',resetMainProgramBoundary);
 $('#navigation-confirm-cancel').addEventListener('click',()=>{
