@@ -88,7 +88,7 @@ Use `journalctl -u bbs-connector -f` and the BBS `/logs` page for troubleshootin
 
 ## Run BBS as a background service
 
-BBS 1.2.10 can start automatically at machine boot and run without a terminal window. It also includes a desktop and system-tray controller using `logo.png`.
+BBS 1.2.12 can start automatically at machine boot and run without a terminal window. It also includes a desktop and system-tray controller using `logo.png`.
 
 Install the desktop integration packages and service after completing the normal installation:
 

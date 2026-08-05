@@ -38,6 +38,9 @@ DIRECTOR_HTML = r'''<!doctype html>
     .event-picker { display:grid; grid-template-columns:1fr 150px; gap:10px; align-items:end; margin-bottom:8px; }
     .event-picker label { margin-top:0; }
     .event-detail { color:#9eabb8; min-height:1.3em; font-size:.86rem; margin:4px 0 14px; }
+    .boundary-control { margin:0 0 14px; padding:12px; border:1px solid #2c3947; border-radius:10px; background:#151d27; }
+    .boundary-grid { display:grid; grid-template-columns:1fr 120px 120px; gap:8px; align-items:end; }
+    .boundary-detail { color:#9eabb8; min-height:1.3em; margin-top:8px; font-size:.84rem; }
     .graphic-buttons { display:grid; gap:10px; }
     .graphic-buttons button { min-height:68px; font-size:1.15rem; }
     .keys { margin-top:16px; display:grid; grid-template-columns:repeat(2,1fr); gap:6px 16px; color:#aeb8c4; font-size:.9rem; }
@@ -51,9 +54,17 @@ DIRECTOR_HTML = r'''<!doctype html>
     .rider:first-child { border-top:1px solid #2c3947; }
     .gate,.plate { color:#f3b61f; font-weight:900; }
     #message { min-height:1.4em; color:#f3b61f; margin-top:12px; }
+    .modal-backdrop { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; padding:20px; background:rgba(0,0,0,.72); }
+    .modal-backdrop[hidden] { display:none; }
+    .modal { width:min(460px, 94vw); background:#151d27; border:1px solid #52606d; border-radius:14px; padding:20px; box-shadow:0 18px 50px rgba(0,0,0,.6); }
+    .modal h2 { margin:0 0 10px; }
+    .modal p { color:#c5ced7; line-height:1.45; }
+    .modal-check { display:flex; grid-template-columns:22px 1fr; align-items:center; gap:9px; }
+    .modal-check input { width:18px; height:18px; }
+    .modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
     @media(max-width:900px){ .statusbar{grid-template-columns:repeat(3,1fr)} }
     @media(max-width:800px){ .grid{grid-template-columns:1fr}.moto-number{font-size:6rem} }
-    @media(max-width:540px){ .statusbar,.two,.event-picker{grid-template-columns:1fr} }
+    @media(max-width:540px){ .statusbar,.two,.event-picker,.boundary-grid{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -77,6 +88,21 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button id="refresh-events" class="secondary">Refresh Events</button>
       </div>
       <div id="event-detail" class="event-detail">Uses the newest RaceManager motoboard automatically.</div>
+      <div class="boundary-control">
+        <div class="boundary-grid">
+          <label>Main program starts at moto
+            <input id="main-program-start" type="number" min="1" placeholder="Optional">
+          </label>
+          <button id="save-main-program-start">Save</button>
+          <button id="reset-main-program-start" class="secondary">Reset</button>
+        </div>
+        <div id="main-program-boundary-detail" class="boundary-detail">Select an event to review Main-program evidence.</div>
+      </div>
+      <details>
+        <summary>Remote control access</summary>
+        <label>Control token for this browser session<input id="remote-control-token" type="password" autocomplete="off"></label>
+        <button id="use-remote-control-token" class="secondary" style="margin-top:10px">Use control token</button>
+      </details>
       <div id="moto-number" class="moto-number">1</div>
       <div class="two">
         <button id="previous">◀ Previous Moto</button>
@@ -85,6 +111,10 @@ DIRECTOR_HTML = r'''<!doctype html>
       <div class="two" style="margin-top:10px">
         <button id="previous-round">◀ Previous Round</button>
         <button id="next-round">Next Round ▶</button>
+      </div>
+      <div class="two" style="margin-top:10px">
+        <button id="first-moto" class="secondary">First Moto in Round</button>
+        <button id="last-moto" class="secondary">Last Moto in Round</button>
       </div>
       <label>Race round
         <select id="race-phase">
@@ -99,6 +129,7 @@ DIRECTOR_HTML = r'''<!doctype html>
         <label>Last moto (optional)<input id="maximum" type="number" min="1"></label>
       </div>
       <button id="apply" style="margin-top:12px">Apply Race Position</button>
+      <button id="reset-navigation-confirmation" class="secondary" style="margin-top:10px">Reset navigation confirmation preference</button>
     </section>
     <section class="panel">
       <h2>On-Air Graphic</h2>
@@ -143,21 +174,82 @@ DIRECTOR_HTML = r'''<!doctype html>
     </section>
   </div>
 </main>
+<div id="navigation-confirm-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="navigation-confirm-title" hidden>
+  <section class="modal">
+    <h2 id="navigation-confirm-title">Confirm race navigation</h2>
+    <p id="navigation-confirm-message"></p>
+    <label class="modal-check"><input id="navigation-confirm-suppress" type="checkbox"><span>Do not ask again for this event</span></label>
+    <div class="modal-actions">
+      <button id="navigation-confirm-cancel" class="secondary">Cancel</button>
+      <button id="navigation-confirm-accept">Continue</button>
+    </div>
+  </section>
+</div>
 <script>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
-const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main',overall:'Overall'};
+const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Round 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
 const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results',round_1_break:'Round 1 Break',main_break:'Main Break'};
 let state=null;
 let events=[];
 let program=null;
+let mutationVersion=0;
+let pendingNavigation=null;
+let jumpDraft=null;
+let jumpDirty=false;
+let controlToken='';
+const navigationPreferencePrefix='bbs.navigation.confirm.suppressed.';
 const $=selector=>document.querySelector(selector);
+
+try{controlToken=sessionStorage.getItem('bbs.control.token')||''}catch(_){}
+
+function authorizedOptions(options={}){
+  if(!controlToken)return options;
+  const headers=new Headers(options.headers||{});
+  headers.set('X-BBS-Control-Token',controlToken);
+  return {...options,headers};
+}
+
+function navigationEventId(){
+  return state?.motoboard_id||state?.resolved_motoboard_id||null;
+}
+
+function navigationPreferenceKey(eventId=navigationEventId()){
+  return eventId?`${navigationPreferencePrefix}${eventId}`:null;
+}
+
+function navigationConfirmationSuppressed(){
+  const key=navigationPreferenceKey();
+  if(!key)return false;
+  try{return localStorage.getItem(key)==='true'}catch(_){return false}
+}
+
+function updateNavigationPreferenceControl(){
+  const button=$('#reset-navigation-confirmation');
+  const eventId=navigationEventId();
+  button.disabled=!eventId||!navigationConfirmationSuppressed();
+  button.title=eventId?'Reset the remembered choice for this event.':'Select an event before saving a preference.';
+}
+
+function closeNavigationConfirmation(){
+  $('#navigation-confirm-modal').hidden=true;
+  $('#navigation-confirm-suppress').checked=false;
+}
+
+function confirmRaceNavigation(message,action){
+  if(navigationConfirmationSuppressed())return action();
+  pendingNavigation={action,preferenceKey:navigationPreferenceKey()};
+  $('#navigation-confirm-message').textContent=message;
+  $('#navigation-confirm-suppress').checked=false;
+  $('#navigation-confirm-modal').hidden=false;
+  $('#navigation-confirm-accept').focus();
+}
 
 async function fetchWithTimeout(url,options={},timeoutMs=10000){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{return await fetch(url,{...options,signal:controller.signal})}
+  try{return await fetch(url,{...authorizedOptions(options),signal:controller.signal})}
   finally{clearTimeout(timer)}
 }
 
@@ -165,6 +257,30 @@ function eventOptionLabel(event){
   const date=(event.date_begin||'').toString().slice(0,10)||'Date unknown';
   const race=event.race_description||'Race';
   return `${date} — ${event.event_name} — ${race}`;
+}
+
+function captureJumpDraft(){
+  const field=$('#jump');
+  if(field&&(jumpDirty||document.activeElement===field))jumpDraft=field.value;
+}
+
+function restoreJumpDraft(){
+  const field=$('#jump');
+  if(field&&jumpDraft!==null)field.value=jumpDraft;
+}
+
+function syncJumpInput(motoNumber){
+  const field=$('#jump');
+  if(!field)return;
+  if(jumpDirty||document.activeElement===field){restoreJumpDraft();return}
+  jumpDraft=null;
+  field.value=motoNumber;
+}
+
+function markJumpDirty(event){
+  if(!event.target||event.target.id!=='jump')return;
+  jumpDraft=event.target.value;
+  jumpDirty=true;
 }
 
 function renderEventSelection(value){
@@ -191,6 +307,7 @@ function renderEventSelection(value){
 }
 
 function render(value){
+  captureJumpDraft();
   state=value;
   $('#round-stat').textContent=value.phase_label||phaseLabels[value.race_phase]||value.race_phase;
   $('#class-stat').textContent=value.class_name||'Class not set';
@@ -199,12 +316,14 @@ function render(value){
   $('#graphic-stat').textContent=graphicLabels[value.active_graphic]||value.active_graphic;
   $('#race-phase').value=value.race_phase;
   $('#class-name').value=value.class_name||'';
-  $('#jump').value=value.moto_number;
+  syncJumpInput(value.moto_number);
   $('#maximum').value=value.maximum_moto??'';
   renderEventSelection(value);
   document.querySelectorAll('[data-graphic]').forEach(button=>button.classList.toggle('active',button.dataset.graphic===value.active_graphic));
   document.querySelectorAll('[data-break]').forEach(button=>button.classList.toggle('active',`${button.dataset.break}_break`===value.active_graphic));
   $('#show-current-results').classList.toggle('active',value.active_graphic==='results');
+  if(value.navigation_message)$('#message').textContent=value.navigation_message;
+  updateNavigationPreferenceControl();
 }
 
 async function loadEvents(){
@@ -238,17 +357,19 @@ async function loadEvents(){
 }
 
 
-async function loadProgram(){
+async function loadProgram(expectedVersion=mutationVersion){
   try{
-    const response=await fetchWithTimeout('/api/current/program',{cache:'no-store'});
+    const response=await fetchWithTimeout('/api/current/phases',{cache:'no-store'});
     if(!response.ok)throw new Error();
-    program=await response.json();
+    const phases=await response.json();
+    if(expectedVersion!==mutationVersion)return;
+    program={available_phases:phases};
     const select=$('#race-phase');
     select.replaceChildren();
-    for(const stage of program.stages){
+    for(const phase of phases){
       const option=document.createElement('option');
-      option.value=stage.phase;
-      option.textContent=stage.label;
+      option.value=phase;
+      option.textContent=phaseLabels[phase]||phase;
       select.append(option);
     }
     if(state)select.value=state.race_phase;
@@ -261,16 +382,78 @@ async function loadProgram(){
   }
 }
 
+function renderMainProgramBoundary(value){
+  $('#main-program-start').value=value.start_moto??'';
+  const suggestion=value.suggested_start_moto?` Suggested moto ${value.suggested_start_moto} (${value.confidence} confidence; not applied).`:'';
+  const status=value.start_moto
+    ? `Operator-confirmed Main program start: moto ${value.start_moto}.`
+    : 'Main program start is unresolved.';
+  const evidence=(value.evidence||[]).join('; ');
+  $('#main-program-boundary-detail').textContent=`${status}${suggestion}${evidence?` Evidence: ${evidence}.`:''}`;
+}
+
+async function loadMainProgramBoundary(){
+  const boardId=navigationEventId();
+  if(!boardId){
+    $('#main-program-start').value='';
+    $('#main-program-boundary-detail').textContent='Waiting for the current RaceManager event.';
+    return;
+  }
+  try{
+    const response=await fetchWithTimeout(`/api/current/main-program-boundary/${boardId}`,{cache:'no-store'});
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    renderMainProgramBoundary(await response.json());
+  }catch(error){
+    $('#main-program-boundary-detail').textContent=`Main-program boundary unavailable: ${error.message}`;
+  }
+}
+
+async function saveMainProgramBoundary(){
+  const boardId=navigationEventId();
+  const raw=$('#main-program-start').value.trim();
+  if(!boardId){$('#message').textContent='Select a RaceManager event first.';return}
+  if(!/^\d+$/.test(raw)||Number(raw)<1){$('#message').textContent='Enter a positive whole-number Main start moto.';return}
+  try{
+    const response=await fetch(
+      `/api/current/main-program-boundary/${boardId}`,
+      authorizedOptions({method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_moto:Number(raw)})})
+    );
+    if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.detail||`Request failed: ${response.status}`)}
+    renderMainProgramBoundary(await response.json());
+    $('#message').textContent='Main-program boundary saved for this event.';
+    await loadProgram();
+  }catch(error){$('#message').textContent=error.message}
+}
+
+async function resetMainProgramBoundary(){
+  const boardId=navigationEventId();
+  if(!boardId){$('#message').textContent='Select a RaceManager event first.';return}
+  try{
+    const response=await fetch(
+      `/api/current/main-program-boundary/${boardId}/reset`,
+      authorizedOptions({method:'POST'})
+    );
+    if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(body.detail||`Request failed: ${response.status}`)}
+    renderMainProgramBoundary(await response.json());
+    $('#message').textContent='Main-program boundary reset for this event.';
+    await loadProgram();
+  }catch(error){$('#message').textContent=error.message}
+}
+
 async function request(path,options={}){
-  const response=await fetch(path,options);
+  const requestVersion=++mutationVersion;
+  const response=await fetch(path,authorizedOptions(options));
   if(!response.ok){
     const body=await response.json().catch(()=>({}));
     throw new Error(body.detail||`Request failed: ${response.status}`);
   }
   const value=await response.json();
+  if(requestVersion!==mutationVersion)return value;
   render(value);
-  await loadProgram();
-  await refreshLineup();
+  if(!value.navigation_message)$('#message').textContent='';
+  await loadProgram(requestVersion);
+  await loadMainProgramBoundary();
+  await refreshLineup(requestVersion);
   return value;
 }
 
@@ -296,10 +479,15 @@ async function selectEvent(){
   }
 }
 
-async function step(direction){
-  if(direction==='previous'&&!confirm('Move backward one moto?'))return;
+async function performStep(direction){
   try{await request(`/api/current/${direction}`,{method:'POST'})}
   catch(error){$('#message').textContent=error.message}
+}
+function step(direction){
+  if(direction==='previous'){
+    return confirmRaceNavigation('Move backward one moto?',()=>performStep(direction));
+  }
+  return performStep(direction);
 }
 async function round(direction){
   try{await request(`/api/current/phase/${direction}`,{method:'POST'})}
@@ -322,36 +510,64 @@ function renderResultsStatus(value){
   $('#results-resume').disabled=!value.active||!value.paused;
 }
 async function resultsAction(path,body=null){
+  const requestVersion=++mutationVersion;
   try{
     const options={method:'POST'};
     if(body){options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body)}
-    const response=await fetch(`/api/results/${path}`,options);
+    const response=await fetch(`/api/results/${path}`,authorizedOptions(options));
     if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.detail||`Request failed: ${response.status}`)}
     renderResultsStatus(await response.json());
     const currentResponse=await fetch('/api/current',{cache:'no-store'});
-    if(currentResponse.ok)render(await currentResponse.json());
+    if(currentResponse.ok){
+      const value=await currentResponse.json();
+      if(requestVersion===mutationVersion)render(value);
+    }
   }catch(error){$('#message').textContent=error.message}
 }
 async function loadResultsStatus(){
   try{const response=await fetch('/api/results/status',{cache:'no-store'});if(response.ok)renderResultsStatus(await response.json())}catch(_){}
 }
 async function apply(){
-  if(state&&Number($('#jump').value)<state.moto_number&&!confirm('Jump backward to an earlier moto?'))return;
+  const field=$('#jump');
+  captureJumpDraft();
+  const rawMoto=(jumpDraft??field.value).trim();
+  if(!/^\d+$/.test(rawMoto)||Number(rawMoto)<1){
+    $('#message').textContent='Enter a positive whole-number moto.';
+    return;
+  }
   const body={
-    moto_number:Number($('#jump').value),
-    race_phase:'round_1',
+    moto_number:Number(rawMoto),
+    race_phase:$('#race-phase').value,
     minimum_moto:1,
     maximum_moto:$('#maximum').value===''?null:Number($('#maximum').value),
     motoboard_id:state?state.motoboard_id:null
   };
-  try{await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
-  catch(error){$('#message').textContent=error.message}
+  const submit=async()=>{
+    try{
+      const confirmed=await request('/api/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      mutationVersion++;
+      jumpDraft=null;
+      jumpDirty=false;
+      const currentField=$('#jump');
+      if(currentField)currentField.value=confirmed.moto_number;
+    }catch(error){
+      jumpDraft=rawMoto;
+      jumpDirty=true;
+      restoreJumpDraft();
+      $('#message').textContent=error.message;
+    }
+  };
+  if(state&&Number(rawMoto)<state.moto_number){
+    return confirmRaceNavigation('Jump backward to an earlier moto?',submit);
+  }
+  return submit();
 }
-async function refreshLineup(){
+async function refreshLineup(requestVersion=mutationVersion){
   try{
     const response=await fetchWithTimeout(lineupEndpoint,{cache:'no-store'});
     if(!response.ok)throw new Error();
     const lineup=await response.json();
+    if(requestVersion!==mutationVersion)return;
     if((lineup.source==='racemanager'||lineup.source==='cache')&&lineup.class_name)$('#class-stat').textContent=lineup.class_name;
     const box=$('#riders');
     box.replaceChildren();
@@ -373,7 +589,42 @@ $('#previous').addEventListener('click',()=>step('previous'));
 $('#next').addEventListener('click',()=>step('next'));
 $('#previous-round').addEventListener('click',()=>round('previous'));
 $('#next-round').addEventListener('click',()=>round('next'));
+$('#first-moto').addEventListener('click',()=>request('/api/current/phase/first',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
+$('#last-moto').addEventListener('click',()=>request('/api/current/phase/last',{method:'POST'}).catch(error=>$('#message').textContent=error.message));
 $('#apply').addEventListener('click',apply);
+document.addEventListener('input',markJumpDirty);
+document.addEventListener('change',markJumpDirty);
+$('#save-main-program-start').addEventListener('click',saveMainProgramBoundary);
+$('#reset-main-program-start').addEventListener('click',resetMainProgramBoundary);
+$('#navigation-confirm-cancel').addEventListener('click',()=>{
+  pendingNavigation=null;
+  closeNavigationConfirmation();
+});
+$('#navigation-confirm-accept').addEventListener('click',()=>{
+  const pending=pendingNavigation;
+  pendingNavigation=null;
+  if(pending&&$('#navigation-confirm-suppress').checked&&pending.preferenceKey){
+    try{localStorage.setItem(pending.preferenceKey,'true')}catch(_){}
+  }
+  closeNavigationConfirmation();
+  updateNavigationPreferenceControl();
+  if(pending)pending.action();
+});
+$('#reset-navigation-confirmation').addEventListener('click',()=>{
+  const key=navigationPreferenceKey();
+  if(key){try{localStorage.removeItem(key)}catch(_){}}
+  updateNavigationPreferenceControl();
+  $('#message').textContent='Navigation confirmations restored for this event.';
+});
+$('#remote-control-token').value=controlToken;
+$('#use-remote-control-token').addEventListener('click',()=>{
+  controlToken=$('#remote-control-token').value.trim();
+  try{
+    if(controlToken)sessionStorage.setItem('bbs.control.token',controlToken);
+    else sessionStorage.removeItem('bbs.control.token');
+  }catch(_){}
+  $('#message').textContent=controlToken?'Remote control token set for this browser session.':'Remote control token cleared.';
+});
 $('#event-select').addEventListener('change',selectEvent);
 $('#race-phase').addEventListener('change',async()=>{
   try{await request(`/api/current/phase/select/${$('#race-phase').value}`,{method:'POST'})}
@@ -403,7 +654,13 @@ window.addEventListener('keydown',event=>{
 request('/api/current').catch(error=>$('#message').textContent=error.message);
 loadEvents();
 loadResultsStatus();
-setInterval(()=>fetch('/api/current',{cache:'no-store'}).then(response=>response.json()).then(render).catch(()=>{}),1000);
+setInterval(()=>{
+  const requestVersion=mutationVersion;
+  fetch('/api/current',{cache:'no-store'})
+    .then(response=>response.json())
+    .then(value=>{if(requestVersion===mutationVersion)render(value)})
+    .catch(()=>{});
+},1000);
 setInterval(loadProgram,5000);
 setInterval(loadResultsStatus,1000);
 </script>

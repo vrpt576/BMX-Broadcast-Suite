@@ -7,7 +7,14 @@ from uuid import UUID
 
 import pytest
 
-from connector.models import ActiveGraphic, CurrentMoto, RacePhase
+from connector.models import (
+    ActiveGraphic,
+    CompetitionStage,
+    CurrentMoto,
+    FinalizationMethod,
+    RacePhase,
+    ScoringMethod,
+)
 from connector.services.current_results_service import CurrentResultsService
 from connector.services.motoboard_service import (
     MotoboardService,
@@ -238,7 +245,7 @@ def next_main_rows() -> list[dict[str, object]]:
 
 
 def final_branch_regression_rows() -> list[dict[str, object]]:
-    """Model the 2025-05-31 boundary: Main 25, Overall 26, Main 27."""
+    """Model a final block containing Main 25, Total Points 26, Main 27."""
     current_main = [
         {
             **item,
@@ -296,7 +303,7 @@ def test_second_qualifier_group_remains_selectable_by_stable_identity() -> None:
     assert program.stages[-1].motogroup_id == GROUP_FINAL
 
 
-def test_total_points_class_uses_overall_not_main() -> None:
+def test_total_points_class_uses_round_three_without_a_proven_main_block() -> None:
     service = MotoboardService(FakeDatabase(total_points_rows()))
     program = service.get_program(
         BOARD_ID,
@@ -306,10 +313,12 @@ def test_total_points_class_uses_overall_not_main() -> None:
         RacePhase.ROUND_1,
         RacePhase.ROUND_2,
         RacePhase.ROUND_3,
-        RacePhase.OVERALL,
     ]
-    assert program.stages[-1].kind == "overall"
-    assert program.stages[-1].round_type_id == 1
+    assert program.stages[-1].phase == RacePhase.ROUND_3
+    assert program.stages[-1].kind == "total_points_final_moto"
+    assert program.stages[-1].round_type_id == 123
+    assert program.stages[-1].round_index == 3
+    assert program.stages[-1].result_round_type_id == 1
 
 
 def test_unavailable_semifinal_is_rejected() -> None:
@@ -364,7 +373,7 @@ def test_phase_aware_next_moto_preserves_round_and_uses_next_motogroup(tmp_path)
     assert state.round_type_id == 123
 
 
-def test_state_qualifier_main_25_skips_overall_and_advances_to_main_27(tmp_path) -> None:
+def test_main_navigation_includes_total_points_final_moto(tmp_path) -> None:
     from connector.models import CurrentMotoUpdate
     from connector.services.current_moto_service import CurrentMotoService
     from connector.services.race_program_service import RaceProgramService
@@ -390,14 +399,31 @@ def test_state_qualifier_main_25_skips_overall_and_advances_to_main_27(tmp_path)
             active_graphic=ActiveGraphic.RESULTS,
         )
     )
+    motoboards = MotoboardService(
+        FakeDatabase(final_branch_regression_rows()),
+        phase_override_file=tmp_path / "race-phase-overrides.json",
+    )
+    motoboards.phase_overrides.set_main_program_start(BOARD_ID, 25)
     programs = RaceProgramService(
         current,
         Events(),
-        MotoboardService(FakeDatabase(final_branch_regression_rows())),
+        motoboards,
     )
 
-    state = programs.step_moto(1)
+    points_state = programs.step_moto(1)
 
+    assert points_state.race_phase == RacePhase.MAIN
+    assert points_state.moto_number == 26
+    assert points_state.scoring_method == ScoringMethod.TOTAL_POINTS
+    assert points_state.finalization_method == FinalizationMethod.ACCUMULATED_POINTS
+    assert points_state.competition_stage == CompetitionStage.TOTAL_POINTS_FINAL_MOTO
+    assert points_state.motoboard_id == BOARD_ID
+    assert points_state.resolved_motoboard_id == BOARD_ID
+    assert points_state.minimum_moto == 5
+    assert points_state.maximum_moto == 50
+    assert points_state.active_graphic == ActiveGraphic.RESULTS
+
+    state = programs.step_moto(1)
     assert state.race_phase == RacePhase.MAIN
     assert state.moto_number == 27
     assert state.class_id == CLASS_NEXT_MAIN
@@ -406,13 +432,12 @@ def test_state_qualifier_main_25_skips_overall_and_advances_to_main_27(tmp_path)
     assert state.round_id == ROUND_NEXT_FINAL
     assert state.motogroup_id == GROUP_NEXT_FINAL
     assert state.qualifier_motogroup_id == GROUP_NEXT_QUAL
-    assert state.motoboard_id == BOARD_ID
-    assert state.resolved_motoboard_id == BOARD_ID
-    assert state.minimum_moto == 5
-    assert state.maximum_moto == 50
-    assert state.active_graphic == ActiveGraphic.RESULTS
 
-    # Moto 26 is Overall-only, and there is no compatible Main after Moto 27.
+    restored_points = programs.step_moto(-1)
+    assert restored_points.moto_number == 26
+    assert restored_points.race_phase == RacePhase.MAIN
+
+    assert programs.step_moto(1).moto_number == 27
     end_state = programs.step_moto(1)
-    assert end_state == state
+    assert end_state.moto_number == 27
     assert end_state.race_phase == RacePhase.MAIN

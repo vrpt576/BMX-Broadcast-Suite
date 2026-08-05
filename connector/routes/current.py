@@ -2,9 +2,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
+from uuid import UUID
 
 from connector.dependencies import (
     get_current_moto_service,
+    get_motoboard_service,
     get_race_program_service,
     get_results_roll_service,
 )
@@ -12,6 +14,8 @@ from connector.models import (
     ActiveGraphic,
     CurrentMoto,
     CurrentMotoUpdate,
+    MainProgramBoundary,
+    MainProgramBoundaryUpdate,
     RacePhase,
     RaceProgram,
 )
@@ -19,10 +23,46 @@ from connector.services.current_moto_service import (
     CurrentMotoService,
     CurrentMotoValidationError,
 )
+from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
+from connector.services.race_program_service import RaceSlotUnavailableError
 from connector.services.results_roll_service import ResultsRollService
 
 router = APIRouter(tags=["broadcast control"])
+
+
+@router.get(
+    "/current/main-program-boundary/{motoboard_id}",
+    response_model=MainProgramBoundary,
+)
+def get_main_program_boundary(
+    motoboard_id: UUID,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.get_main_program_boundary(motoboard_id)
+
+
+@router.put(
+    "/current/main-program-boundary/{motoboard_id}",
+    response_model=MainProgramBoundary,
+)
+def set_main_program_boundary(
+    motoboard_id: UUID,
+    update: MainProgramBoundaryUpdate,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.set_main_program_boundary(motoboard_id, update.start_moto)
+
+
+@router.post(
+    "/current/main-program-boundary/{motoboard_id}/reset",
+    response_model=MainProgramBoundary,
+)
+def reset_main_program_boundary(
+    motoboard_id: UUID,
+    service: MotoboardService = Depends(get_motoboard_service),
+) -> MainProgramBoundary:
+    return service.reset_main_program_boundary(motoboard_id)
 
 
 @router.get("/current", response_model=CurrentMoto)
@@ -46,33 +86,33 @@ def get_current_program(
 def set_current_moto(
     update: CurrentMotoUpdate,
     service: CurrentMotoService = Depends(get_current_moto_service),
+    programs: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
     try:
-        return service.set(update)
-    except CurrentMotoValidationError as exc:
+        return programs.select_moto(update)
+    except (CurrentMotoValidationError, RaceSlotUnavailableError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.post("/current/next", response_model=CurrentMoto)
 def next_moto(
-    service: CurrentMotoService = Depends(get_current_moto_service),
     programs: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    try:
-        return programs.step_moto(1)
-    except Exception:
-        return service.next()
+    return programs.step_moto(1)
 
 
 @router.post("/current/previous", response_model=CurrentMoto)
 def previous_moto(
-    service: CurrentMotoService = Depends(get_current_moto_service),
     programs: RaceProgramService = Depends(get_race_program_service),
 ) -> CurrentMoto:
-    try:
-        return programs.step_moto(-1)
-    except Exception:
-        return service.previous()
+    return programs.step_moto(-1)
+
+
+@router.get("/current/phases", response_model=list[RacePhase])
+def available_phases(
+    service: RaceProgramService = Depends(get_race_program_service),
+) -> list[RacePhase]:
+    return service.available_phases()
 
 
 @router.post("/current/phase/next", response_model=CurrentMoto)
@@ -104,6 +144,20 @@ def select_phase(
         return service.select_phase(phase)
     except (LookupError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+
+
+@router.post("/current/phase/first", response_model=CurrentMoto)
+def first_moto_in_phase(
+    service: RaceProgramService = Depends(get_race_program_service),
+) -> CurrentMoto:
+    return service.select_phase_boundary(last=False)
+
+
+@router.post("/current/phase/last", response_model=CurrentMoto)
+def last_moto_in_phase(
+    service: RaceProgramService = Depends(get_race_program_service),
+) -> CurrentMoto:
+    return service.select_phase_boundary(last=True)
 
 
 @router.post("/current/graphic/{graphic}", response_model=CurrentMoto)
@@ -171,6 +225,10 @@ CONTROLLER_HTML = r'''<!doctype html>
     <button id="previous-phase">◀ Previous Round</button>
     <button id="next-phase">Next Round ▶</button>
   </div>
+  <div class="phase-buttons">
+    <button id="first-moto">First Moto in Round</button>
+    <button id="last-moto">Last Moto in Round</button>
+  </div>
   <div class="settings">
     <label>Race round
       <select id="race-phase"><option value="round_1">Round 1</option></select>
@@ -185,7 +243,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'Round 1', round_2: 'Round 2', round_3: 'Round 3',
-  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main', overall: 'Overall'
+  quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main'
 };
 const moto = document.querySelector('#moto');
 const phase = document.querySelector('#phase');
@@ -196,6 +254,7 @@ const jump = document.querySelector('#jump');
 const maximum = document.querySelector('#maximum');
 const statusBox = document.querySelector('#status');
 let currentState = null;
+let mutationVersion = 0;
 
 function render(value) {
   currentState = value;
@@ -210,14 +269,16 @@ function render(value) {
 }
 async function loadProgram() {
   try {
-    const response = await fetch('/api/current/program', {cache: 'no-store'});
+    const expectedVersion = mutationVersion;
+    const response = await fetch('/api/current/phases', {cache: 'no-store'});
     if (!response.ok) throw new Error();
-    const program = await response.json();
+    const phases = await response.json();
+    if (expectedVersion !== mutationVersion) return;
     phaseSelect.replaceChildren();
-    for (const stage of program.stages) {
+    for (const item of phases) {
       const option = document.createElement('option');
-      option.value = stage.phase;
-      option.textContent = stage.label;
+      option.value = item;
+      option.textContent = phaseLabels[item] || item;
       phaseSelect.append(option);
     }
     if (currentState) phaseSelect.value = currentState.race_phase;
@@ -228,14 +289,18 @@ async function loadProgram() {
   }
 }
 async function request(path, options = {}) {
+  const requestVersion = ++mutationVersion;
   statusBox.textContent = 'Updating…';
   const response = await fetch(path, options);
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.detail || `Request failed: ${response.status}`);
   }
-  render(await response.json());
+  const value = await response.json();
+  if (requestVersion !== mutationVersion) return value;
+  render(value);
   await loadProgram();
+  return value;
 }
 async function step(direction) {
   try { await request(`/api/current/${direction}`, {method: 'POST'}); }
@@ -246,7 +311,12 @@ async function stepPhase(direction) {
   catch (error) { statusBox.textContent = error.message; }
 }
 async function apply() {
-  const body = { moto_number: Number(jump.value), race_phase: 'round_1', minimum_moto: 1 };
+  const rawMoto = jump.value.trim();
+  if (!/^\d+$/.test(rawMoto) || Number(rawMoto) < 1) {
+    statusBox.textContent = 'Enter a positive whole-number moto.';
+    return;
+  }
+  const body = { moto_number: Number(rawMoto), race_phase: phaseSelect.value, minimum_moto: 1 };
   if (className.value.trim()) body.class_name = className.value;
   if (maximum.value !== '') body.maximum_moto = Number(maximum.value);
   try { await request('/api/current', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}); }
@@ -257,6 +327,8 @@ document.querySelector('#previous').addEventListener('click', () => step('previo
 document.querySelector('#next').addEventListener('click', () => step('next'));
 document.querySelector('#previous-phase').addEventListener('click', () => stepPhase('previous'));
 document.querySelector('#next-phase').addEventListener('click', () => stepPhase('next'));
+document.querySelector('#first-moto').addEventListener('click', () => request('/api/current/phase/first', {method: 'POST'}).catch(error => statusBox.textContent = error.message));
+document.querySelector('#last-moto').addEventListener('click', () => request('/api/current/phase/last', {method: 'POST'}).catch(error => statusBox.textContent = error.message));
 document.querySelector('#apply').addEventListener('click', apply);
 phaseSelect.addEventListener('change', async () => {
   try { await request(`/api/current/phase/select/${phaseSelect.value}`, {method: 'POST'}); }
@@ -304,7 +376,7 @@ OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
 let themeName = (params.get('theme') || '').toLowerCase();
@@ -315,7 +387,7 @@ const className = document.querySelector('#class-name');
 
 async function applyTheme() {
   try {
-    if (!themeName) { const cfg = await fetch('/api/configuration',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
+    if (!themeName) { const cfg = await fetch('/api/configuration/public',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
     if (!themeName) themeName='default';
     const response = await fetch(`/api/themes/${encodeURIComponent(themeName)}`, {cache:'no-store'});
     if (!response.ok) return;

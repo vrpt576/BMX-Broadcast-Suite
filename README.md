@@ -1,14 +1,14 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.10-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.12-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, historical event selection, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.10
+## Current status — v1.2.12
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official Main-results, and break graphics in OBS. Version 1.2.10 adds reliable historic-finals navigation, a server-owned Results Roll, Round 1/Main break graphics, and improved Windows tray-icon sizing while retaining the production-ready Windows installation, startup, and removal flow.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.12 retains the Total Points Main-program model, combined-moto navigation, hardened local administration, offline WiX MSI, and native Windows service from v1.2.11 while fixing the Director's Jump to moto field so polling cannot overwrite pending operator input.
 
 Validated RaceManager behavior in this release:
 
@@ -16,7 +16,12 @@ Validated RaceManager behavior in this release:
 - `Round_Type_ID 1` contains final classification.
 - `Moto_Number` is not globally unique; exact stages use `Motogroup_DBID` and round identity.
 - `X` finish values are transfer-to-main markers, not numeric placements.
-- Small total-points classes expose an **Overall** stage; transfer formats expose a **Main** stage.
+- Transfer/LST and Total Points are scoring methods, not Director rounds.
+- The Main program can interleave Transfer Main events and final Total Points motos in physical gate-drop order.
+- Director stores an optional Main-program start per event when RaceManager
+  does not expose a reliable event-wide boundary; automatic Transfer evidence
+  is advisory only.
+- Total Points results use the accumulated official classification while the Director remains in **Main**.
 - Quarterfinal and semifinal controls are shown only when a future validated mapping proves those stages exist in the selected RaceManager data.
 
 ### Available now
@@ -39,13 +44,16 @@ Validated RaceManager behavior in this release:
 ### Known limitations
 
 - Actual quarterfinal and semifinal storage has not yet been validated against a sufficiently large historical RaceManager class, so BBS does not invent those mappings.
-- Main versus Overall is inferred from transfer markers and rider-set differences discovered in real RaceManager data.
+- Transfer versus Total Points finalization is inferred from structural evidence and can be overridden per event without creating another navigation phase.
+- Total Points Round-3-versus-Main placement requires an explicit event boundary
+  when RaceManager does not provide one; Director shows a low-confidence
+  suggestion and lets the operator save or reset the event-scoped value.
 - Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated.
 - Themes are edited as JSON files; a visual theme editor is planned.
 
 ## Quick start
 
-Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows Setup Wizard](docs/wizard-installer-windows.md), and the Windows background/tray documentation included with the installer. See [RaceManager Round Model](docs/racemanager-round-model.md) for the v1.2.8 architecture.
+Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows MSI Installer](docs/wizard-installer-windows.md), and [Windows Service and Tray](docs/service-windows.md). See [RaceManager Round Model](docs/racemanager-round-model.md) for the v1.2.8 architecture.
 
 Common pages:
 
@@ -64,6 +72,8 @@ Add `?preview=true` when building or testing an OBS scene. Remove it for live co
 
 - `GET /api/event` — recent live and historical RaceManager events
 - `GET /api/current/program` — phases actually available for the selected class/group
+- `GET|PUT /api/current/main-program-boundary/{motoboard_id}` — inspect or save the event Main start
+- `POST /api/current/main-program-boundary/{motoboard_id}/reset` — clear the event Main start
 - `POST /api/current/phase/select/{phase}` — select an exact available phase
 - `GET /api/motos?all_rounds=true` — inspect qualifier and final branches without collapsing duplicate moto numbers
 - `GET /api/motos/group/{motogroup_id}` — retrieve one exact motogroup

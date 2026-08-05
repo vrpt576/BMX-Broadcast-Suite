@@ -1,0 +1,19 @@
+<service>
+  <id>BMXBroadcastSuite</id>
+  <name>BMX Broadcast Suite</name>
+  <description>Provides local RaceManager data and broadcast graphics for BMX Broadcast Suite.</description>
+  <executable>%BASE%\runtime\python.exe</executable>
+  <arguments>-B -m connector.run</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+  <env name="BBS_RUNTIME_ROOT" value="%ProgramData%\BMX Broadcast Suite\UserData" />
+  <env name="BBS_ENV_FILE" value="%ProgramData%\BMX Broadcast Suite\UserData\.env" />
+  <env name="PYTHONUTF8" value="1" />
+  <env name="PYTHONDONTWRITEBYTECODE" value="1" />
+  <stoptimeout>15sec</stoptimeout>
+  <onfailure action="restart" delay="10 sec" />
+  <logpath>%ProgramData%\BMX Broadcast Suite\UserData\connector\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>4</keepFiles>
+  </log>
+</service>

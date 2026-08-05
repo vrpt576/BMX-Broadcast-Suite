@@ -1,6 +1,6 @@
 # BMX Broadcast Suite Roadmap
 
-This roadmap reflects the project status as of v1.2.10. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
+This roadmap reflects the project status as of v1.2.12. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
 
 ## Shipped
 
@@ -10,7 +10,7 @@ This roadmap reflects the project status as of v1.2.10. Priorities may move as m
 - Compatibility with optional RaceManager schema fields
 - Round-aware stage identity using class, round type, round, motogroup, and round index
 - Qualifier (`Round_Type_ID 123`) and final-classification (`Round_Type_ID 1`) resolution
-- Transfer-marker normalization and Main versus Overall classification
+- Transfer-marker normalization and explicit program-segment/scoring-method classification
 - Current-moto, lineup, results, and race-program APIs
 
 ### Broadcast operation

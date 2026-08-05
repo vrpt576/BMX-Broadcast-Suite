@@ -14,7 +14,10 @@
 ./.venv/bin/python -m pip install -r connector/requirements.txt
 ```
 
-6. Compare `connector/.env.example` with your `.env` and add new keys.
+6. On Windows MSI installations, start BBS once; missing supported keys are
+   appended to the protected ProgramData `.env` without replacing existing
+   values. Source installations should compare `connector/.env.example` with
+   `.env` and add missing keys manually.
 7. Run tests if developing: `pytest`.
 8. Start BBS, open `/diagnostics`, then test all overlays in demo mode.
 9. Keep the previous release ZIP until the event is complete.

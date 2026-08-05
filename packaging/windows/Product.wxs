@@ -1,0 +1,115 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="BMX Broadcast Suite" Manufacturer="BMX Broadcast Suite Contributors"
+           Version="$(var.ProductVersion)" UpgradeCode="D7F3D76D-1478-4D91-8A53-6E2689D809B6"
+           Scope="perMachine" Compressed="yes" InstallerVersion="500">
+    <SummaryInformation Description="BMX Broadcast Suite" Manufacturer="BMX Broadcast Suite Contributors" />
+    <MajorUpgrade DowngradeErrorMessage="A newer BMX Broadcast Suite version is already installed."
+                  Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="BBSIcon" SourceFile="$(var.PayloadRoot)\assets\bbs.ico" />
+    <Property Id="ARPPRODUCTICON" Value="BBSIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/vrpt576/BMX-Broadcast-Suite" />
+    <Property Id="ODBCDRIVER18">
+      <RegistrySearch Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Driver 18 for SQL Server"
+                      Name="Driver" Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="Installed OR ODBCDRIVER18"
+            Message="Microsoft ODBC Driver 18 for SQL Server (64-bit) is required. Install it from Microsoft, then run this MSI again." />
+
+    <Property Id="LEGACYINSTALLDIR">
+      <RegistrySearch Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\BMXBroadcastSuite"
+                      Name="InstallLocation" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="BBSUSERDATAPATH">
+      <RegistrySearch Root="HKLM" Key="Software\BMX Broadcast Suite"
+                      Name="UserDataPath" Type="raw" Bitness="always64" />
+    </Property>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="BMX Broadcast Suite" />
+    </StandardDirectory>
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="BBSProgramDataFolder" Name="BMX Broadcast Suite">
+        <Directory Id="USERDATADIR" Name="UserData" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="BBSStartMenuFolder" Name="BMX Broadcast Suite" />
+    </StandardDirectory>
+
+    <Feature Id="ProductFeature" Title="BMX Broadcast Suite" Level="1">
+      <ComponentGroupRef Id="ApplicationFiles" />
+      <ComponentRef Id="BBSServiceComponent" />
+      <ComponentRef Id="UserDataComponent" />
+      <ComponentRef Id="IntegrationComponent" />
+      <ComponentRef Id="ShortcutComponent" />
+    </Feature>
+
+    <CustomAction Id="StopLegacyTask" Directory="System64Folder"
+                  ExeCommand="schtasks.exe /End /TN &quot;BMX Broadcast Suite&quot;"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <CustomAction Id="DeleteLegacyTask" Directory="System64Folder"
+                  ExeCommand="schtasks.exe /Delete /F /TN &quot;BMX Broadcast Suite&quot;"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="StopLegacyTask" Before="RemoveFiles" Condition="NOT Installed" />
+      <Custom Action="DeleteLegacyTask" After="StopLegacyTask" Condition="NOT Installed" />
+    </InstallExecuteSequence>
+  </Package>
+
+  <Fragment>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="BBSServiceComponent" Guid="A76B5B55-1695-4AD6-98AA-EC0C2CDADAB1" Bitness="always64">
+        <File Id="BBSServiceExe" Source="$(var.PayloadRoot)\BBSService.exe" KeyPath="yes" />
+        <File Id="BBSServiceXml" Source="$(var.PayloadRoot)\BBSService.xml" />
+        <ServiceInstall Id="BBSServiceInstall" Name="BMXBroadcastSuite" DisplayName="BMX Broadcast Suite"
+                        Description="BMX Broadcast Suite local connector" Type="ownProcess" Start="auto"
+                        ErrorControl="normal" Account="LocalSystem">
+          <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart"
+                              ThirdFailureActionType="restart" RestartServiceDelayInSeconds="10" />
+        </ServiceInstall>
+        <ServiceControl Id="BBSServiceControl" Name="BMXBroadcastSuite"
+                        Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+      </Component>
+      <Component Id="IntegrationComponent" Guid="A00AD0F1-A52C-4B1C-9BAE-91AD34900C56" Bitness="always64">
+        <RegistryValue Root="HKLM" Key="Software\BMX Broadcast Suite" Name="UserDataPath"
+                       Value="[USERDATADIR]" Type="string" KeyPath="yes" />
+        <RemoveRegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\BMXBroadcastSuite"
+                           Action="removeOnInstall" />
+        <util:RemoveFolderEx Property="LEGACYINSTALLDIR" On="install"
+                             Condition="LEGACYINSTALLDIR AND LEGACYINSTALLDIR = INSTALLFOLDER AND NOT WIX_UPGRADE_DETECTED" />
+        <util:RemoveFolderEx Property="INSTALLFOLDER" On="uninstall"
+                             Condition="REMOVE = &quot;ALL&quot;" />
+        <util:RemoveFolderEx Property="BBSUSERDATAPATH" On="uninstall"
+                             Condition="PURGEUSERDATA = 1 AND REMOVE = &quot;ALL&quot;" />
+      </Component>
+    </DirectoryRef>
+    <DirectoryRef Id="USERDATADIR">
+      <Component Id="UserDataComponent" Guid="8C96951C-EE93-4C0A-A803-D302A6EA9053"
+                 Permanent="yes" NeverOverwrite="yes" Bitness="always64">
+        <CreateFolder>
+          <PermissionEx Sddl="D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)" />
+        </CreateFolder>
+        <RegistryValue Root="HKLM" Key="Software\BMX Broadcast Suite" Name="UserDataInitialized"
+                       Value="1" Type="integer" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+    <DirectoryRef Id="BBSStartMenuFolder">
+      <Component Id="ShortcutComponent" Guid="D6953671-E154-499F-BDFC-31FA9EF74B22" Bitness="always64">
+        <Shortcut Id="StartMenuShortcut" Name="BMX Broadcast Suite" Description="BMX Broadcast Suite status and controls"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
+                  WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
+        <Shortcut Id="DesktopShortcut" Directory="DesktopFolder" Name="BMX Broadcast Suite"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
+                  WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
+        <Shortcut Id="StartupShortcut" Directory="StartupFolder" Name="BMX Broadcast Suite Tray"
+                  Target="[INSTALLFOLDER]runtime\pythonw.exe" Arguments="-B -m connector.tray_windows"
+                  WorkingDirectory="INSTALLFOLDER" Icon="BBSIcon" />
+        <RegistryValue Root="HKLM" Key="Software\BMX Broadcast Suite" Name="ShortcutsInstalled"
+                       Value="1" Type="integer" KeyPath="yes" />
+        <RemoveFolder Id="RemoveStartMenuFolder" Directory="BBSStartMenuFolder" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

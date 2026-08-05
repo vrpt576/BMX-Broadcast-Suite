@@ -74,12 +74,15 @@ Keyboard controls on the operator page:
 
 - Right arrow, up arrow, space, or Page Down: next moto
 - Left arrow, down arrow, or Page Up: previous moto
-- Type a moto number and press Enter: jump directly
+- Select a phase, type an available displayed moto number, and press Enter:
+  jump to that exact race slot
 - Optionally enter the final moto to prevent advancing past it
 
 The selection is saved to `data/current_moto.json`, so it survives service
-restarts. The controller and overlay may be opened on different computers as
-long as both can reach the connector.
+restarts. Opening the controller or overlays on another computer requires the
+explicit LAN binding and remote-access policy documented in
+`docs/configuration.md`. Read-only overlays and authenticated operator controls
+have separate access rules.
 
 Manual API endpoints:
 
@@ -87,6 +90,9 @@ Manual API endpoints:
 - `PUT /api/current`
 - `POST /api/current/next`
 - `POST /api/current/previous`
+- `GET /api/current/phases`
+- `POST /api/current/phase/first`
+- `POST /api/current/phase/last`
 - `POST /api/current/reset`
 
 Example:
@@ -98,7 +104,16 @@ Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
 
 ## Race phases
 
-The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.
+The broadcast state supports Round 1, Round 2, Round 3, Quarterfinals,
+Semifinals, and Main when those program segments exist in the selected event.
+Transfer/LST and Total Points are scoring methods. Total Points classifications
+never appear as a separate Director round.
+Use `[` and `]` on the controller page to move between available phases, or
+select a phase directly. A phase change first maps the selected class or
+combined class group into the target phase even when its displayed moto number
+changes. If that class is absent, BBS selects the nearest target-phase slot and
+shows the fallback in Director. **First Moto in Round** and **Last Moto in
+Round** provide predictable boundary recovery.
 
 ## Manual class name
 

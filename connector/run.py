@@ -21,6 +21,13 @@ def main() -> int:
     startup_error = _startup_error_file()
     try:
         startup_error.unlink(missing_ok=True)
+        from connector.config import APPLICATION_ROOT, configuration_file
+        from connector.environment_migration import ensure_environment_defaults
+
+        ensure_environment_defaults(
+            configuration_file(),
+            APPLICATION_ROOT / "connector" / ".env.example",
+        )
         import uvicorn
 
         from connector.config import get_settings

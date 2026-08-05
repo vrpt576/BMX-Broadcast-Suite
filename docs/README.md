@@ -1,13 +1,17 @@
 # BBS Documentation
 
 - [Windows Installation](installation-windows.md)
-- [Windows Setup Wizard](wizard-installer-windows.md)
+- [Windows MSI Installer](wizard-installer-windows.md)
+- [Windows installer security and antivirus policy](windows-installer-security.md)
 - [Linux Installation](installation-linux.md)
 - [First Run](first-run.md)
 - [Track Configuration](configuration.md)
 - [OBS Setup](obs-setup.md)
 - [Browser Sources](browser-sources.md)
 - [Results Roll](results-roll.md)
+- [Race-program structure export](race-program-export.md)
+- [Program segments and scoring classification](phase-classification.md)
+- [Race slots and combined motos](race-slots.md)
 - [Theme Customization](themes.md)
 - [Troubleshooting](troubleshooting.md)
 - [FAQ](faq.md)

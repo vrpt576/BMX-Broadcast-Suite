@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import threading
 import time
 import webbrowser
+import ctypes
 from pathlib import Path
 
 from PIL import Image
@@ -15,7 +15,7 @@ import pystray
 
 from connector.service_status import ServiceStatus, read_status, status_lines
 
-TASK_NAME = "BMX Broadcast Suite"
+SERVICE_NAME = "BMXBroadcastSuite"
 ROOT = Path(__file__).resolve().parents[1]
 ICON = ROOT / "data" / "bbs-icon.png"
 ICON_FALLBACK = ROOT / "assets" / "bbs-icon.png"
@@ -47,7 +47,7 @@ class BBSWindowsTray:
         return pystray.Menu(
             pystray.MenuItem(
                 lambda _item: (
-                    f"BMX Broadcast Suite {self.status.version or '1.2.10'}"
+                    f"BMX Broadcast Suite {self.status.version or '1.2.12'}"
                 ),
                 None,
                 enabled=False,
@@ -82,12 +82,12 @@ class BBSWindowsTray:
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
                 "Start BBS",
-                lambda _icon, _item: self._task_action("run"),
+                lambda _icon, _item: self._service_action("start"),
                 enabled=lambda _item: self.status.service != "running",
             ),
             pystray.MenuItem(
                 "Stop BBS",
-                lambda _icon, _item: self._task_action("end"),
+                lambda _icon, _item: self._service_action("stop"),
                 enabled=lambda _item: self.status.service == "running",
             ),
             pystray.MenuItem(
@@ -105,31 +105,17 @@ class BBSWindowsTray:
     def _open(self, page: str) -> None:
         webbrowser.open(f"{BASE_URL}{page}")
 
-    def _elevated_schtasks(self, arguments: str) -> None:
-        command = (
-            "Start-Process -FilePath schtasks.exe -Verb RunAs -Wait "
-            f"-ArgumentList '{arguments}'"
+    def _service_action(self, action: str) -> None:
+        result = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", "sc.exe", f'{action} "{SERVICE_NAME}"', None, 0
         )
-        subprocess.Popen(
-            [
-                "powershell.exe",
-                "-NoProfile",
-                "-WindowStyle",
-                "Hidden",
-                "-Command",
-                command,
-            ],
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-
-    def _task_action(self, action: str) -> None:
-        switch = "/Run" if action == "run" else "/End"
-        self._elevated_schtasks(f'{switch} /TN "{TASK_NAME}"')
+        if result <= 32:
+            raise OSError(f"Windows could not {action} the BBS service (ShellExecute {result}).")
 
     def _restart(self) -> None:
-        self._elevated_schtasks(f'/End /TN "{TASK_NAME}"')
+        self._service_action("stop")
         time.sleep(1)
-        self._elevated_schtasks(f'/Run /TN "{TASK_NAME}"')
+        self._service_action("start")
 
     def _quit(self) -> None:
         self.running = False
@@ -137,7 +123,7 @@ class BBSWindowsTray:
 
     def _refresh_loop(self) -> None:
         while self.running:
-            self.status = read_status(BASE_URL, TASK_NAME)
+            self.status = read_status(BASE_URL, SERVICE_NAME)
             lines = status_lines(self.status)
             self.icon.title = "BMX Broadcast Suite\n" + "\n".join(lines)
             self.icon.update_menu()

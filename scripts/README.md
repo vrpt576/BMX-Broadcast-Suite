@@ -1,49 +1,12 @@
-# Installation scripts
+# Installation and release scripts
 
-## Windows
-
-From an Administrator PowerShell prompt at the repository root:
+Windows end users install the WiX MSI. It owns the `BMXBroadcastSuite` service, Apps & Features entry, upgrades, shortcuts, and uninstall; operator data in ProgramData is preserved by default.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\install-windows.ps1
-.\scripts\start-windows.ps1
+.\scripts\build-windows-installer.ps1 -CertificateThumbprint YOUR_SHA1_THUMBPRINT
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.12.msi
 ```
 
-Open `http://localhost:8000/diagnostics` and resolve any red checks.
+`-Unsigned` is only for local packaging validation. The installer build and install are offline and never alter PowerShell execution policy. Source developers can use `install-windows.ps1`, `start-windows.ps1`, and `start-tray-windows.ps1` directly.
 
-For machine startup, automatic restart, desktop/Start Menu launchers, and the tray controller:
-
-```powershell
-.\scripts\install-service-windows.ps1
-```
-
-Remove only the background integration with:
-
-```powershell
-.\scripts\uninstall-service-windows.ps1
-```
-
-Packaged installations register with Apps & Features. Remove the full
-application while preserving operator data with:
-
-```powershell
-.\scripts\uninstall-windows.ps1
-```
-
-Run the non-administrative packaging smoke test with:
-
-```powershell
-.\scripts\validate-windows-uninstall.ps1
-```
-
-## Linux / bmxServer01
-
-Microsoft ODBC Driver 18 for SQL Server and the Unix ODBC development package must be installed before `pyodbc` can connect. Then run:
-
-```bash
-./scripts/install-linux.sh
-./.venv/bin/python -m uvicorn connector.main:app --host 0.0.0.0 --port 8000
-```
-
-For boot-time operation, copy and edit `bbs-connector.service.example`, then install it with systemd.
+On Linux, install ODBC prerequisites, then run `install-linux.sh`; use `install-service-linux.sh` for systemd operation.

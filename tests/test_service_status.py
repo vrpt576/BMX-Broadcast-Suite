@@ -7,7 +7,7 @@ def test_healthy_service_status():
         service="running",
         api="available",
         database="connected",
-        version="1.2.10",
+        version="1.2.12",
         moto_number=12,
         class_name="8 Novice",
     )
@@ -27,7 +27,7 @@ def test_stopped_service_status():
 
 def test_service_state_uses_windows_task(monkeypatch):
     monkeypatch.setattr(service_status.platform, "system", lambda: "Windows")
-    monkeypatch.setattr(service_status, "windows_task_state", lambda name: f"windows:{name}")
+    monkeypatch.setattr(service_status, "windows_service_state", lambda name: f"windows:{name}")
     assert service_status.service_state("BMX Broadcast Suite") == "windows:BMX Broadcast Suite"
 
 
@@ -37,19 +37,19 @@ def test_service_state_uses_systemd_on_linux(monkeypatch):
     assert service_status.service_state("bbs-connector.service") == "linux:bbs-connector.service"
 
 
-def test_windows_task_state_maps_running(monkeypatch):
+def test_windows_service_state_maps_running(monkeypatch):
     class Result:
         returncode = 0
-        stdout = "Running\n"
+        stdout = "STATE              : 4  RUNNING\n"
 
     monkeypatch.setattr(service_status.subprocess, "run", lambda *args, **kwargs: Result())
-    assert service_status.windows_task_state() == "running"
+    assert service_status.windows_service_state() == "running"
 
 
-def test_windows_task_state_maps_missing_to_stopped(monkeypatch):
+def test_windows_service_state_maps_missing_to_stopped(monkeypatch):
     class Result:
         returncode = 0
         stdout = ""
 
     monkeypatch.setattr(service_status.subprocess, "run", lambda *args, **kwargs: Result())
-    assert service_status.windows_task_state() == "stopped"
+    assert service_status.windows_service_state() == "stopped"

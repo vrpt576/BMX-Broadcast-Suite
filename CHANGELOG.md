@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 1.2.12 - 2026-08-04
+
+- Fixed the Race Director's Jump to moto field so background status polling
+  cannot overwrite focused or pending operator input, spinner changes, failed
+  submissions, or a successful race-position apply.
+
+## 1.2.11 - 2026-08-01
+
+- Separated physical program segments, competition stages, scoring methods,
+  and finalization methods; Total Points classifications no longer appear as
+  an operator-facing Overall round.
+- Rebuilt navigation around physical race slots so combined motos appear once,
+  Next and Previous are symmetric, and Transfer Main events and final Total
+  Points motos remain interleaved in scheduled Main-program order.
+- Fixed direct Go to Moto selection, actionable unavailable-moto feedback,
+  stale-response protection, and class-aware transitions between rounds.
+- Added per-event race-position confirmation preferences with an explicit
+  reset control.
+- Preserved and expanded Results Roll combined-moto ordering, official finish
+  order, playback controls, and break-graphic coordination.
+- Added safe race-program structure export for anonymized schema diagnostics
+  and regression fixtures.
+- Added a persistent, resettable Main-program start per Motoboard for events
+  whose RaceManager records do not expose an explicit running-order boundary;
+  Transfer finals are retained as low-confidence suggestions only.
+- Hardened network administration with localhost binding by default,
+  configured CORS origins, explicit remote administration, mutation tokens,
+  and credential redaction.
+- Replaced the Defender-flagged IExpress/hidden-script installer architecture
+  with a native WiX Toolset v4 MSI and pinned WinSW Windows service.
+- Added offline hash-locked Windows dependencies, build-input validation,
+  Authenticode signing support, artifact manifest, CycloneDX SBOM, SHA-256,
+  and an exact-artifact Microsoft Defender release gate.
+
 ## 1.2.10 - 2026-07-31
 
 - Fixed historic-event Director navigation so Main stepping renders the server

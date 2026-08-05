@@ -75,12 +75,12 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "BMX Broadcast Suite Connector"
-    app_version: str = "1.2.10"
+    app_version: str = "1.2.12"
     api_prefix: str = "/api"
     log_level: str = "INFO"
     log_dir: Path = Path("connector/logs")
     log_retention_days: int = 14
-    app_host: str = "0.0.0.0"
+    app_host: str = "127.0.0.1"
     app_port: int = 8000
     public_base_url: str = ""
     track_name: str = "BMX Track"
@@ -98,12 +98,17 @@ class Settings(BaseSettings):
     sql_connect_timeout: int = 2
     sql_query_timeout: int = 5
 
-    cors_origins: str = "*"
+    cors_origins: str = ""
+    remote_control_enabled: bool = False
+    control_token: str = Field(default="", repr=False)
+    remote_admin_enabled: bool = False
+    admin_token: str = Field(default="", repr=False)
     current_moto_state_file: Path = Path("data/current_moto.json")
     current_moto_default: int = 1
     lineup_cache_file: Path = Path("data/last_known_lineup.json")
     results_cache_file: Path = Path("data/last_known_results.json")
     results_roll_state_file: Path = Path("data/results_roll.json")
+    phase_override_file: Path = Path("data/race_phase_overrides.json")
     theme_dir: Path = Path("themes")
 
     @property
@@ -127,7 +132,17 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        configured = [
+            origin.strip()
+            for origin in self.cors_origins.split(",")
+            if origin.strip() and origin.strip() != "*"
+        ]
+        if configured:
+            return configured
+        return [
+            f"http://127.0.0.1:{self.app_port}",
+            f"http://localhost:{self.app_port}",
+        ]
 
 
 @lru_cache
@@ -140,6 +155,7 @@ def get_settings() -> Settings:
         "lineup_cache_file",
         "results_cache_file",
         "results_roll_state_file",
+        "phase_override_file",
         "theme_dir",
     ):
         value = Path(getattr(settings, field))

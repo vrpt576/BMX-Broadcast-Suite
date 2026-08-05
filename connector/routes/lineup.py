@@ -69,7 +69,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
 <script>
 const phaseLabels = {
   round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
-  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN', overall: 'OVERALL'
+  quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
 const demo = ['1', 'true', 'yes'].includes((params.get('demo') || '').toLowerCase());
@@ -83,7 +83,7 @@ const ridersBox = document.querySelector('#riders');
 
 async function applyTheme() {
   try {
-    if (!themeName) { const cfg = await fetch('/api/configuration',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
+    if (!themeName) { const cfg = await fetch('/api/configuration/public',{cache:'no-store'}); if (cfg.ok) themeName = ((await cfg.json()).default_theme || 'default').toLowerCase(); }
     if (!themeName) themeName='default';
     const response = await fetch(`/api/themes/${encodeURIComponent(themeName)}`, {cache:'no-store'});
     if (!response.ok) return;

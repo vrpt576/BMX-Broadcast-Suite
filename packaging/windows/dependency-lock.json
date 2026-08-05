@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "artifacts": [
+    {"path":"dependencies/python-3.12.10-embed-amd64.zip","version":"3.12.10","sha256":"4ACBED6DD1C744B0376E3B1CF57CE906F9DC9E95E68824584C8099A63025A3C3","source":"https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip","signature":"Python Software Foundation Authenticode signature verified"},
+    {"path":"dependencies/WinSW-x64.exe","version":"2.12.0","sha256":"05B82D46AD331CC16BDC00DE5C6332C1EF818DF8CEEFCD49C726553209B3A0DA","source":"https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe","signature":"Unsigned upstream; hash pinned to the official GitHub release"},
+    {"path":"dependencies/tools/wix.4.0.6.nupkg","version":"4.0.6","sha256":"A94DD42AE1FB56B32DA180E2173CEDA4F0D10B4C8871C5EE59ECB502131A1EB6","source":"https://api.nuget.org/v3-flatcontainer/wix/4.0.6/wix.4.0.6.nupkg","signature":"NuGet package"},
+    {"path":"dependencies/tools/WixToolset.Util.wixext.4.0.6.nupkg","version":"4.0.6","sha256":"541168D58C299DD8D62E92EA1877489756CFA73A27FD6EC855CD6341C8447562","source":"https://api.nuget.org/v3-flatcontainer/wixtoolset.util.wixext/4.0.6/wixtoolset.util.wixext.4.0.6.nupkg","signature":"NuGet package"}
+  ]
+}

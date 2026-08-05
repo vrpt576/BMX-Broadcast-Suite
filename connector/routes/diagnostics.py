@@ -1,11 +1,15 @@
 """Installation and diagnostics API/page."""
 
-from fastapi import APIRouter, Depends
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 
 from connector.config import get_settings
-from connector.dependencies import get_database
+from connector.dependencies import get_database, get_race_program_export_service
+from connector.models import RaceProgramStructureExport
 from connector.services.diagnostics_service import DiagnosticsService
+from connector.services.race_program_export_service import RaceProgramExportService
 from database.racemanager import RaceManagerDatabase
 
 router = APIRouter(tags=["diagnostics"])
@@ -18,6 +22,21 @@ def get_diagnostics_service(database: RaceManagerDatabase = Depends(get_database
 @router.get("/diagnostics")
 def diagnostics(service: DiagnosticsService = Depends(get_diagnostics_service)) -> dict:
     return service.run()
+
+
+@router.get(
+    "/diagnostics/race-program/export",
+    response_model=RaceProgramStructureExport,
+)
+def race_program_export(
+    motoboard_id: UUID | None = Query(
+        default=None,
+        description="Defaults to the newest RaceManager event.",
+    ),
+    service: RaceProgramExportService = Depends(get_race_program_export_service),
+) -> RaceProgramStructureExport:
+    """Export event structure without rider or connector personal data."""
+    return service.export(motoboard_id)
 
 
 async def diagnostics_page() -> HTMLResponse:

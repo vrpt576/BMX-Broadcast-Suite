@@ -1,65 +1,47 @@
-# Windows Setup Wizard
+# Windows MSI Installer
 
-BBS 1.2.10 includes a graphical Windows installer:
+BBS 1.2.12 uses `BMX-Broadcast-Suite-Setup-v1.2.12.msi`, built by WiX Toolset v4. It retains the native MSI and Windows-service architecture introduced in v1.2.11.
 
-```text
-BMX-Broadcast-Suite-Setup-v1.2.10.exe
-```
-
-The wizard checks for Python 3.11+ and Microsoft ODBC Driver 18 for SQL Server, lets the operator choose an installation folder, installs the Python environment, and optionally registers BBS to start at machine boot. It also installs the desktop, Start Menu, and notification-area controls supplied by BBS.
-
-The wizard also registers BBS in Windows **Apps & Features** with a working
-interactive and quiet uninstall command. Reinstalling restores operator data
-preserved by a previous uninstall.
-
-## Before running the wizard
-
-Install:
-
-- Python 3.11 or newer from python.org; enable the Python launcher during setup.
-- Microsoft ODBC Driver 18 for SQL Server.
-- OBS Studio when overlays will be displayed on this computer.
-
-The installer is currently unsigned, so Windows SmartScreen may show an Unknown Publisher warning. Verify that the installer came from the official BBS GitHub release before choosing **Run anyway**.
+The MSI contains an offline Python 3.12.10 runtime and hash-locked wheels. It does not run VBScript or PowerShell, change execution policy, download packages, or create a Scheduled Task. Windows Installer owns Apps & Features, files, shortcuts, upgrades, and uninstall. WinSW 2.12.0, pinned to the official release SHA-256, hosts the automatic `BMXBroadcastSuite` service.
 
 ## Install
 
-1. Right-click `BMX-Broadcast-Suite-Setup-v1.2.10.exe` and choose **Run as administrator**.
-2. Confirm both prerequisite checks are green.
-3. Choose the installation folder.
-4. Leave machine-startup enabled for a race-day computer.
-5. Select **Install**.
-6. The wizard starts BBS without a console window and waits for the local API
-   before opening `http://localhost:8000/configuration`.
-7. Confirm `http://localhost:8000/diagnostics` is healthy.
+Install the 64-bit Microsoft ODBC Driver 18 for SQL Server from Microsoft, then run the MSI as administrator. Legacy v1.2.9/v1.2.10 upgrades stop and delete only the exact old BBS task and preserve `%ProgramData%\BMX Broadcast Suite\UserData`.
 
-The original PowerShell installation remains supported for administrators and development installations.
-
-## Build the EXE
-
-On Windows, from the repository root:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\build-windows-installer.ps1
-```
-
-The generated EXE is written to `dist`. The builder uses Windows IExpress,
-which is included with supported Windows editions. It materializes the payload
-from tracked Git content and fails if the worktree is dirty or a
-wizard-referenced installer script is missing. This prevents an untracked local
-helper from producing an installer that cannot start BBS.
-
-For a pre-commit validation build, stage the exact intended changes and use:
-
-```powershell
-.\scripts\build-windows-installer.ps1 -AllowUncommitted
-```
-
-That mode still refuses unstaged changes and builds from the staged index.
+The MSI never owns or replaces the protected `.env`. On first service start,
+BBS creates it from the packaged example only when it is absent. During an
+upgrade, BBS appends newly supported keys only when missing. Existing SQL,
+network, theme, event, and secret values remain unchanged. Reinstalling the
+same build is idempotent and does not rewrite the file.
 
 ## Uninstall
 
-Open **Settings → Apps → Installed apps**, select **BMX Broadcast Suite**, and
-choose **Uninstall**. See [Windows Background Operation and Tray](service-windows.md#uninstall-the-application)
-for preservation and command-line details.
+Use **Settings → Apps → Installed apps**. Operator data remains in ProgramData. To explicitly purge that data:
+
+```powershell
+msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.2.12.msi PURGEUSERDATA=1
+```
+
+Normal uninstall stops and removes only the `BMXBroadcastSuite` service, then
+removes the complete application-owned `%ProgramFiles%\BMX Broadcast Suite`
+tree, shortcuts, and registration. Python bytecode generation is disabled for
+the installed runtime, so the read-only Program Files tree does not accumulate
+untracked caches. Unrelated Python processes are never searched for or stopped.
+The protected ProgramData user-data directory remains unless
+`PURGEUSERDATA=1` is explicitly supplied.
+
+## Build and release gate
+
+The build is offline and validates every pinned artifact:
+
+```powershell
+.\scripts\build-windows-installer.ps1 -CertificateThumbprint YOUR_SHA1_THUMBPRINT
+```
+
+For local testing only, use `-Unsigned`. Before publication, sign the MSI and scan the exact final file with current Defender definitions:
+
+```powershell
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.12.msi
+```
+
+If Defender detects it, do not upload it; submit that exact artifact to Microsoft Security Intelligence. Outputs include the MSI, SHA-256 file, manifest, and CycloneDX SBOM.

@@ -32,6 +32,7 @@ def test_program_files_install_uses_programdata_for_all_mutable_paths(
                 "BBS_LINEUP_CACHE_FILE=data/last_valid_lineup.json",
                 "BBS_RESULTS_CACHE_FILE=data/last_valid_results.json",
                 "BBS_RESULTS_ROLL_STATE_FILE=data/results_roll.json",
+                "BBS_PHASE_OVERRIDE_FILE=data/race_phase_overrides.json",
                 "BBS_THEME_DIR=themes",
             )
         ),
@@ -53,6 +54,7 @@ def test_program_files_install_uses_programdata_for_all_mutable_paths(
         assert settings.lineup_cache_file == user_data / "data" / "last_valid_lineup.json"
         assert settings.results_cache_file == user_data / "data" / "last_valid_results.json"
         assert settings.results_roll_state_file == user_data / "data" / "results_roll.json"
+        assert settings.phase_override_file == user_data / "data" / "race_phase_overrides.json"
         assert settings.theme_dir == user_data / "themes"
         for path in (
             settings.log_dir,
@@ -60,6 +62,7 @@ def test_program_files_install_uses_programdata_for_all_mutable_paths(
             settings.lineup_cache_file,
             settings.results_cache_file,
             settings.results_roll_state_file,
+            settings.phase_override_file,
             settings.theme_dir,
         ):
             assert not str(path).startswith(str(application_root))

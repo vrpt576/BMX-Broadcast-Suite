@@ -9,6 +9,7 @@ from connector.services.current_results_service import CurrentResultsService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
+from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
 
 
@@ -27,7 +28,10 @@ def get_event_service() -> EventService:
 
 
 def get_motoboard_service() -> MotoboardService:
-    return MotoboardService(get_database())
+    return MotoboardService(
+        get_database(),
+        phase_override_file=get_settings().phase_override_file,
+    )
 
 
 @lru_cache
@@ -42,6 +46,14 @@ def get_current_moto_service() -> CurrentMotoService:
 def get_race_program_service() -> RaceProgramService:
     return RaceProgramService(
         get_current_moto_service(),
+        get_event_service(),
+        get_motoboard_service(),
+    )
+
+
+def get_race_program_export_service() -> RaceProgramExportService:
+    return RaceProgramExportService(
+        get_database(),
         get_event_service(),
         get_motoboard_service(),
     )
