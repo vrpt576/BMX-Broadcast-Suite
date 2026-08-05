@@ -47,7 +47,7 @@ class BBSWindowsTray:
         return pystray.Menu(
             pystray.MenuItem(
                 lambda _item: (
-                    f"BMX Broadcast Suite {self.status.version or '1.2.11'}"
+                    f"BMX Broadcast Suite {self.status.version or '1.2.12'}"
                 ),
                 None,
                 enabled=False,

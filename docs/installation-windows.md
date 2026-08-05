@@ -1,6 +1,6 @@
 # Windows Installation Guide
 
-Install Microsoft ODBC Driver 18 for SQL Server (64-bit), then install `BMX-Broadcast-Suite-Setup-v1.2.11.msi`. Python and all Python packages are included; setup performs no downloads.
+Install Microsoft ODBC Driver 18 for SQL Server (64-bit), then install `BMX-Broadcast-Suite-Setup-v1.2.12.msi`. Python and all Python packages are included; setup performs no downloads.
 
 After setup, open BMX Broadcast Suite from the desktop or Start Menu, choose Configuration, enter RaceManager SQL settings, and verify `http://127.0.0.1:8000/diagnostics`.
 

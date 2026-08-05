@@ -5,6 +5,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGING = ROOT / "packaging" / "windows"
+UPGRADE_CODE = "D7F3D76D-1478-4D91-8A53-6E2689D809B6"
+
+
+def test_msi_release_version_and_upgrade_identity():
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
+    product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
+
+    assert '$Version = "1.2.12"' in builder
+    assert 'Version="$(var.ProductVersion)"' in product
+    assert f'UpgradeCode="{UPGRADE_CODE}"' in product
+    assert "MajorUpgrade" in product
 
 
 def test_msi_sources_replace_iexpress_chain():

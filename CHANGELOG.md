@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.2.12 - 2026-08-04
+
+- Fixed the Race Director's Jump to moto field so background status polling
+  cannot overwrite focused or pending operator input, spinner changes, failed
+  submissions, or a successful race-position apply.
+
 ## 1.2.11 - 2026-08-01
 
 - Separated physical program segments, competition stages, scoring methods,
