@@ -12,7 +12,9 @@ repository. The MSI installation does not depend on PowerShell scripts.
 
 ## SQL will not connect
 
-Open `/diagnostics`. Confirm host, instance or port, database, login, ODBC driver, firewall, SQL TCP/IP, and that RaceManager is running. Test from the BBS computer, not only from the RaceManager computer.
+Follow [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md), then open `/diagnostics`. Confirm host, instance or port, `RACE` database, `bbs_connector` login, ODBC driver, firewall, SQL TCP/IP, and that RaceManager is running. Test the discovered port from the BBS computer, not only from the RaceManager computer.
+
+When using a TCP port, leave the BBS SQL instance field blank. BBS gives a named instance precedence over the port. Never expose the SQL port to the public Internet.
 
 ## Blank OBS overlay
 
