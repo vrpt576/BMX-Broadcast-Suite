@@ -19,6 +19,10 @@ flowchart LR
 
 ## What it looks like
 
+### Overlay
+
+<img src="docs/images/live-overlay-example.png" alt="BBS Overlay example showing lineup with redacted names" width="760">
+
 ### Race Director
 
 <img src="docs/images/race-director-v1.2.12.png" alt="BBS Race Director showing event selection, moto and round navigation, graphics controls, and a sanitized lineup preview" width="760">
