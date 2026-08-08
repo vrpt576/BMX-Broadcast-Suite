@@ -25,6 +25,8 @@ flowchart LR
 
 <img src="docs/images/live-overlay-example-break.png" alt="BBS Overlay example showing main break overlay" width="760">
 
+<img src="docs/images/live-overlay-example-results-roll.png" alt="BBS Overlay example showing results overlay" width="760">
+
 ### Race Director
 
 <img src="docs/images/race-director-v1.2.12.png" alt="BBS Race Director showing event selection, moto and round navigation, graphics controls, and a sanitized lineup preview" width="760">
