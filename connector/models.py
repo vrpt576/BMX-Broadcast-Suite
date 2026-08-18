@@ -47,6 +47,8 @@ class Rider(ApiModel):
     first_name: str
     last_name: str
     nickname: str | None = None
+    age: int | None = Field(default=None, ge=0, le=120)
+    home_track: str | None = None
     proficiency: str | None = None
     sponsor: str | None = None
     lane_1: int | None = None
@@ -403,6 +405,8 @@ class LineupRider(ApiModel):
     first_name: str
     last_name: str
     nickname: str | None = None
+    age: int | None = Field(default=None, ge=0, le=120)
+    home_track: str | None = None
 
 
 class CurrentLineup(ApiModel):
@@ -437,6 +441,8 @@ class ResultRider(ApiModel):
     bike_number: str | int | None = None
     first_name: str
     last_name: str
+    age: int | None = Field(default=None, ge=0, le=120)
+    home_track: str | None = None
 
 
 class CurrentResults(ApiModel):

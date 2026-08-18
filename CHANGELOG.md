@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.2.13 - Unreleased
+
+- Added optional RaceManager racing age and home-track subtitles to lineup and
+  results graphics, omitting absent values cleanly.
+- Added protected in-app theme management with supported-setting validation,
+  active-theme selection, default restoration, and preservation of unrecognized
+  legacy custom-theme properties.
 
 ## 1.2.12 - 2026-08-04
 

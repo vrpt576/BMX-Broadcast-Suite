@@ -2,7 +2,7 @@
 
 Before installing BBS, follow [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md). That guide enables the SQL network connection, creates a dedicated `db_datareader` login, and restricts the Windows Firewall rule to the BBS computer. It does not modify RaceManager tables or race data.
 
-Install Microsoft ODBC Driver 18 for SQL Server (64-bit), then download and install the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest). Python and all Python packages are included; setup performs no downloads.
+Install Microsoft ODBC Driver 18 for SQL Server (64-bit), then install `BMX-Broadcast-Suite-Setup-v1.2.13.msi`. Python and all Python packages are included; setup performs no downloads.
 
 After setup, open BMX Broadcast Suite from the desktop or Start Menu, choose Configuration, and enter the RaceManager PC's LAN address, discovered SQL port, `RACE` database, and dedicated read-only credentials. Leave the SQL instance blank when using a TCP port; BBS gives a named instance precedence over the port. Verify the result at `http://127.0.0.1:8000/diagnostics`.
 

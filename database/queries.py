@@ -105,6 +105,8 @@ SELECT
     rr.First_Name AS first_name,
     rr.Last_Name AS last_name,
     {nickname_expression} AS nickname,
+    rr.Age_Race AS age,
+    rr.Home_Track AS home_track,
     rr.Proficiency_Code_Act AS proficiency,
     rr.Sponsor AS sponsor
 FROM MB.Age_Classes AS ac

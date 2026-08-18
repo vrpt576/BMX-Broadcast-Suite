@@ -45,6 +45,8 @@ def rider_row(moto_number: int, rider_order: int, finish_1=None):
         "first_name": "Rider",
         "last_name": str(rider_order),
         "nickname": None,
+        "age": 7,
+        "home_track": "Bend BMX",
         "proficiency": "I",
         "sponsor": None,
     }
@@ -85,3 +87,11 @@ def test_uses_nickname_when_column_is_available():
     service.list_motos(uuid4())
     service.list_motos(uuid4())
     assert all("rr.Nickname AS nickname" in query for query in database.queries)
+
+
+def test_query_maps_verified_rider_metadata_fields():
+    database = FakeDatabase([rider_row(1, 1)])
+    MotoboardService(database).list_motos(uuid4())
+
+    assert "rr.Age_Race AS age" in database.queries[0]
+    assert "rr.Home_Track AS home_track" in database.queries[0]

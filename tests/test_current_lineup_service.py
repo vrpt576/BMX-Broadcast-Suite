@@ -13,7 +13,7 @@ class UnusedService:
         raise AssertionError("demo mode should not query RaceManager")
 
 
-def test_demo_lineup_uses_verified_historic_data(tmp_path: Path) -> None:
+def test_demo_lineup_uses_coherent_fictional_data(tmp_path: Path) -> None:
     current = CurrentMotoService(tmp_path / "current.json")
     service = CurrentLineupService(current, UnusedService(), UnusedService())
 
@@ -21,8 +21,10 @@ def test_demo_lineup_uses_verified_historic_data(tmp_path: Path) -> None:
 
     assert lineup.class_name == "7 Intermediate"
     assert [rider.gate for rider in lineup.riders] == [2, 4, 6, 8]
-    assert [rider.bike_number for rider in lineup.riders] == [93, 85, 72, 4]
-    assert lineup.riders[0].first_name == "Dylan"
+    assert [rider.bike_number for rider in lineup.riders] == [17, 28, 46, 73]
+    assert [rider.age for rider in lineup.riders] == [7, 7, 7, 7]
+    assert all(rider.home_track for rider in lineup.riders)
+    assert lineup.riders[0].first_name == "Nova"
     assert lineup.source == "demo"
 
 
@@ -34,8 +36,8 @@ def test_round_two_selects_lane_two(tmp_path: Path) -> None:
 
     lineup = CurrentLineupService._build(current.get(), demo, source="test")
 
-    dylan = next(rider for rider in lineup.riders if rider.last_name == "Allen")
-    assert dylan.gate == 7
+    nova = next(rider for rider in lineup.riders if rider.last_name == "Archer")
+    assert nova.gate == 7
 
 
 def test_elimination_round_falls_back_to_available_gate(tmp_path: Path) -> None:
@@ -45,3 +47,15 @@ def test_elimination_round_falls_back_to_available_gate(tmp_path: Path) -> None:
     lineup = CurrentLineupService._build(current.get(), DEMO_MOTO, source="test")
 
     assert [rider.gate for rider in lineup.riders] == [2, 4, 6, 8]
+
+
+def test_lineup_maps_verified_age_and_home_track(tmp_path: Path) -> None:
+    current = CurrentMotoService(tmp_path / "current.json")
+    demo = DEMO_MOTO.model_copy(deep=True)
+    demo.riders[0].age = 7
+    demo.riders[0].home_track = "Bend BMX"
+
+    lineup = CurrentLineupService._build(current.get(), demo, source="test")
+
+    assert lineup.riders[0].age == 7
+    assert lineup.riders[0].home_track == "Bend BMX"

@@ -54,6 +54,7 @@ app.include_router(broadcast_ws.router)
 # Human-facing pages live outside /api.
 app.add_api_route("/logs", logs.logs_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/configuration", configuration.configuration_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
+app.add_api_route("/themes", themes.themes_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/diagnostics", diagnostics.diagnostics_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/director", director.race_director_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/controller", current.controller_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)

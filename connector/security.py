@@ -15,6 +15,7 @@ ADMIN_API_PREFIXES = (
     "/api/configuration",
     "/api/diagnostics",
     "/api/logs",
+    "/api/themes",
 )
 
 
