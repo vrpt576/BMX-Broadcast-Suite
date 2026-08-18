@@ -4,7 +4,51 @@
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
-BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, historical event selection, and background operation with desktop/system-tray controls on Ubuntu and Windows.
+BMX Broadcast Suite (BBS) turns live USA BMX RaceManager data into practical broadcast controls and OBS graphics. It reads the SQL Server `RACE` database without modifying RaceManager tables or race data, gives the producer a browser-based Race Director, and supplies transparent Browser Source overlays for OBS Studio.
+
+[Download the latest Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) or use the [documentation index](docs/README.md) for Windows and Linux setup.
+
+Most tracks run RaceManager on a Windows PC or server and run BBS with OBS on a separate broadcast computer on the same trusted LAN. BBS can also run directly on the RaceManager computer. In either layout, never expose the SQL Server port to the public Internet.
+
+```mermaid
+flowchart LR
+    RM["USA BMX RaceManager<br/>SQL Server Express"] -->|read-only SQL connection| BBS["BMX Broadcast Suite"]
+    BBS --> Director["Race Director"]
+    BBS --> OBS["OBS Browser Sources"]
+```
+
+## What it looks like
+
+### Overlay
+
+<img src="docs/images/live-overlay-example.png" alt="BBS Overlay example showing lineup with redacted names" width="760">
+
+<img src="docs/images/live-overlay-example-break.png" alt="BBS Overlay example showing main break overlay" width="760">
+
+<img src="docs/images/live-overlay-example-results-roll.png" alt="BBS Overlay example showing results overlay" width="760">
+
+### Race Director
+
+<img src="docs/images/race-director-v1.2.12.png" alt="BBS Race Director showing event selection, moto and round navigation, graphics controls, and a sanitized lineup preview" width="760">
+
+Race Director keeps event selection, round and moto navigation, class context, on-air graphics, results playback, and a sanitized lineup preview on one production screen.
+
+### Windows tray controls
+
+<img src="docs/images/windows-tray-v1.2.12.png" alt="BBS Windows tray menu showing service and RaceManager status with quick links and service controls" width="480">
+
+The Windows tray menu shows service, database, moto, and class status and provides quick links to Race Director, Configuration, Diagnostics, and logs without leaving a console window open.
+
+## First-time setup
+
+1. [Prepare the USA BMX RaceManager PC for BBS](docs/racemanager-pc-setup.md), including TCP/IP, a dedicated read-only login, and a restricted firewall rule when BBS runs on another computer.
+2. Install Microsoft ODBC Driver 18 for SQL Server and the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) on the BBS/OBS computer.
+3. Open **Configuration** and enter the SQL host, discovered TCP port, `RACE` database, and dedicated read-only credentials.
+4. Open **Diagnostics** and confirm that the driver, SQL connection, database, and current event checks pass.
+5. Open **Race Director**, select the live or historical event, and confirm the moto, round, and class.
+6. Add the [overlay URLs](docs/browser-sources.md) to OBS as Browser Sources.
+
+For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
 ## Current status — v1.2.13
 
@@ -27,9 +71,7 @@ Validated RaceManager behavior in this release:
 - `X` finish values are transfer-to-main markers, not numeric placements.
 - Transfer/LST and Total Points are scoring methods, not Director rounds.
 - The Main program can interleave Transfer Main events and final Total Points motos in physical gate-drop order.
-- Director stores an optional Main-program start per event when RaceManager
-  does not expose a reliable event-wide boundary; automatic Transfer evidence
-  is advisory only.
+- Director stores an optional Main-program start per event when RaceManager does not expose a reliable event-wide boundary; automatic Transfer evidence is advisory only.
 - Total Points results use the accumulated official classification while the Director remains in **Main**.
 - Quarterfinal and semifinal controls are shown only when a future validated mapping proves those stages exist in the selected RaceManager data.
 
@@ -54,15 +96,13 @@ Validated RaceManager behavior in this release:
 
 - Actual quarterfinal and semifinal storage has not yet been validated against a sufficiently large historical RaceManager class, so BBS does not invent those mappings.
 - Transfer versus Total Points finalization is inferred from structural evidence and can be overridden per event without creating another navigation phase.
-- Total Points Round-3-versus-Main placement requires an explicit event boundary
-  when RaceManager does not provide one; Director shows a low-confidence
-  suggestion and lets the operator save or reset the event-scoped value.
+- Total Points Round-3-versus-Main placement requires an explicit event boundary when RaceManager does not provide one; Director shows a low-confidence suggestion and lets the operator save or reset the event-scoped value.
 - Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated.
 - Themes are edited as JSON files; a visual theme editor is planned.
 
-## Quick start
+## Quick reference
 
-Use the [documentation index](docs/README.md) for installation and setup. On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows MSI Installer](docs/wizard-installer-windows.md), and [Windows Service and Tray](docs/service-windows.md). See [RaceManager Round Model](docs/racemanager-round-model.md) for the v1.2.8 architecture.
+On Ubuntu, begin with [Linux Installation](docs/installation-linux.md) and [Linux Service and Tray](docs/service-linux.md). On Windows, use [Windows Installation](docs/installation-windows.md), the [Windows MSI Installer](docs/wizard-installer-windows.md), and [Windows Service and Tray](docs/service-windows.md). See [RaceManager Round Model](docs/racemanager-round-model.md) for the round-aware architecture.
 
 Common pages:
 

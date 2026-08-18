@@ -1,5 +1,6 @@
 # BBS Documentation
 
+- [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md)
 - [Windows Installation](installation-windows.md)
 - [Windows MSI Installer](wizard-installer-windows.md)
 - [Windows installer security and antivirus policy](windows-installer-security.md)
@@ -18,6 +19,5 @@
 - [Keyboard Shortcuts](keyboard-shortcuts.md)
 - [Upgrading](upgrading.md)
 - [Backup and Restore](backup-and-restore.md)
-
 - [Linux background service and tray icon](service-linux.md)
 - [Windows background operation and tray icon](service-windows.md)
