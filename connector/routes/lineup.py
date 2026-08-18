@@ -14,7 +14,7 @@ router = APIRouter(tags=["lineup"])
 
 @router.get("/lineup/current", response_model=CurrentLineup)
 def current_lineup(
-    demo: bool = Query(False, description="Use bundled 2026-07-23 sample data."),
+    demo: bool = Query(False, description="Use bundled fictional 7 Intermediate sample data."),
     motoboard_id: UUID | None = Query(None),
     service: CurrentLineupService = Depends(get_current_lineup_service),
 ) -> CurrentLineup:
@@ -44,12 +44,13 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
     .columns { display:grid; grid-template-columns:78px 150px 1fr; align-items:center; min-height:34px; background:var(--panel-alt); color:var(--muted-text); font-size:15px; font-weight:900; letter-spacing:.08em; text-transform:var(--text-transform); border-bottom:1px solid var(--divider); }
     .columns div { padding:0 .7em; }
     .columns .lane-label, .columns .plate-label { text-align:center; }
-    .rider { display: grid; background:var(--row-odd); grid-template-columns: 78px 150px 1fr; align-items: center; min-height: 58px; border-bottom: 1px solid var(--divider); }
+    .rider { display: grid; background:var(--row-odd); grid-template-columns: 78px 150px 1fr; align-items: center; min-height: 64px; border-bottom: 1px solid var(--divider); }
     .rider:nth-child(even) { background:var(--row-even); }
     .rider:last-child { border-bottom: 0; }
     .gate { align-self: stretch; display: grid; place-items: center; background: var(--gate); color: var(--gate-text); font-size: 32px; font-weight: 950; }
     .bike { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: center; }
     .name { padding: .3em .8em .3em .2em; font-size: 28px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; }
+    .rider-meta { margin-top:.12em; color:var(--muted-text); font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:none; }
     .empty { padding: 1.2em; font-size: 24px; font-weight: 700; }
     .offline { display: none; background: var(--warning); color: var(--warning-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
   </style>
@@ -79,6 +80,14 @@ const endpoint = `/api/lineup/current${demo ? '?demo=true' : ''}`;
 const graphic = document.querySelector('#graphic');
 const offline = document.querySelector('#offline');
 const ridersBox = document.querySelector('#riders');
+
+function metadataText(rider) {
+  const values=[];
+  if (Number.isInteger(rider.age)) values.push(`Age ${rider.age}`);
+  const track=(rider.home_track||'').trim();
+  if (track) values.push(track);
+  return values.join(' · ');
+}
 
 
 async function applyTheme() {
@@ -115,7 +124,8 @@ async function applyTheme() {
 }
 
 function render(state) {
-  document.querySelector('#round').textContent = (state.phase_label || phaseLabels[state.race_phase] || state.race_phase).toUpperCase();
+  const phase = (state.phase_label || phaseLabels[state.race_phase] || state.race_phase).toUpperCase();
+  document.querySelector('#round').textContent = demo ? `DEMO DATA - ${phase}` : phase;
   document.querySelector('#class').textContent = (state.class_name || 'CLASS NOT SET').toUpperCase();
   document.querySelector('#moto').textContent = `MOTO ${state.moto_number}`;
   ridersBox.replaceChildren();
@@ -130,7 +140,11 @@ function render(state) {
     const gate = document.createElement('div'); gate.className = 'gate'; gate.textContent = rider.gate ?? '—';
     const bike = document.createElement('div'); bike.className = 'bike'; bike.textContent = rider.bike_number ?? '—';
     const name = document.createElement('div'); name.className = 'name';
-    name.textContent = `${rider.first_name} ${rider.nickname ? `“${rider.nickname}” ` : ''}${rider.last_name}`;
+    const primary = document.createElement('div');
+    primary.textContent = `${rider.first_name} ${rider.nickname ? `“${rider.nickname}” ` : ''}${rider.last_name}`;
+    name.append(primary);
+    const metadata = metadataText(rider);
+    if (metadata) { const subtitle=document.createElement('div'); subtitle.className='rider-meta'; subtitle.textContent=metadata; name.append(subtitle); }
     row.append(gate, bike, name); ridersBox.append(row);
   }
   graphic.style.display = '';

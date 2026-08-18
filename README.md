@@ -1,14 +1,23 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.12-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.13-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
 BMX Broadcast Suite (BBS) connects USABMX RaceManager data to OBS Studio for live race graphics. It provides a read-only FastAPI connector, a race-director controller, browser-source overlays, configurable track themes, diagnostics, resilient last-known data, historical event selection, and background operation with desktop/system-tray controls on Ubuntu and Windows.
 
-## Current status — v1.2.12
+## Current status — v1.2.13
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.12 retains the Total Points Main-program model, combined-moto navigation, hardened local administration, offline WiX MSI, and native Windows service from v1.2.11 while fixing the Director's Jump to moto field so polling cannot overwrite pending operator input.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.13 adds racing-age and home-track subtitles to rider graphics plus an operator-friendly theme manager, while retaining the hardened local administration and Windows service model from v1.2.12.
+
+### Rider subtitle data
+
+Rider age is the racing age stored by RaceManager in
+`MB.Race_Riders.Age_Race`; BBS does not derive it from the displayed class
+name. A class may combine an age range, so its label can legitimately differ
+from an individual rider's racing age. Home track is displayed exactly as
+stored in the event's `MB.Race_Riders.Home_Track` field. If either value is
+missing, its part of the subtitle is omitted cleanly.
 
 Validated RaceManager behavior in this release:
 

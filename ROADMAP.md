@@ -1,6 +1,6 @@
 # BMX Broadcast Suite Roadmap
 
-This roadmap reflects the project status as of v1.2.12. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
+This roadmap reflects the project status as of v1.2.13. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
 
 ## Shipped
 
@@ -38,7 +38,7 @@ This roadmap reflects the project status as of v1.2.12. Priorities may move as m
 - Add advancement and bracket-oriented APIs once the source data is understood
 
 ### Theme and overlay polish
-- Visual theme editor with live preview and color pickers
+- Expand the visual theme editor with live preview and color pickers
 - Logo/image placement controls and safe-area guides
 - Layout, spacing, font-size, and animation options
 - Additional bundled theme examples and accessibility/contrast checks

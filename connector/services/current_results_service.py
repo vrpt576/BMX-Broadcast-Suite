@@ -65,7 +65,7 @@ class CurrentResultsService:
                     phase_label="Main",
                     round_index=lineup.round_index or 1,
                     motoboard_id=None,
-                    event_name="Demo Event",
+                    event_name="DEMO DATA - BBS Showcase",
                     source="demo",
                 )
             else:
@@ -277,6 +277,8 @@ class CurrentResultsService:
                     bike_number=rider.bike_number,
                     first_name=rider.first_name,
                     last_name=rider.last_name,
+                    age=rider.age,
+                    home_track=rider.home_track,
                 )
             )
         riders.sort(

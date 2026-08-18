@@ -26,6 +26,11 @@ def test_demo_results_are_sorted_by_finish(tmp_path: Path) -> None:
     assert [rider.finish for rider in result.riders] == [1, 2, 3, 4]
     assert result.race_phase == RacePhase.MAIN
     assert result.result_status == "official"
+    assert result.event_name == "DEMO DATA - BBS Showcase"
+    assert { (rider.bike_number, rider.age, rider.home_track) for rider in result.riders } == {
+        (rider.bike_number, rider.age, rider.home_track)
+        for rider in lineups.get(demo=True).riders
+    }
 
 
 def _moto(
