@@ -11,12 +11,12 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from database.racemanager import RaceManagerDatabaseError
 
 from connector.config import get_settings
+from connector.dependencies import get_results_roll_service
 from connector.security import evaluate_http_access
 from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, status as status_route, themes
+from connector.services.logging_service import configure_logging
 
 settings = get_settings()
-from connector.services.logging_service import configure_logging
-from connector.dependencies import get_results_roll_service
 configure_logging(settings.log_level, settings.log_dir, settings.log_retention_days)
 logger = logging.getLogger(__name__)
 

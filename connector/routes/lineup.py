@@ -3,7 +3,6 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import HTMLResponse
 
 from connector.dependencies import get_current_lineup_service
 from connector.models import CurrentLineup
