@@ -98,7 +98,7 @@ Validated RaceManager behavior in this release:
 - Transfer versus Total Points finalization is inferred from structural evidence and can be overridden per event without creating another navigation phase.
 - Total Points Round-3-versus-Main placement requires an explicit event boundary when RaceManager does not provide one; Director shows a low-confidence suggestion and lets the operator save or reset the event-scoped value.
 - Timing gate, ProStart, rider photos, rankings, and automatic graphic sequencing are not yet integrated.
-- Themes are edited as JSON files; a visual theme editor is planned.
+- The in-app Theme Manager (`/themes`) covers supported colors and typography; new color keys or layout changes still require editing `theme.json` directly.
 
 ## Quick reference
 
@@ -149,7 +149,7 @@ Select a theme with `?theme=default` or set `BBS_DEFAULT_THEME`. Theme packages 
 
 ## Roadmap
 
-The near-term race-data priority is validating genuine quarterfinal and semifinal structures from a class large enough to generate them. Other priorities include a visual theme editor, automatic graphic sequencing, timing/ProStart integration, rider media, rankings, and multi-track deployment. See [ROADMAP.md](ROADMAP.md).
+The near-term race-data priority is validating genuine quarterfinal and semifinal structures from a class large enough to generate them. Other priorities include expanding the Theme Manager with live preview and color pickers, automatic graphic sequencing, timing/ProStart integration, rider media, rankings, and multi-track deployment. See [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

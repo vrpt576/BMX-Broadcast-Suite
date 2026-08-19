@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.13 - Unreleased
+## 1.2.13 - 2026-08-18
 
 - Added optional RaceManager racing age and home-track subtitles to lineup and
   results graphics, omitting absent values cleanly.
