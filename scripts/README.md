@@ -4,7 +4,7 @@ Windows end users install the WiX MSI. It owns the `BMXBroadcastSuite` service, 
 
 ```powershell
 .\scripts\build-windows-installer.ps1 -CertificateThumbprint YOUR_SHA1_THUMBPRINT
-.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.13.msi
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.14.msi
 ```
 
 `-Unsigned` is only for local packaging validation. The installer build and install are offline and never alter PowerShell execution policy. Source developers can use `install-windows.ps1`, `start-windows.ps1`, and `start-tray-windows.ps1` directly.

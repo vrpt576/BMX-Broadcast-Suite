@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.14 - 2026-08-19
+
+- Pooled RaceManager SQL connections instead of opening and closing a new
+  connection for every query, reducing per-request latency for Director
+  polling and the overlay/lineup/results endpoints.
+- Replaced the deprecated FastAPI `on_event` startup/shutdown hooks with a
+  `lifespan` context manager; no behavior change.
+- Added CI (ruff and pytest on every push and pull request against main).
+- Documented the `/themes` Theme Manager workflow and removed stale
+  "visual theme editor is planned" language now that it has shipped.
+
 ## 1.2.13 - 2026-08-18
 
 - Added optional RaceManager racing age and home-track subtitles to lineup and

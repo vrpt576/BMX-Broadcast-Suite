@@ -45,7 +45,7 @@ class BBSTray:
         self.indicator.set_title("BMX Broadcast Suite")
 
         self.menu = Gtk.Menu()
-        self.header = self._item("BMX Broadcast Suite 1.2.13", sensitive=False)
+        self.header = self._item("BMX Broadcast Suite 1.2.14", sensitive=False)
         self.status_items = [self._item("Checking status…", sensitive=False) for _ in range(3)]
         self.menu.append(Gtk.SeparatorMenuItem())
 
@@ -111,7 +111,7 @@ class BBSTray:
         self.start_item.set_sensitive(not running)
         self.stop_item.set_sensitive(running)
         self.restart_item.set_sensitive(running)
-        self.header.set_label(f"BMX Broadcast Suite {status.version or '1.2.13'}")
+        self.header.set_label(f"BMX Broadcast Suite {status.version or '1.2.14'}")
         return True
 
 

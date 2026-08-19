@@ -12,7 +12,7 @@ def test_msi_release_version_and_upgrade_identity():
     builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
     product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
 
-    assert '$Version = "1.2.13"' in builder
+    assert '$Version = "1.2.14"' in builder
     assert 'Version="$(var.ProductVersion)"' in product
     assert f'UpgradeCode="{UPGRADE_CODE}"' in product
     assert "MajorUpgrade" in product
