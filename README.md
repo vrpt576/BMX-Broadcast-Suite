@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.13-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.14-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -50,9 +50,9 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.13
+## Current status — v1.2.14
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.13 adds racing-age and home-track subtitles to rider graphics plus an operator-friendly theme manager, while retaining the hardened local administration and Windows service model from v1.2.12.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.14 is a maintenance release: it pools RaceManager SQL connections instead of reconnecting for every query, adds CI (ruff and pytest on every push/PR), and moves the FastAPI startup/shutdown lifecycle off a deprecated API, while retaining the racing-age/home-track subtitles and in-app Theme Manager from v1.2.13.
 
 ### Rider subtitle data
 

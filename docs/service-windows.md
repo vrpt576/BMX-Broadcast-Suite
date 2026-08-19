@@ -1,6 +1,6 @@
 # Windows Service and Tray
 
-The v1.2.13 MSI installs an automatic Windows service named `BMXBroadcastSuite`. It uses the MSI's private Python runtime and WinSW 2.12.0; no console window, script launcher, or Scheduled Task is involved.
+The v1.2.14 MSI installs an automatic Windows service named `BMXBroadcastSuite`. It uses the MSI's private Python runtime and WinSW 2.12.0; no console window, script launcher, or Scheduled Task is involved.
 
 ```powershell
 Get-Service BMXBroadcastSuite
