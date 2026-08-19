@@ -2,6 +2,7 @@
 
 import logging
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,10 +20,20 @@ from connector.dependencies import get_results_roll_service
 configure_logging(settings.log_level, settings.log_dir, settings.log_retention_days)
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_results_roll_service().start_worker()
+    logger.info("BBS %s starting for %s on %s:%s", settings.app_version, settings.track_name, settings.app_host, settings.app_port)
+    yield
+    get_results_roll_service().shutdown()
+
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="Read-only JSON API for USABMX RaceManager broadcast data.",
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -94,16 +105,6 @@ async def request_logging(request: Request, call_next):
         logger.info("%s %s -> %s (%.1f ms)", request.method, request.url.path, response.status_code, elapsed_ms)
     return response
 
-
-@app.on_event("startup")
-def log_startup() -> None:
-    get_results_roll_service().start_worker()
-    logger.info("BBS %s starting for %s on %s:%s", settings.app_version, settings.track_name, settings.app_host, settings.app_port)
-
-
-@app.on_event("shutdown")
-def stop_background_services() -> None:
-    get_results_roll_service().shutdown()
 
 @app.exception_handler(RaceManagerDatabaseError)
 def database_error_handler(
