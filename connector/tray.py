@@ -25,7 +25,7 @@ except (ImportError, ValueError) as exc:  # pragma: no cover - depends on deskto
         "gir1.2-ayatanaappindicator3-0.1."
     ) from exc
 
-from connector.service_status import ServiceStatus, read_status, status_lines
+from connector.service_status import read_status, status_lines
 
 UNIT = "bbs-connector.service"
 ROOT = Path(__file__).resolve().parents[1]

@@ -2,6 +2,21 @@
 
 BBS themes are JSON packages stored in `themes/<slug>/theme.json`. A theme can override only the values it needs; missing values inherit from the default theme. No Python changes are required for a new track color scheme.
 
+## Theme Manager (`/themes`)
+
+For the supported colors and typography below, the in-app Theme Manager at `http://localhost:8000/themes` is the easiest way to edit a theme — no file access or JSON editing required. It covers:
+
+- Listing every installed theme and selecting the active one (writes `BBS_DEFAULT_THEME` via the Configuration API, equivalent to setting it in `.env`).
+- Editing the supported color and typography fields with validation — an unsupported key is rejected rather than silently ignored.
+- Restoring a theme's supported settings back to BBS defaults.
+- Preserving any custom or legacy JSON properties the current editor doesn't expose, so hand-edited `theme.json` files are never silently stripped.
+
+The bundled `default` theme is protected: it can be viewed and selected from the Theme Manager, but not overwritten. Create or copy a custom theme (see below) before saving changes.
+
+Remote theme administration follows the same admin-token boundary as the rest of remote configuration (`BBS_REMOTE_ADMIN_ENABLED` / `BBS_ADMIN_TOKEN`) — see [Configuration](configuration.md) for the network/security model.
+
+For anything the Theme Manager doesn't yet expose — new color keys, layout, fonts beyond family/transform — edit `theme.json` directly using the reference below; the UI will preserve those additions.
+
 ## Select a theme
 
 Set the installation default in `.env`:

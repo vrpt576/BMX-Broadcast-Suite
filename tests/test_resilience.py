@@ -5,7 +5,8 @@ from connector.services.current_moto_service import CurrentMotoService
 
 class BrokenEvents:
     def current(self): raise RuntimeError('offline')
-class BrokenMotos: pass
+class BrokenMotos:
+    pass
 
 
 def test_last_known_good_is_returned_when_database_fails(tmp_path: Path):

@@ -1,4 +1,3 @@
-from pathlib import Path
 from connector.config import Settings
 from connector.services.configuration_service import ConfigurationService
 

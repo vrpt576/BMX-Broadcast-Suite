@@ -1,7 +1,6 @@
 """Manual current-moto controls and operator/overlay pages."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse
 from uuid import UUID
 
 from connector.dependencies import (
