@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import queue
+import threading
 from contextlib import contextmanager
 from typing import Any, Iterator, Mapping, Sequence
 
@@ -16,19 +18,33 @@ class RaceManagerDatabaseError(RuntimeError):
 
 
 class RaceManagerDatabase:
+    """Read-only RaceManager client backed by a small, reusable connection pool.
+
+    Director status polling and independent overlay/lineup/results endpoints
+    each query RaceManager on their own cadence, often over a WAN/Tailscale
+    link. Opening and closing a new SQL connection per query added a full
+    TCP handshake and SQL login to every call. Connections are now pooled and
+    reused; a connection is only discarded and reconnected if it raised
+    during use.
+    """
+
     def __init__(
         self,
         connection_string: str,
         *,
         connect_timeout: int = 2,
         query_timeout: int = 5,
+        pool_size: int = 4,
     ) -> None:
         self.connection_string = connection_string
         self.connect_timeout = connect_timeout
         self.query_timeout = query_timeout
+        self.pool_size = pool_size
+        self._pool: queue.LifoQueue[Any] = queue.LifoQueue(maxsize=pool_size)
+        self._created = 0
+        self._lock = threading.Lock()
 
-    @contextmanager
-    def connection(self) -> Iterator[Any]:
+    def _connect(self) -> Any:
         if pyodbc is None:
             raise RaceManagerDatabaseError(
                 "pyodbc is not installed. Install connector requirements and an "
@@ -46,11 +62,56 @@ class RaceManagerDatabase:
                 connection.timeout = self.query_timeout
         except pyodbc.Error as exc:
             raise RaceManagerDatabaseError(f"SQL Server connection failed: {exc}") from exc
+        return connection
 
+    def _acquire(self) -> Any:
+        try:
+            return self._pool.get_nowait()
+        except queue.Empty:
+            pass
+        with self._lock:
+            if self._created < self.pool_size:
+                self._created += 1
+                connect_now = True
+            else:
+                connect_now = False
+        if connect_now:
+            try:
+                return self._connect()
+            except Exception:
+                with self._lock:
+                    self._created -= 1
+                raise
+        # Pool is fully checked out; wait for a connection to be released.
+        return self._pool.get()
+
+    def _release(self, connection: Any, *, healthy: bool) -> None:
+        if not healthy:
+            try:
+                connection.close()
+            except Exception:
+                pass
+            with self._lock:
+                self._created -= 1
+            return
+        try:
+            self._pool.put_nowait(connection)
+        except queue.Full:  # pragma: no cover - defensive, pool sizing guarantees room
+            connection.close()
+            with self._lock:
+                self._created -= 1
+
+    @contextmanager
+    def connection(self) -> Iterator[Any]:
+        connection = self._acquire()
+        healthy = True
         try:
             yield connection
+        except Exception:
+            healthy = False
+            raise
         finally:
-            connection.close()
+            self._release(connection, healthy=healthy)
 
     def fetch_all(
         self, query: str, params: Sequence[Any] | None = None
