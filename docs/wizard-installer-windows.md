@@ -1,6 +1,6 @@
 # Windows MSI Installer
 
-BBS 1.2.15 uses `BMX-Broadcast-Suite-Setup-v1.2.15.msi`, built by WiX Toolset v4. It retains the native MSI and Windows-service architecture introduced in v1.2.11.
+BBS 1.2.16 uses `BMX-Broadcast-Suite-Setup-v1.2.16.msi`, built by WiX Toolset v4. It retains the native MSI and Windows-service architecture introduced in v1.2.11.
 
 The MSI contains an offline Python 3.12.10 runtime and hash-locked wheels. It does not run VBScript or PowerShell, change execution policy, download packages, or create a Scheduled Task. Windows Installer owns Apps & Features, files, shortcuts, upgrades, and uninstall. WinSW 2.12.0, pinned to the official release SHA-256, hosts the automatic `BMXBroadcastSuite` service.
 
@@ -19,7 +19,7 @@ same build is idempotent and does not rewrite the file.
 Use **Settings → Apps → Installed apps**. Operator data remains in ProgramData. To explicitly purge that data:
 
 ```powershell
-msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.2.15.msi PURGEUSERDATA=1
+msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.2.16.msi PURGEUSERDATA=1
 ```
 
 Normal uninstall stops and removes only the `BMXBroadcastSuite` service, then
@@ -41,7 +41,7 @@ The build is offline and validates every pinned artifact:
 For local testing only, use `-Unsigned`. Before publication, sign the MSI and scan the exact final file with current Defender definitions:
 
 ```powershell
-.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.15.msi
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.2.16.msi
 ```
 
 If Defender detects it, do not upload it; submit that exact artifact to Microsoft Security Intelligence. Outputs include the MSI, SHA-256 file, manifest, and CycloneDX SBOM.
