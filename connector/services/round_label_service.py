@@ -1,12 +1,13 @@
-"""Round/phase display labels sourced from RaceManager's own Ref.Rounds table.
+"""Bracket-round display labels sourced from RaceManager's own Ref.Rounds table.
 
-RaceManager has no "Round 1/2/3" concept anywhere in its data model. Ref.Rounds
-is a small static reference table naming every round RaceManager actually
-produces: Round_Type_ID 123 ("Moto", Round_Type 'H') covers the whole
-qualifying phase regardless of how many motos a class runs, and the
-bracket-advancement rounds (Main, Semi, Qtr, LCQ, 8th, 16th, 32nd) each get
-their own Round_Type_ID. This module reads that table instead of inferring a
-label from which Lane_N/Finish_N columns happen to be populated.
+BBS's qualifying motos are intentionally displayed as "Round 1"/"Round 2"
+(not RaceManager's internal "Moto" terminology) -- that wording is set in
+motoboard_service.py/race_slot_service.py and is not resolved here. This
+resolver covers the bracket-advancement rounds that come after qualifying
+(Main, Semi, Qtr, LCQ, 8th, 16th, 32nd), reading their names from Ref.Rounds
+instead of hardcoding them, so they stay correct if RaceManager's own naming
+ever changes and so Quarter/Semi/LCQ resolve correctly the first time a real
+bracket round occurs.
 """
 
 from __future__ import annotations
@@ -105,17 +106,3 @@ class RoundLabelResolver:
 
     def round_name(self, round_type_id: int) -> str:
         return self.resolve(round_type_id).name
-
-    def is_moto(self, round_type_id: int) -> bool:
-        return round_type_id == MOTO_ROUND_TYPE_ID
-
-    def moto_label(self, moto_index: int, total_motos: int | None = None) -> str:
-        """Label for one qualifying moto, e.g. "Moto 2" or "Moto 2 of 3".
-
-        Never returns a "Round N" style label -- RaceManager only ever calls
-        this phase "Moto" (Ref.Rounds Round_DBID 123), regardless of how many
-        physical motos a class runs.
-        """
-        if total_motos:
-            return f"Moto {moto_index} of {total_motos}"
-        return f"Moto {moto_index}"

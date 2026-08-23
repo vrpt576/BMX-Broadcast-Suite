@@ -21,10 +21,10 @@ from connector.services.phase_classification_service import (
 )
 
 
-ROUND_PHASE_INDEX = {
-    RacePhase.ROUND_1: 1,
-    RacePhase.ROUND_2: 2,
-    RacePhase.ROUND_3: 3,
+ROUND_PHASES = {
+    RacePhase.ROUND_1: (1, "Round 1"),
+    RacePhase.ROUND_2: (2, "Round 2"),
+    RacePhase.ROUND_3: (3, "Main"),
 }
 
 
@@ -90,9 +90,8 @@ class RaceSlotService:
                 and final.moto_number >= main_boundary.start_moto
             )
 
-            if phase in ROUND_PHASE_INDEX:
-                round_index = ROUND_PHASE_INDEX[phase]
-                label = self.motoboards.round_labels.moto_label(round_index)
+            if phase in ROUND_PHASES:
+                round_index, label = ROUND_PHASES[phase]
                 if round_index == 3 and decision.scoring_method == ScoringMethod.TOTAL_POINTS:
                     if total_points_in_main or final is None:
                         continue
@@ -108,7 +107,7 @@ class RaceSlotService:
                     stage = MotoboardService._stage(
                         third_moto,
                         phase=RacePhase.ROUND_3,
-                        label=self.motoboards.round_labels.moto_label(3),
+                        label=label,
                         kind=CompetitionStage.TOTAL_POINTS_FINAL_MOTO.value,
                         round_index=third_index,
                         competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,

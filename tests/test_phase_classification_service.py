@@ -98,7 +98,7 @@ def test_total_points_third_moto_stays_round_three_without_main_block_evidence()
     ]
     stage = program.stages[-1]
     assert stage.phase == RacePhase.ROUND_3
-    assert stage.label == "Moto 3"
+    assert stage.label == "Main"
     assert stage.competition_stage == CompetitionStage.TOTAL_POINTS_FINAL_MOTO
     assert stage.scoring_method == ScoringMethod.TOTAL_POINTS
     assert stage.finalization_method == FinalizationMethod.ACCUMULATED_POINTS

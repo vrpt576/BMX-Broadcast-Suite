@@ -285,12 +285,11 @@ class MotoboardService:
 
         stages: list[RaceStage] = []
         if selected_qualifier is not None:
-            for index, phase in (
-                (1, RacePhase.ROUND_1),
-                (2, RacePhase.ROUND_2),
-                (3, RacePhase.ROUND_3),
+            for index, phase, label in (
+                (1, RacePhase.ROUND_1, "Round 1"),
+                (2, RacePhase.ROUND_2, "Round 2"),
+                (3, RacePhase.ROUND_3, "Round 3"),
             ):
-                label = self.round_labels.moto_label(index)
                 if index == 3 and decision.scoring_method == ScoringMethod.TOTAL_POINTS:
                     # The physical Total Points final is added below with its
                     # correct Round 3 or Main program segment and official
@@ -338,11 +337,7 @@ class MotoboardService:
                             if total_points_in_main
                             else RacePhase.ROUND_3
                         ),
-                        label=(
-                            self.round_labels.round_name(1)
-                            if total_points_in_main
-                            else self.round_labels.moto_label(3)
-                        ),
+                        label=self.round_labels.round_name(1),
                         kind=CompetitionStage.TOTAL_POINTS_FINAL_MOTO.value,
                         round_index=third_index,
                         competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,
