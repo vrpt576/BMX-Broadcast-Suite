@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Fixed a bug where a custom overlay theme (e.g. a track's saved theme) only
+  rendered on the BBS host itself (`127.0.0.1`) and silently fell back to the
+  bundled default colors for every other client on the LAN, including OBS on
+  another computer. `GET /api/themes` and `GET /api/themes/{slug}` were
+  incorrectly gated behind the remote-admin token, same as theme *edits* —
+  they're now public read-only broadcast data, consistent with
+  lineup/current/results. Only theme save/reset remain admin-gated.
+- Added an "Open Theme Manager" link to the Windows tray flyout menu.
+- Made the tray's Start/Stop/Restart BBS controls confirm the Windows service
+  actually reached the expected state instead of trusting `ShellExecuteW`'s
+  return code, which reports a false success if the UAC prompt is cancelled
+  or `sc.exe` fails once elevated. Restart now waits for a confirmed stop
+  before issuing start (instead of a fixed 1-second delay), and the menu
+  disables these actions while one is already running.
+
 ## 1.2.14 - 2026-08-19
 
 - Pooled RaceManager SQL connections instead of opening and closing a new
