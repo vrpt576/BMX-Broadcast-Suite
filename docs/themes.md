@@ -13,7 +13,7 @@ For the supported colors and typography below, the in-app Theme Manager at `http
 
 The bundled `default` theme is protected: it can be viewed and selected from the Theme Manager, but not overwritten. Create or copy a custom theme (see below) before saving changes.
 
-Remote theme administration follows the same admin-token boundary as the rest of remote configuration (`BBS_REMOTE_ADMIN_ENABLED` / `BBS_ADMIN_TOKEN`) — see [Configuration](configuration.md) for the network/security model.
+Editing themes remotely (saving or restoring defaults through `/themes` from off the BBS host) follows the same admin-token boundary as the rest of remote configuration (`BBS_REMOTE_ADMIN_ENABLED` / `BBS_ADMIN_TOKEN`) — see [Configuration](configuration.md) for the network/security model. *Reading* a theme (`GET /api/themes` and `GET /api/themes/{slug}`) is public read-only broadcast data, not admin-gated — every overlay fetches its active theme's colors client-side from whatever host served the overlay page, so a theme must be readable from any LAN client (an OBS machine, any browser) for LAN-bound overlays to render their configured look instead of silently falling back to the bundled default.
 
 For anything the Theme Manager doesn't yet expose — new color keys, layout, fonts beyond family/transform — edit `theme.json` directly using the reference below; the UI will preserve those additions.
 

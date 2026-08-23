@@ -151,6 +151,32 @@ def test_sensitive_remote_reads_require_admin_token_but_public_theme_config_does
     assert public_theme.allowed is True
 
 
+def test_remote_theme_lookup_is_public_but_theme_mutation_is_not() -> None:
+    """Regression test for the bend-bmx LAN theme bug.
+
+    Overlays fetch `/api/themes/{slug}` client-side from whatever host the
+    overlay page itself was loaded from (see lineup.py's applyTheme()). If a
+    GET there required the admin token like the mutating endpoints do, every
+    non-loopback client — any LAN OBS machine, any browser other than one on
+    the BBS host — would get a 403, silently keep the overlay's bundled
+    default colors, and it would look like the custom theme "only works on
+    127.0.0.1".
+    """
+    settings = Settings(_env_file=None)
+
+    list_themes = decide(settings, path="/api/themes")
+    get_theme = decide(settings, path="/api/themes/bend-bmx")
+    save_theme = decide(settings, method="PUT", path="/api/themes/bend-bmx")
+    reset_theme = decide(settings, method="POST", path="/api/themes/bend-bmx/reset")
+
+    assert list_themes.allowed is True
+    assert get_theme.allowed is True
+    assert save_theme.allowed is False
+    assert save_theme.status_code == 403
+    assert reset_theme.allowed is False
+    assert reset_theme.status_code == 403
+
+
 def test_untrusted_cors_origin_is_not_accepted() -> None:
     settings = Settings(_env_file=None)
     app = FastAPI()

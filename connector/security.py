@@ -15,8 +15,17 @@ ADMIN_API_PREFIXES = (
     "/api/configuration",
     "/api/diagnostics",
     "/api/logs",
-    "/api/themes",
 )
+# Theme *lookups* (GET) are broadcast data: overlays fetch the active theme's
+# colors/typography client-side from whatever host the overlay page was
+# loaded from (see connector/routes/lineup.py's applyTheme()). Gating those
+# reads behind the admin token broke overlays for every non-loopback client
+# (any LAN OBS machine, any browser other than one on the BBS host itself) —
+# the fetch would come back 403, the overlay would silently keep its bundled
+# default colors, and it would look like "the theme only works on
+# 127.0.0.1". Only *mutating* theme requests (save/reset) are treated as
+# admin actions.
+THEME_API_PREFIX = "/api/themes"
 
 
 @dataclass(frozen=True)
@@ -82,6 +91,11 @@ def evaluate_http_access(
         path != "/api/configuration/public"
         and any(path.startswith(prefix) for prefix in ADMIN_API_PREFIXES)
     )
+    # A theme path is admin-gated only when it's mutating (PUT save, POST
+    # reset). GET reads stay public read-only broadcast data, same as
+    # lineup/current/results, so LAN overlays can render the selected theme.
+    if path.startswith(THEME_API_PREFIX) and method not in SAFE_METHODS:
+        admin_path = True
     if method in SAFE_METHODS and not admin_path:
         return AccessDecision(True)
 
