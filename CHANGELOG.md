@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.15 - 2026-08-23
 
 - Fixed a bug where a custom overlay theme (e.g. a track's saved theme) only
   rendered on the BBS host itself (`127.0.0.1`) and silently fell back to the
