@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.14-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.15-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -50,9 +50,9 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.14
+## Current status — v1.2.15
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.14 is a maintenance release: it pools RaceManager SQL connections instead of reconnecting for every query, adds CI (ruff and pytest on every push/PR), and moves the FastAPI startup/shutdown lifecycle off a deprecated API, while retaining the racing-age/home-track subtitles and in-app Theme Manager from v1.2.13.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.15 fixes overlay themes silently falling back to default colors for every LAN client other than the BBS host itself, adds an Open Theme Manager link to the Windows tray menu, and hardens the tray's Start/Stop/Restart controls to confirm the Windows service actually reached the expected state, while retaining the connection pooling and CI from v1.2.14.
 
 ### Rider subtitle data
 
