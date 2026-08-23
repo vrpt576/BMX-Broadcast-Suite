@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.15-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.16-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -50,9 +50,9 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.15
+## Current status — v1.2.16
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.15 fixes overlay themes silently falling back to default colors for every LAN client other than the BBS host itself, adds an Open Theme Manager link to the Windows tray menu, and hardens the tray's Start/Stop/Restart controls to confirm the Windows service actually reached the expected state, while retaining the connection pooling and CI from v1.2.14.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.16 fixes race phase labels showing "Round 1"/"Round 2"/"Round 3" for qualifying motos (most visibly a mislabeled "Round 3" for the third moto of a 3-moto Total Points class) by reading round names from RaceManager's own `Ref.Rounds` table instead of inferring them from which lane/finish columns are populated, while retaining the theme fixes and hardened tray controls from v1.2.15.
 
 ### Rider subtitle data
 

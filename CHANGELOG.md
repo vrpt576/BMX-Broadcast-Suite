@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.16 - 2026-08-23
 
 - Fixed race phase labels showing "Round 1"/"Round 2"/"Round 3" for
   qualifying motos, including a mislabeled "Round 3" for the third moto of a
