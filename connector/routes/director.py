@@ -73,7 +73,7 @@ DIRECTOR_HTML = r'''<!doctype html>
   <p class="sub">One control surface for race position, event selection, and on-air graphics.</p>
   <section class="statusbar">
     <div class="stat"><small>Event</small><strong id="event-stat">Latest / Live</strong></div>
-    <div class="stat"><small>Round</small><strong id="round-stat">Moto 1</strong></div>
+    <div class="stat"><small>Round</small><strong id="round-stat">Round 1</strong></div>
     <div class="stat"><small>Class</small><strong id="class-stat">Class not set</strong></div>
     <div class="stat"><small>Moto</small><strong id="moto-stat">1</strong></div>
     <div class="stat"><small>On Air</small><strong id="graphic-stat">Current Moto</strong></div>
@@ -118,7 +118,7 @@ DIRECTOR_HTML = r'''<!doctype html>
       </div>
       <label>Race round
         <select id="race-phase">
-          <option value="round_1">Moto 1</option><option value="round_2">Moto 2</option>
+          <option value="round_1">Round 1</option><option value="round_2">Round 2</option>
           <option value="round_3">Round 3</option><option value="quarterfinal">Quarterfinals</option>
           <option value="semifinal">Semifinals</option><option value="main">Mains</option>
         </select>
@@ -189,7 +189,7 @@ DIRECTOR_HTML = r'''<!doctype html>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
-const phaseLabels={round_1:'Moto 1',round_2:'Moto 2',round_3:'Moto 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
+const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Main',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
 const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results',round_1_break:'Round 1 Break',main_break:'Main Break'};
 let state=null;
 let events=[];
@@ -378,7 +378,7 @@ async function loadProgram(expectedVersion=mutationVersion){
   }catch(_){
     program=null;
     const select=$('#race-phase');
-    if(!select.options.length)select.add(new Option('Moto 1','round_1'));
+    if(!select.options.length)select.add(new Option('Round 1','round_1'));
   }
 }
 

@@ -2,15 +2,15 @@
 
 ## 1.2.16 - 2026-08-23
 
-- Fixed race phase labels showing "Round 1"/"Round 2"/"Round 3" for
-  qualifying motos, including a mislabeled "Round 3" for the third moto of a
-  3-moto Total Points class. RaceManager's own data model has no "Round N"
-  concept (`Ref.Rounds` names qualifying "Moto" regardless of how many motos
-  a class runs, and Main/Semi/Qtr/LCQ/8th/16th/32nd are separate rounds) —
-  labels are now read from `Ref.Rounds`/`MB.Rider_Advance` via a new
-  `RoundLabelResolver` instead of being inferred from which `Lane_N`/
-  `Finish_N` columns happen to be populated. Qualifying motos now display as
-  "Moto 1"/"Moto 2"/"Moto 3".
+- Fixed the third qualifying moto of a 3-moto Total Points class being
+  mislabeled "Round 3" — it's now correctly labeled "Main", matching how
+  every other class's final is shown. Qualifying motos keep BBS's normal
+  "Round 1"/"Round 2" wording; "Round 3" is no longer used anywhere. Added a
+  `RoundLabelResolver` that reads bracket-round names (Main, Semi, Qtr, LCQ,
+  8th, 16th, 32nd) from RaceManager's own `Ref.Rounds` table so those resolve
+  correctly the first time a class advances past qualifying, instead of
+  being inferred from which `Lane_N`/`Finish_N` columns happen to be
+  populated.
 
 ## 1.2.15 - 2026-08-23
 
