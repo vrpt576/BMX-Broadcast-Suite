@@ -119,7 +119,7 @@ DIRECTOR_HTML = r'''<!doctype html>
       <label>Race round
         <select id="race-phase">
           <option value="round_1">Round 1</option><option value="round_2">Round 2</option>
-          <option value="round_3">Round 3</option><option value="quarterfinal">Quarterfinals</option>
+          <option value="round_3">Moto 3</option><option value="quarterfinal">Quarterfinals</option>
           <option value="semifinal">Semifinals</option><option value="main">Mains</option>
         </select>
       </label>
@@ -189,7 +189,7 @@ DIRECTOR_HTML = r'''<!doctype html>
 const params=new URLSearchParams(location.search);
 const demo=['1','true','yes'].includes((params.get('demo')||'').toLowerCase());
 const lineupEndpoint=`/api/lineup/current${demo?'?demo=true':''}`;
-const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Main',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
+const phaseLabels={round_1:'Round 1',round_2:'Round 2',round_3:'Moto 3',quarterfinal:'Quarterfinals',semifinal:'Semifinals',main:'Main'};
 const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider Lineup',results:'Results',round_1_break:'Round 1 Break',main_break:'Main Break'};
 let state=null;
 let events=[];

@@ -11,7 +11,7 @@ per second. A 900 × 180 browser source is a practical starting size.
 
 ## Race phases
 
-The manual broadcast state includes Round 1, Round 2, Round 3, Quarterfinals, Semifinals, and Mains. Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.
+The manual broadcast state includes Round 1, Round 2, Moto 3, Quarterfinals, Semifinals, and Mains. The third qualifying round is displayed as **Moto 3**; it reads **Main** only for a class that ends on that moto (Total Points, no separately raced final). Use `[` and `]` on the controller page to move between phases, or select a phase directly. The selected phase and moto number are persisted together and shown on the OBS overlay.
 
 - The current-moto overlay now shows race phase, class name, and moto number.
 

@@ -21,10 +21,16 @@ from connector.services.phase_classification_service import (
 )
 
 
+# Qualifying-moto labels. BBS shows "Round 1"/"Round 2" for the first two
+# motos and "Moto 3" for a third qualifying moto -- never "Round 3", which
+# RaceManager has no concept of. A third moto is only called "Main" when it
+# actually is the class's last race, which is decided by the class's
+# finalization method (Total Points, no separately raced final), not by the
+# round index. See docs/racemanager-round-model.md.
 ROUND_PHASES = {
     RacePhase.ROUND_1: (1, "Round 1"),
     RacePhase.ROUND_2: (2, "Round 2"),
-    RacePhase.ROUND_3: (3, "Main"),
+    RacePhase.ROUND_3: (3, "Moto 3"),
 }
 
 
@@ -107,7 +113,7 @@ class RaceSlotService:
                     stage = MotoboardService._stage(
                         third_moto,
                         phase=RacePhase.ROUND_3,
-                        label=label,
+                        label=self.motoboards.round_labels.round_name(1),
                         kind=CompetitionStage.TOTAL_POINTS_FINAL_MOTO.value,
                         round_index=third_index,
                         competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,

@@ -9,6 +9,8 @@ Director, the controller and the OBS overlays.
 
 from __future__ import annotations
 
+import inspect
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from uuid import UUID
@@ -16,23 +18,48 @@ from uuid import UUID
 import pytest
 
 from connector.models import CurrentMoto, CurrentMotoUpdate, RacePhase
+from connector.routes import current as current_routes
+from connector.routes import director, lineup
 from connector.services.race_program_service import (
     RaceSlotUnavailableError,
 )
 from connector.services.race_slot_service import RaceSlotService
 from tests.gold_cup_full_program import (
     OPERATOR_MAIN_PROGRAM_START,
-    board_id,
     fixture,
     full_program_rows,
     services,
 )
 
 # Labels BBS is allowed to put on air.  "Round 3" is deliberately absent:
-# v1.2.16 retired it, and RaceManager never produces it either.
-DISPLAYABLE_LABELS = {"Round 1", "Round 2", "Main", "Qtr", "Semi", "LCQ"}
+# v1.2.16 retired it, and RaceManager never produces it either -- a third
+# qualifying moto is "Moto 3", and only a class that ends on that moto is
+# announced as its "Main".
+DISPLAYABLE_LABELS = {"Round 1", "Round 2", "Moto 3", "Main", "Qtr", "Semi", "LCQ"}
 
 BANNED_LABEL = "Round 3"
+
+_PHASE_LABEL_MAP = re.compile(
+    r"phaseLabels\s*=\s*\{(?P<body>[^}]*)\}", re.MULTILINE
+)
+_PHASE_LABEL_ENTRY = re.compile(r"(?P<phase>\w+)\s*:\s*'(?P<label>[^']*)'")
+
+
+def ui_phase_labels(module) -> list[dict[str, str]]:
+    """Every phaseLabels map shipped in one of the served pages."""
+    source = Path(inspect.getsourcefile(module)).read_text(encoding="utf-8")
+    return [
+        {
+            item.group("phase"): item.group("label")
+            for item in _PHASE_LABEL_ENTRY.finditer(match.group("body"))
+        }
+        for match in _PHASE_LABEL_MAP.finditer(source)
+    ]
+
+
+# The Race round menu is rendered from the Director's own map, so read the
+# labels the operator sees straight out of the shipped page.
+PHASE_MENU_LABELS = ui_phase_labels(director)[0]
 
 
 def pin(current, board: UUID) -> None:
@@ -294,28 +321,65 @@ def test_the_slot_label_and_the_program_label_agree(tmp_path: Path) -> None:
     assert disagreements == [], "\n".join(disagreements)
 
 
-def test_each_round_shows_one_consistent_label(tmp_path: Path) -> None:
+def test_the_qualifying_rounds_and_the_main_each_show_one_label(
+    tmp_path: Path,
+) -> None:
     board, boards, current, _programs = services(tmp_path)
     pin(current, board)
-    for phase, slots in catalogs(boards, board).items():
-        labels = {slot.phase_label for slot in slots}
-        assert len(labels) == 1, f"{phase.value} mixes labels {sorted(labels)}"
+    available = catalogs(boards, board)
+    for phase, expected in (
+        (RacePhase.ROUND_1, "Round 1"),
+        (RacePhase.ROUND_2, "Round 2"),
+        (RacePhase.MAIN, "Main"),
+    ):
+        labels = {slot.phase_label for slot in available[phase]}
+        assert labels == {expected}, f"{phase.value} shows {sorted(labels)}"
 
 
-def test_two_rounds_never_share_a_label(tmp_path: Path) -> None:
-    """The Race round menu must not offer two entries reading the same thing."""
+def test_a_third_moto_is_only_called_main_when_the_class_ends_there(
+    tmp_path: Path,
+) -> None:
+    """The third round legitimately holds two kinds of slot.
+
+    A Total Points class has no separately raced final, so its third moto is
+    its Main.  A class that still races a Main is running a qualifier, and is
+    labelled "Moto 3" -- never "Round 3", and never "Main".
+    """
     board, boards, current, _programs = services(tmp_path)
     pin(current, board)
-    labels = [
-        (phase.value, slots[0].phase_label)
-        for phase, slots in catalogs(boards, board).items()
-    ]
-    duplicates = [
-        label for label, count in Counter(item[1] for item in labels).items() if count > 1
-    ]
-    assert duplicates == [], (
-        f"the Race round menu shows {duplicates} more than once: {labels}"
-    )
+    available = catalogs(boards, board)
+    classes_with_a_main = {
+        class_id
+        for slot in available[RacePhase.MAIN]
+        for class_id in slot.class_ids
+    }
+
+    wrong: list[str] = []
+    for slot in available[RacePhase.ROUND_3]:
+        still_to_race = bool(classes_with_a_main.intersection(slot.class_ids))
+        expected = "Moto 3" if still_to_race else "Main"
+        if slot.phase_label != expected:
+            wrong.append(
+                f"moto {slot.moto_number} {slot.class_name}: "
+                f"expected {expected!r}, shows {slot.phase_label!r}"
+            )
+    assert wrong == [], "\n".join(wrong)
+
+    seen = Counter(slot.phase_label for slot in available[RacePhase.ROUND_3])
+    assert seen == {"Main": 27, "Moto 3": 9}
+
+
+def test_the_race_round_menu_never_offers_two_identical_entries(
+    tmp_path: Path,
+) -> None:
+    """The menu label comes from the UI's own phase map, not from a slot."""
+    board, boards, current, programs = services(tmp_path)
+    pin(current, board)
+    offered = [PHASE_MENU_LABELS[phase.value] for phase in programs.available_phases()]
+
+    duplicates = [label for label, count in Counter(offered).items() if count > 1]
+    assert duplicates == [], f"the Race round menu shows {duplicates} twice: {offered}"
+    assert BANNED_LABEL not in offered
 
 
 def test_a_class_is_only_ever_announced_as_main_once(tmp_path: Path) -> None:
@@ -456,3 +520,29 @@ def test_setting_the_boundary_to_moto_one_pulls_every_class_into_the_main(
     assert len(mains) == 62, "every class, not just the 35 Main-program classes"
     assert mains[0].moto_number == 1
     assert len(available[RacePhase.ROUND_3]) == 9
+
+
+def test_every_served_page_uses_the_same_round_wording() -> None:
+    """Director, controller and both overlays must agree, and drop Round 3."""
+    maps = (
+        ui_phase_labels(director)
+        + ui_phase_labels(current_routes)
+        + ui_phase_labels(lineup)
+    )
+    assert len(maps) == 4, "expected the Director, controller and two overlays"
+
+    for labels in maps:
+        assert set(labels) == {
+            "round_1",
+            "round_2",
+            "round_3",
+            "quarterfinal",
+            "semifinal",
+            "main",
+        }
+        assert BANNED_LABEL not in labels.values()
+        assert labels["round_3"].upper() == "MOTO 3"
+        assert labels["round_3"].upper() != labels["main"].upper()
+
+    # Overlays shout; the Director and controller do not.
+    assert {frozenset(item.items()) for item in maps}.__len__() == 2

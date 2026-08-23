@@ -288,11 +288,11 @@ class MotoboardService:
             for index, phase, label in (
                 (1, RacePhase.ROUND_1, "Round 1"),
                 (2, RacePhase.ROUND_2, "Round 2"),
-                (3, RacePhase.ROUND_3, "Round 3"),
+                (3, RacePhase.ROUND_3, "Moto 3"),
             ):
                 if index == 3 and decision.scoring_method == ScoringMethod.TOTAL_POINTS:
                     # The physical Total Points final is added below with its
-                    # correct Round 3 or Main program segment and official
+                    # correct Moto 3 or Main program segment and official
                     # accumulated-results source.
                     continue
                 if any(

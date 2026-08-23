@@ -52,7 +52,7 @@ For a detailed Windows walkthrough, continue with [Windows Installation](docs/in
 
 ## Current status — v1.2.16
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.16 fixes the third qualifying moto of a 3-moto Total Points class showing "Round 3" instead of "Main", and reads Semi/Qtr/LCQ bracket-round names from RaceManager's own `Ref.Rounds` table instead of inferring phase labels from which lane/finish columns are populated, while retaining the theme fixes and hardened tray controls from v1.2.15.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.16 fixed the third qualifying moto of a 3-moto Total Points class showing "Round 3" instead of "Main", and reads Semi/Qtr/LCQ bracket-round names from RaceManager's own `Ref.Rounds` table instead of inferring phase labels from which lane/finish columns are populated, while retaining the theme fixes and hardened tray controls from v1.2.15. Unreleased since then: the third round is displayed as "Moto 3" for a class that still races a final, so a class is never announced as "Main" twice.
 
 ### Rider subtitle data
 

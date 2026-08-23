@@ -25,7 +25,7 @@ This means:
 - missing numbers are skipped only when the selected segment has no physical slot there;
 - Transfer Main events and Total Points final motos remain interleaved in scheduled order;
 - an event-scoped Main start determines whether a Total Points third moto is a
-  Round 3 or Main slot; Transfer-final ranges are never used as the boundary;
+  third-moto or Main slot; Transfer-final ranges are never used as the boundary;
 - an accumulated Total Points classification does not create another slot;
 - historic Motoboard selection remains pinned; and
 - Results Roll uses the same Main-slot ordering and shows a combined moto once.
