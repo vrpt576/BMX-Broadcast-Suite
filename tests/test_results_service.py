@@ -10,10 +10,16 @@ from connector.models import (
 from connector.services.current_lineup_service import CurrentLineupService, DEMO_MOTO
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.current_results_service import CurrentResultsService
+from connector.services.round_label_service import RoundLabelResolver
 
 
 class Noop:
     pass
+
+
+class _NoRoundsDatabase:
+    def fetch_all(self, query, params=None):
+        return []
 
 
 def test_demo_results_are_sorted_by_finish(tmp_path: Path) -> None:
@@ -123,6 +129,7 @@ class CatalogMotos:
             final_same_riders,
         ]
         self.calls = 0
+        self.round_labels = RoundLabelResolver(_NoRoundsDatabase())
 
     def list_motos(self, board_id, *, round_type_id=None):
         self.calls += 1

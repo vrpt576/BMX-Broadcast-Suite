@@ -101,6 +101,8 @@ class FakeDatabase:
 
     def fetch_all(self, query: str, params=None):
         params = list(params or [])
+        if "FROM Ref.Rounds" in query:
+            return []
         rows = self.rows
         if "ro.Round_Type_ID = 123" in query:
             rows = [item for item in rows if item["round_type_id"] == 123]
