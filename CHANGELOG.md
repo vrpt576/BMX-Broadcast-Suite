@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Fixed race phase labels showing "Round 1"/"Round 2"/"Round 3" for
+  qualifying motos, including a mislabeled "Round 3" for the third moto of a
+  3-moto Total Points class. RaceManager's own data model has no "Round N"
+  concept (`Ref.Rounds` names qualifying "Moto" regardless of how many motos
+  a class runs, and Main/Semi/Qtr/LCQ/8th/16th/32nd are separate rounds) —
+  labels are now read from `Ref.Rounds`/`MB.Rider_Advance` via a new
+  `RoundLabelResolver` instead of being inferred from which `Lane_N`/
+  `Finish_N` columns happen to be populated. Qualifying motos now display as
+  "Moto 1"/"Moto 2"/"Moto 3".
+
 ## 1.2.15 - 2026-08-23
 
 - Fixed a bug where a custom overlay theme (e.g. a track's saved theme) only

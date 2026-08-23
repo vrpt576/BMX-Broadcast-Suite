@@ -5,6 +5,15 @@ RaceManager does not define SQL foreign-key constraints for these relationships,
 so keep the joins documented and covered by connector-level tests.
 """
 
+REF_ROUNDS = """
+SELECT
+    Round_DBID AS round_type_id,
+    Round_Name AS round_name,
+    Round_Type AS round_type,
+    Desciption AS description
+FROM Ref.Rounds;
+"""
+
 CURRENT_EVENT = """
 SELECT TOP 1
     e.Event_DBID AS event_id,

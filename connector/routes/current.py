@@ -213,7 +213,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 <main>
   <h1>BBS Race Controller</h1>
   <div class="hint">←/→ moto · [ / ] round · Number + Enter jump</div>
-  <div id="phase" class="phase">Round 1</div>
+  <div id="phase" class="phase">Moto 1</div>
   <div id="class-name-display" class="class-name">Class not set</div>
   <div id="moto" class="moto">1</div>
   <div class="buttons">
@@ -230,7 +230,7 @@ CONTROLLER_HTML = r'''<!doctype html>
   </div>
   <div class="settings">
     <label>Race round
-      <select id="race-phase"><option value="round_1">Round 1</option></select>
+      <select id="race-phase"><option value="round_1">Moto 1</option></select>
     </label>
     <label>Class name<input id="class-name" type="text" maxlength="100" placeholder="17-20 Expert"></label>
     <label>Jump to moto<input id="jump" type="number" min="1" inputmode="numeric"></label>
@@ -241,7 +241,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 </main>
 <script>
 const phaseLabels = {
-  round_1: 'Round 1', round_2: 'Round 2', round_3: 'Round 3',
+  round_1: 'Moto 1', round_2: 'Moto 2', round_3: 'Moto 3',
   quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main'
 };
 const moto = document.querySelector('#moto');
@@ -283,7 +283,7 @@ async function loadProgram() {
     if (currentState) phaseSelect.value = currentState.race_phase;
   } catch (_) {
     if (!phaseSelect.options.length) {
-      phaseSelect.add(new Option('Round 1', 'round_1'));
+      phaseSelect.add(new Option('Moto 1', 'round_1'));
     }
   }
 }
@@ -374,7 +374,7 @@ OVERLAY_HTML = r'''<!doctype html>
   </div>
 <script>
 const phaseLabels = {
-  round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
+  round_1: 'MOTO 1', round_2: 'MOTO 2', round_3: 'MOTO 3',
   quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);

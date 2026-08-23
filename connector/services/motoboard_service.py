@@ -32,6 +32,7 @@ from connector.services.phase_classification_service import (
     classify_event_finals,
     resolve_main_program_boundary,
 )
+from connector.services.round_label_service import RoundLabelResolver
 
 
 class MotoNotFoundError(LookupError):
@@ -91,6 +92,7 @@ class MotoboardService:
         self.database = database
         self._nickname_supported: bool | None = None
         self.phase_overrides = PhaseClassificationOverrideStore(phase_override_file)
+        self.round_labels = RoundLabelResolver(database)
 
     def _supports_nickname(self) -> bool:
         if self._nickname_supported is None:
@@ -283,11 +285,12 @@ class MotoboardService:
 
         stages: list[RaceStage] = []
         if selected_qualifier is not None:
-            for index, phase, label in (
-                (1, RacePhase.ROUND_1, "Round 1"),
-                (2, RacePhase.ROUND_2, "Round 2"),
-                (3, RacePhase.ROUND_3, "Round 3"),
+            for index, phase in (
+                (1, RacePhase.ROUND_1),
+                (2, RacePhase.ROUND_2),
+                (3, RacePhase.ROUND_3),
             ):
+                label = self.round_labels.moto_label(index)
                 if index == 3 and decision.scoring_method == ScoringMethod.TOTAL_POINTS:
                     # The physical Total Points final is added below with its
                     # correct Round 3 or Main program segment and official
@@ -335,7 +338,11 @@ class MotoboardService:
                             if total_points_in_main
                             else RacePhase.ROUND_3
                         ),
-                        label="Main" if total_points_in_main else "Round 3",
+                        label=(
+                            self.round_labels.round_name(1)
+                            if total_points_in_main
+                            else self.round_labels.moto_label(3)
+                        ),
                         kind=CompetitionStage.TOTAL_POINTS_FINAL_MOTO.value,
                         round_index=third_index,
                         competition_stage=CompetitionStage.TOTAL_POINTS_FINAL_MOTO,
@@ -355,7 +362,7 @@ class MotoboardService:
                     self._stage(
                         final,
                         phase=RacePhase.MAIN,
-                        label="Main",
+                        label=self.round_labels.round_name(1),
                         kind=CompetitionStage.MAIN_EVENT.value,
                         round_index=1,
                         competition_stage=CompetitionStage.MAIN_EVENT,

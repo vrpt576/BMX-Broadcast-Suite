@@ -68,7 +68,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
   </section>
 <script>
 const phaseLabels = {
-  round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'ROUND 3',
+  round_1: 'MOTO 1', round_2: 'MOTO 2', round_3: 'MOTO 3',
   quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
