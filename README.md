@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.16-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.17-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -50,9 +50,9 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.16
+## Current status — v1.2.17
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.16 fixed the third qualifying moto of a 3-moto Total Points class showing "Round 3" instead of "Main", and reads Semi/Qtr/LCQ bracket-round names from RaceManager's own `Ref.Rounds` table instead of inferring phase labels from which lane/finish columns are populated, while retaining the theme fixes and hardened tray controls from v1.2.15. Unreleased since then: the third round is displayed as "Moto 3" for a class that still races a final, so a class is never announced as "Main" twice.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.17 fixes a third qualifying moto being announced as "Main" for a class that still races a separate final, so a class is never shown as Main twice, while retaining the Ref.Rounds bracket-name resolution from v1.2.16 and the theme and tray fixes from v1.2.15.
 
 ### Rider subtitle data
 
