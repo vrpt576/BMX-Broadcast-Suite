@@ -69,7 +69,9 @@ A resolved exact stage = `motoboard_id + class_id + round_type_id + round_id + m
 round_index` (`moto_number` is display-only).
 
 - `Round_Type_ID 123` = qualifier/moto progression (`Round 1→Lane_1/Finish_1`,
-  `Round 2→Lane_2/Finish_2`, `Round 3→Lane_3/Finish_3`).
+  `Round 2→Lane_2/Finish_2`, `Round 3→Lane_3/Finish_3`). The third round is
+  *displayed* as "Moto 3", or as "Main" when the class ends on that moto —
+  "Round 3" is never put on air, and a class is never announced as Main twice.
 - `Round_Type_ID 1` = final-classification branch. This can be either a **separately raced
   final** or an **accumulated Total Points classification** — the type alone never tells you
   which. Don't auto-label a type-1 record "Main" or "Overall" just because it's type 1.

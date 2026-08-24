@@ -14,7 +14,8 @@ The validated qualifier branch stores up to three gate and finish slots on each 
 
 - Round 1: `Lane_1`, `Finish_1`
 - Round 2: `Lane_2`, `Finish_2`
-- Round 3: `Lane_3`, `Finish_3`
+- Round 3: `Lane_3`, `Finish_3` (displayed as **Moto 3**, or **Main** when the
+  class ends on that moto — "Round 3" is never shown)
 
 A class can have more than one type-123 motogroup. Each group must remain independently selectable through `Motogroup_DBID`.
 
@@ -69,7 +70,10 @@ Examples:
 
 - transfer class: Round 1, Round 2, Main
 - total-points class whose third moto is in the final block: Round 1, Round 2, Main
-- total-points class with a separate qualifying block: Round 1, Round 2, Round 3
+- total-points class with a separate qualifying block: Round 1, Round 2, Main
+  (its third moto is the class's last race)
+- transfer class that runs a third qualifying moto: Round 1, Round 2, Moto 3,
+  Main
 
 Because the validated RaceManager records do not expose an event-wide Main
 start, Director stores an optional boundary by Motoboard ID. The first Transfer

@@ -2,8 +2,11 @@
 
 BBS keeps four race concepts separate:
 
-- **Program segment** controls Director navigation: Round 1, Round 2,
-  Round 3 when separately run, Quarter, Semi, and Main.
+- **Program segment** controls Director navigation: Round 1, Round 2, the
+  third qualifying moto when separately run, Quarter, Semi, and Main. The
+  third moto is displayed as **Moto 3**, or as **Main** when the class ends
+  there (accumulated points, no separately raced final). "Round 3" is never
+  displayed.
 - **Competition stage** describes the class occurrence, such as a qualifying
   moto, Main Event, or Total Points final moto.
 - **Scoring method** is Transfer, Transfer LST, or Total Points.
@@ -45,7 +48,8 @@ Both use `program_segment = main`. The official accumulated record is attached
 as the results source; it does not create an additional race slot. Results use
 the accumulated official placing and are labeled **Total Points Results**.
 
-Whether a physical Total Points third moto belongs to Round 3 or Main is an
+Whether a physical Total Points third moto belongs to the third-moto round or
+to the Main program is an
 event running-order decision, not a scoring inference. BBS therefore uses this
 evidence hierarchy:
 
@@ -88,9 +92,11 @@ diagnostic export.
 
 The 2026-08-01 safe export proves the class and scoring structures around
 Motos 27â€“31, but none of the fields above proves where the event changed from
-Round 3 to Main. Moto 28 being a Transfer final is supporting evidence only.
+the qualifying block to the Main program. Moto 28 being a Transfer final is
+supporting evidence only.
 The sanitized fixture therefore records an **operator-confirmed** Main start at
-Moto 28: Moto 27 remains Round 3, followed by Main Motos 28, 29, 30, and 31.
+Moto 28: Moto 27 remains in the third-moto round, followed by Main Motos 28,
+29, 30, and 31.
 This also places RaceManager's `5 & Under Intermediate` physical third moto at
 Main-program Moto 29 while its type-1 record remains the official accumulated
 results source.

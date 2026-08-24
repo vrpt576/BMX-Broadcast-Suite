@@ -104,8 +104,12 @@ Invoke-RestMethod -Method Post http://localhost:8000/api/current/next
 
 ## Race phases
 
-The broadcast state supports Round 1, Round 2, Round 3, Quarterfinals,
+The broadcast state supports Round 1, Round 2, Moto 3, Quarterfinals,
 Semifinals, and Main when those program segments exist in the selected event.
+The third qualifying round is displayed as **Moto 3** — never "Round 3",
+which RaceManager has no concept of. It reads **Main** only for a class that
+ends on that moto, i.e. one finalized by accumulated points rather than by a
+separately raced final.
 Transfer/LST and Total Points are scoring methods. Total Points classifications
 never appear as a separate Director round.
 Use `[` and `]` on the controller page to move between available phases, or

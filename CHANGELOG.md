@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- Fixed a third qualifying moto being announced as "Main". v1.2.16 mapped the
+  third round to "Main" for every class, so the nine classes at the 2026-08-01
+  Gold Cup that run three qualifying motos *and* a separate final were labelled
+  "Main" over a qualifier and then "Main" again over their real final — the same
+  class shown as Main at two different motos. The third round is now displayed
+  as "Moto 3" for a class that still has a final to race, and as "Main" only for
+  a class that ends on that moto (accumulated points, no separately raced
+  final).
+- Fixed `/api/current/program` still returning "Round 3" for exactly those
+  stages while navigation reported "Main". Both paths now agree, and the Race
+  round menu no longer offers two entries both reading "Main"; the Director's
+  static fallback option no longer reads "Round 3" either.
+- Added a full-program regression walkthrough over the historic 2026-08-01 Gold
+  Cup / State Race motoboard (62 classes, 65 motos, 600 rider rows, exported
+  without any rider personal data). It steps every moto of every round forwards
+  and backwards, jumps to each directly, and asserts the wording the operator
+  and the overlays see. `scripts/walk_race_program.py` prints the same
+  walkthrough by hand.
+
 ## 1.2.16 - 2026-08-23
 
 - Fixed the third qualifying moto of a 3-moto Total Points class being

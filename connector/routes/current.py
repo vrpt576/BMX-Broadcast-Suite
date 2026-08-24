@@ -241,7 +241,7 @@ CONTROLLER_HTML = r'''<!doctype html>
 </main>
 <script>
 const phaseLabels = {
-  round_1: 'Round 1', round_2: 'Round 2', round_3: 'Main',
+  round_1: 'Round 1', round_2: 'Round 2', round_3: 'Moto 3',
   quarterfinal: 'Quarterfinals', semifinal: 'Semifinals', main: 'Main'
 };
 const moto = document.querySelector('#moto');
@@ -374,7 +374,7 @@ OVERLAY_HTML = r'''<!doctype html>
   </div>
 <script>
 const phaseLabels = {
-  round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'MAIN',
+  round_1: 'ROUND 1', round_2: 'ROUND 2', round_3: 'MOTO 3',
   quarterfinal: 'QUARTERFINALS', semifinal: 'SEMIFINALS', main: 'MAIN'
 };
 const params = new URLSearchParams(location.search);
