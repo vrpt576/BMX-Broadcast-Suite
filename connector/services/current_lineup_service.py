@@ -255,7 +255,17 @@ class CurrentLineupService:
             RacePhase.ROUND_2: 2,
             RacePhase.ROUND_3: 3,
         }.get(state.race_phase, 1)
-        label = state.phase_label or state.race_phase.value.replace("_", " ").title()
+        # Title-casing the phase value would turn round_3 into "Round 3",
+        # a label BBS never displays (see docs/racemanager-round-model.md).
+        fallback_labels = {
+            RacePhase.ROUND_1: "Round 1",
+            RacePhase.ROUND_2: "Round 2",
+            RacePhase.ROUND_3: "Moto 3",
+            RacePhase.QUARTERFINAL: "Quarterfinals",
+            RacePhase.SEMIFINAL: "Semifinals",
+            RacePhase.MAIN: "Main",
+        }
+        label = state.phase_label or fallback_labels[state.race_phase]
         stage = RaceStage(
             phase=state.race_phase,
             label=label,

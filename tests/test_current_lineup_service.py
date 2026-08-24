@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 
 from connector.models import CurrentMotoUpdate, RacePhase
 from connector.services.current_lineup_service import CurrentLineupService, DEMO_MOTO
@@ -47,6 +48,22 @@ def test_elimination_round_falls_back_to_available_gate(tmp_path: Path) -> None:
     lineup = CurrentLineupService._build(current.get(), DEMO_MOTO, source="test")
 
     assert [rider.gate for rider in lineup.riders] == [2, 4, 6, 8]
+
+
+def test_legacy_context_labels_a_third_moto_moto_three_not_round_three(
+    tmp_path: Path,
+) -> None:
+    """Adapters without resolve_state must not synthesize a banned label."""
+    current = CurrentMotoService(tmp_path / "current.json")
+    current.set(CurrentMotoUpdate(moto_number=1, race_phase=RacePhase.ROUND_3))
+
+    stage, _program = CurrentLineupService._legacy_context(
+        current.get(),
+        DEMO_MOTO,
+        UUID("00000000-0000-0000-0000-000000000099"),
+    )
+
+    assert stage.label == "Moto 3"
 
 
 def test_lineup_maps_verified_age_and_home_track(tmp_path: Path) -> None:

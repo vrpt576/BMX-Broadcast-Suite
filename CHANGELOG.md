@@ -14,6 +14,16 @@
   stages while navigation reported "Main". Both paths now agree, and the Race
   round menu no longer offers two entries both reading "Main"; the Director's
   static fallback option no longer reads "Round 3" either.
+- Hardened two remaining paths that could still surface "Round 3" at runtime
+  even though no label logic generates it any more: a `current.json` state
+  file persisted by v1.2.15 or earlier (which wrote the literal label
+  "Round 3" for a `round_3` phase, and survives installs under
+  `%ProgramData%`) is now detected on load and its stale label dropped so the
+  next resolve re-derives it correctly, instead of rendering "ROUND 3" on the
+  overlay until the operator's next navigation; and the lineup service's
+  legacy fallback for motoboard adapters without `resolve_state` now maps
+  `round_3` to "Moto 3" through an explicit label map instead of title-casing
+  the phase value into "Round 3".
 - Added a full-program regression walkthrough over the historic 2026-08-01 Gold
   Cup / State Race motoboard (62 classes, 65 motos, 600 rider rows, exported
   without any rider personal data). It steps every moto of every round forwards
