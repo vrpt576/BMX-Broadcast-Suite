@@ -352,6 +352,18 @@ class CurrentMotoService:
                 payload["race_phase"] = RacePhase.MAIN.value
                 payload["phase_label"] = "Main"
                 payload["slot_key"] = None
+            if (
+                payload.get("race_phase") == RacePhase.ROUND_3.value
+                and str(payload.get("phase_label") or "").strip().lower() == "round 3"
+            ):
+                # v1.2.15 and earlier persisted the literal label "Round 3",
+                # which BBS never displays any more (see
+                # docs/racemanager-round-model.md). Whether this stage is
+                # "Main" or "Moto 3" depends on the class's finalization
+                # method, which requires the database -- drop the stale label
+                # so the next resolve re-derives it instead of guessing here.
+                payload["phase_label"] = None
+                payload["slot_key"] = None
             return CurrentMoto.model_validate(payload)
         except (OSError, json.JSONDecodeError, ValueError):
             return self._default_state()

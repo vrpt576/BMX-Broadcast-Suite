@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from uuid import UUID
 
@@ -168,6 +169,73 @@ def test_legacy_overall_state_migrates_to_main_without_losing_selection(tmp_path
     assert state.class_id == UUID("20000000-0000-0000-0000-000000000029")
     assert state.slot_key is None
     assert state.active_graphic == ActiveGraphic.RESULTS
+
+
+def test_legacy_round_3_label_is_dropped_without_guessing_the_replacement(
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "current.json"
+    state_file.write_text(
+        '{"moto_number":39,"race_phase":"round_3","phase_label":"Round 3",'
+        '"class_name":"14 Intermediate","minimum_moto":1,'
+        '"maximum_moto":65,"motoboard_id":"10000000-0000-0000-0000-000000000001",'
+        '"class_id":"20000000-0000-0000-0000-000000000039",'
+        '"slot_key":"legacy:round_3:39","active_graphic":"current_moto"}',
+        encoding="utf-8",
+    )
+
+    state = CurrentMotoService(state_file).get()
+
+    assert state.moto_number == 39
+    assert state.race_phase == RacePhase.ROUND_3
+    assert state.phase_label is None
+    assert state.slot_key is None
+    assert state.class_name == "14 Intermediate"
+    assert state.motoboard_id == UUID("10000000-0000-0000-0000-000000000001")
+
+
+@pytest.mark.parametrize("label", ["round 3", "ROUND 3", "  Round 3  "])
+def test_legacy_round_3_label_is_dropped_case_and_whitespace_insensitively(
+    tmp_path: Path, label: str
+) -> None:
+    state_file = tmp_path / "current.json"
+    payload = json.dumps(
+        {
+            "moto_number": 39,
+            "race_phase": "round_3",
+            "phase_label": label,
+            "minimum_moto": 1,
+            "slot_key": "legacy:round_3:39",
+        }
+    )
+    state_file.write_text(payload, encoding="utf-8")
+
+    state = CurrentMotoService(state_file).get()
+
+    assert state.phase_label is None
+    assert state.slot_key is None
+
+
+@pytest.mark.parametrize("label", ["Main", "Moto 3"])
+def test_a_current_round_3_label_is_preserved_untouched(
+    tmp_path: Path, label: str
+) -> None:
+    state_file = tmp_path / "current.json"
+    payload = json.dumps(
+        {
+            "moto_number": 39,
+            "race_phase": "round_3",
+            "phase_label": label,
+            "minimum_moto": 1,
+            "slot_key": "some-motoboard:round_3:39",
+        }
+    )
+    state_file.write_text(payload, encoding="utf-8")
+
+    state = CurrentMotoService(state_file).get()
+
+    assert state.phase_label == label
+    assert state.slot_key == "some-motoboard:round_3:39"
 
 
 def test_manual_selection_change_clears_stale_classification_metadata(tmp_path: Path) -> None:
