@@ -1,29 +1,28 @@
 # Changelog
 
-## Unreleased
+## 1.2.17 - 2026-08-24
 
 - Fixed a third qualifying moto being announced as "Main". v1.2.16 mapped the
-  third round to "Main" for every class, so the nine classes at the 2026-08-01
-  Gold Cup that run three qualifying motos *and* a separate final were labelled
-  "Main" over a qualifier and then "Main" again over their real final — the same
-  class shown as Main at two different motos. The third round is now displayed
-  as "Moto 3" for a class that still has a final to race, and as "Main" only for
-  a class that ends on that moto (accumulated points, no separately raced
-  final).
+  third round to "Main" for every class, so classes that run three qualifying
+  motos and a separate final, as nine did at the 2026-08-01 Gold Cup, were
+  labelled "Main" over a qualifier and then "Main" again over their real final
+  — the same class shown as Main at two different motos. The third round is
+  now displayed as "Moto 3" for a class that still has a final to race, and as
+  "Main" only for a class that ends on that moto (accumulated points, no
+  separately raced final).
 - Fixed `/api/current/program` still returning "Round 3" for exactly those
   stages while navigation reported "Main". Both paths now agree, and the Race
   round menu no longer offers two entries both reading "Main"; the Director's
   static fallback option no longer reads "Round 3" either.
-- Hardened two remaining paths that could still surface "Round 3" at runtime
-  even though no label logic generates it any more: a `current.json` state
-  file persisted by v1.2.15 or earlier (which wrote the literal label
-  "Round 3" for a `round_3` phase, and survives installs under
-  `%ProgramData%`) is now detected on load and its stale label dropped so the
-  next resolve re-derives it correctly, instead of rendering "ROUND 3" on the
-  overlay until the operator's next navigation; and the lineup service's
-  legacy fallback for motoboard adapters without `resolve_state` now maps
-  `round_3` to "Moto 3" through an explicit label map instead of title-casing
-  the phase value into "Round 3".
+- After upgrading from v1.2.15 or earlier, an overlay could show "ROUND 3"
+  until the operator's next navigation: the label persisted in `current.json`
+  under `%ProgramData%` survives installs, and the overlay trusts a saved
+  label ahead of its own map. This stale label is now detected on load and
+  dropped so the next resolve re-derives it correctly.
+- Hardening only, with no operator-visible symptom on the production path:
+  the lineup service's legacy fallback for motoboard adapters without
+  `resolve_state` now maps `round_3` to "Moto 3" through an explicit label
+  map instead of title-casing the phase value into "Round 3".
 - Added a full-program regression walkthrough over the historic 2026-08-01 Gold
   Cup / State Race motoboard (62 classes, 65 motos, 600 rider rows, exported
   without any rider personal data). It steps every moto of every round forwards

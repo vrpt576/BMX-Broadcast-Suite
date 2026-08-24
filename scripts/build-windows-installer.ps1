@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.2.16"
+$Version = "1.2.17"
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $Packaging = Join-Path $Root "packaging\windows"
 $Dependencies = Join-Path $Packaging "dependencies"
