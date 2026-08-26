@@ -22,6 +22,10 @@ FIELDS = {
     'results_cache_file':'BBS_RESULTS_CACHE_FILE','results_roll_state_file':'BBS_RESULTS_ROLL_STATE_FILE',
     'remote_control_enabled':'BBS_REMOTE_CONTROL_ENABLED','control_token':'BBS_CONTROL_TOKEN',
     'remote_admin_enabled':'BBS_REMOTE_ADMIN_ENABLED','admin_token':'BBS_ADMIN_TOKEN',
+    'sqorz_enabled':'BBS_SQORZ_ENABLED','sqorz_mode':'BBS_SQORZ_MODE',
+    'sqorz_event_id':'BBS_SQORZ_EVENT_ID','sqorz_org_code':'BBS_SQORZ_ORG_CODE',
+    'sqorz_host':'BBS_SQORZ_HOST','sqorz_port':'BBS_SQORZ_PORT',
+    'sqorz_poll_seconds':'BBS_SQORZ_POLL_SECONDS','sqorz_timeout_seconds':'BBS_SQORZ_TIMEOUT_SECONDS',
 }
 
 class ConfigurationService:
@@ -57,11 +61,16 @@ class ConfigurationService:
                 value is None or str(value) == ''
             ):
                 continue
-            if field in {'app_port','sql_port','sql_connect_timeout','sql_query_timeout','current_moto_default'}:
+            if field in {
+                'app_port','sql_port','sql_connect_timeout','sql_query_timeout',
+                'current_moto_default','sqorz_port','sqorz_poll_seconds',
+            }:
                 value = '' if value in (None,'') else str(int(value))
+            elif field == 'sqorz_timeout_seconds':
+                value = '' if value in (None,'') else str(float(value))
             elif field in {
                 'sql_encrypt','sql_trust_server_certificate',
-                'remote_control_enabled','remote_admin_enabled'
+                'remote_control_enabled','remote_admin_enabled','sqorz_enabled',
             }:
                 value = 'true' if bool(value) else 'false'
             else:
@@ -69,8 +78,9 @@ class ConfigurationService:
             existing[env_name] = value
         self._write_env(existing)
         reload_settings()
-        from connector.dependencies import get_database
+        from connector.dependencies import get_database, get_sqorz_service
         get_database.cache_clear()
+        get_sqorz_service.cache_clear()
         return get_settings()
 
     @staticmethod

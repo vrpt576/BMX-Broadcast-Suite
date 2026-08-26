@@ -6,17 +6,21 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse
 
 from connector.config import get_settings
-from connector.dependencies import get_database, get_race_program_export_service
+from connector.dependencies import get_database, get_race_program_export_service, get_sqorz_service
 from connector.models import RaceProgramStructureExport
 from connector.services.diagnostics_service import DiagnosticsService
 from connector.services.race_program_export_service import RaceProgramExportService
+from connector.services.sqorz_service import SqorzService
 from database.racemanager import RaceManagerDatabase
 
 router = APIRouter(tags=["diagnostics"])
 
 
-def get_diagnostics_service(database: RaceManagerDatabase = Depends(get_database)) -> DiagnosticsService:
-    return DiagnosticsService(get_settings(), database)
+def get_diagnostics_service(
+    database: RaceManagerDatabase = Depends(get_database),
+    sqorz: SqorzService = Depends(get_sqorz_service),
+) -> DiagnosticsService:
+    return DiagnosticsService(get_settings(), database, sqorz)
 
 
 @router.get("/diagnostics")

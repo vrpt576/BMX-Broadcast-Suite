@@ -20,6 +20,8 @@ from connector.models import (
 from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
+from connector.services.sqorz_matching import ROUND_PHASE_TO_SQORZ_CODE, match_class, time_for_phase
+from connector.services.sqorz_service import SqorzService
 
 DEMO_MOTO = Moto.model_validate(
     {
@@ -103,9 +105,11 @@ class CurrentLineupService:
         events: EventService,
         motos: MotoboardService,
         cache_file: Path | None = None,
+        sqorz: SqorzService | None = None,
     ) -> None:
         self.current, self.events, self.motos = current, events, motos
         self.cache_file = cache_file or current.state_file.parent / "last_known_lineup.json"
+        self.sqorz = sqorz
 
     def get(
         self,
@@ -124,13 +128,15 @@ class CurrentLineupService:
                 stages=[stage],
                 available_phases=[stage.phase],
             )
-            return self._build(
-                state,
-                DEMO_MOTO,
-                stage,
-                program,
-                source="demo",
-                motoboard_id=None,
+            return self._augment_with_sqorz(
+                self._build(
+                    state,
+                    DEMO_MOTO,
+                    stage,
+                    program,
+                    source="demo",
+                    motoboard_id=None,
+                )
             )
 
         selected_board_id = motoboard_id or state.motoboard_id
@@ -163,7 +169,7 @@ class CurrentLineupService:
                 motoboard_id=board_id,
             )
             self._write_cache(result)
-            return result
+            return self._augment_with_sqorz(result)
         except Exception as exc:
             cached = self._read_cache(
                 state,
@@ -171,14 +177,42 @@ class CurrentLineupService:
             )
             if cached is None:
                 raise
-            return cached.model_copy(
-                update={"source": "cache", "is_stale": True, "warning": str(exc)}
+            return self._augment_with_sqorz(
+                cached.model_copy(
+                    update={"source": "cache", "is_stale": True, "warning": str(exc)}
+                )
             )
 
     @staticmethod
     def gate_for_round(rider: object, round_index: int) -> int | None:
         gate = getattr(rider, f"lane_{round_index}", None)
         return None if gate in (None, 0) else int(gate)
+
+    def _augment_with_sqorz(self, lineup: CurrentLineup) -> CurrentLineup:
+        """Fill in each rider's time_seconds from Sqorz, or leave it null.
+
+        Never raises and never changes anything else about the lineup --
+        Sqorz is optional, and this must degrade to "no times" exactly like
+        an unconfigured or unreachable Sqorz does.
+        """
+        if self.sqorz is None or not self.sqorz.enabled:
+            return lineup
+        phase_code = ROUND_PHASE_TO_SQORZ_CODE.get(lineup.race_phase)
+        if phase_code is None or not lineup.riders:
+            return lineup
+        try:
+            fetch = self.sqorz.get_riders()
+            if not fetch.riders:
+                return lineup
+            matches, report = match_class(lineup.riders, lineup.class_name, fetch.riders)
+            self.sqorz.last_match_report = report
+        except Exception:  # noqa: BLE001 -- Sqorz must never fail the lineup
+            return lineup
+        updated_riders = [
+            rider.model_copy(update={"time_seconds": time_for_phase(match, phase_code)})
+            for rider, match in zip(lineup.riders, matches)
+        ]
+        return lineup.model_copy(update={"riders": updated_riders})
 
     @classmethod
     def _build(

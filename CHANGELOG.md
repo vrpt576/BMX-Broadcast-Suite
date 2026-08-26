@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Added optional Sqorz live-timing integration: the lineup overlay can show
+  each rider's time for the currently selected round, read from Sqorz's
+  public internet API or (unverified, pending on-site confirmation) its LAN
+  scoring API. Off by default (`BBS_SQORZ_ENABLED=false`); when disabled,
+  unconfigured, unreachable, or a rider can't be confidently matched, the
+  lineup endpoint is unchanged -- no time is shown, same as the existing
+  optional-column pattern. RaceManager remains the only source for round
+  labels, rider identity, and official results; Sqorz supplies times only,
+  and only for an "exact" or "strong" confidence plate/name match -- see
+  `docs/sqorz-live-timing.md`.
+
 ## 1.2.17 - 2026-08-24
 
 - Fixed a third qualifying moto being announced as "Main". v1.2.16 mapped the
