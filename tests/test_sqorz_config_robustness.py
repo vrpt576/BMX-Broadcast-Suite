@@ -47,6 +47,7 @@ HARDENED_NON_SQORZ_KEYS = (
     "BBS_LOG_RETENTION_DAYS",
     "BBS_REMOTE_CONTROL_ENABLED",
     "BBS_REMOTE_ADMIN_ENABLED",
+    "BBS_CURRENT_MOTO_DEFAULT",
 )
 
 
@@ -138,6 +139,7 @@ def test_every_hardened_setting_survives_blank_absent_and_garbage(
         ("log_retention_days", 14),
         ("remote_control_enabled", False),
         ("remote_admin_enabled", False),
+        ("current_moto_default", 1),
     ],
 )
 def test_blank_falls_back_to_the_declared_default(field: str, default: object) -> None:
@@ -160,6 +162,7 @@ def test_blank_falls_back_to_the_declared_default(field: str, default: object) -
         ("log_retention_days", 14),
         ("remote_control_enabled", False),
         ("remote_admin_enabled", False),
+        ("current_moto_default", 1),
     ],
 )
 def test_garbage_falls_back_to_the_default_and_warns_by_name(

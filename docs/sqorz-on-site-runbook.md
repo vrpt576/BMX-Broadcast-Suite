@@ -4,8 +4,11 @@ Short and printable. Run the probe first, then set config, then check the one-li
 
 ## 1. Probe first
 
-Before touching BBS config, confirm the LAN scoring API is actually reachable.
-On your laptop, on the track's WiFi/LAN:
+If Smith Rock already ran the emailed probe kit and sent back a results
+`.zip`, skip straight to using its raw responses instead of re-probing on
+site -- it's the same data. Otherwise: before touching BBS config, confirm
+the LAN scoring API is actually reachable. On your laptop, on the track's
+WiFi/LAN:
 
 ```powershell
 python scripts\sqorz_probe.py --scan 192.168.1.0/24
@@ -75,13 +78,15 @@ the probe itself succeeds.
 riders in the standalone overlay.**
 The LAN response came back but didn't match the shape
 `sqorz_service.py`/`sqorz_overlay_service.py` expect (this is the
-"UNVERIFIED" part of the LAN backend). Check
-`GET /api/diagnostics` → `sqorz.match_report` — if `unmatched_bbs` lists
-every rider and `unmatched_sqorz` is empty or looks wrong, the parser likely
-isn't finding rows at all. Re-run the probe, look at the saved JSON files
-yourself for the actual field names, and compare to
-`parse_lan_phase_rank_detail()`'s candidate keys — send me the files either
-way.
+"UNVERIFIED" part of the LAN backend). Open `/sqorz-status` first -- it
+tolerantly searches the whole response for recognisable fields regardless of
+nesting, so this may already be resolved on its own; if not, it says so
+plainly ("no rider data could be recognised in the response shape") and the
+raw response is both saved to disk and viewable right there via "View raw
+response" -- no terminal needed. Compare what you see there to
+`parse_lan_phase_rank_detail()`'s and `parse_lan_by_searching_the_tree()`'s
+candidate field names in `sqorz_service.py` -- send me the raw response
+either way.
 
 **C. Reachable, riders present, but they're all "weak" or unmatched in the
 lineup column (check `sqorz.match_report.class_match_path` in diagnostics).**
@@ -144,7 +149,14 @@ Find a live event id from `https://our.sqorz.com/json/org/<orgCode>`
 Either way, point the **standalone Sqorz overlay** (`/overlay/sqorz-timing`)
 at it — it needs no RaceManager and will show real riders/times immediately.
 
-## 6. Is it working? (no browser needed)
+## 6. Is it working?
+
+**With a browser**: open `/sqorz-status` and leave it open on a second
+monitor -- mode, reachable yes/no, payload age, parsed class/competitor
+counts, match report, ambiguous plates, gate agreement, and (LAN mode) the
+raw response link, all in one place, auto-refreshing.
+
+**No browser needed**:
 
 ```powershell
 (Invoke-RestMethod http://localhost:8000/api/diagnostics).sqorz
