@@ -177,7 +177,22 @@ def match_class(
         if competitor is None and plate:
             for candidate in class_competitors:
                 if _normalize(candidate.plate) == plate:
-                    competitor, confidence = candidate, MatchConfidence.STRONG
+                    # A bare plate match is only safe when class_competitors
+                    # is genuinely scoped to this rider's class -- a handful
+                    # of riders, where a plate collision is implausible. When
+                    # class names didn't line up and this fell back to
+                    # searching the whole event (class_match_path ==
+                    # "plate_only"), that pool can be hundreds of riders
+                    # across every class, and a bare plate number WILL
+                    # collide by chance (confirmed against a real 829-rider
+                    # national field). Never promote that to a displayed
+                    # time -- cap it at "weak".
+                    confidence = (
+                        MatchConfidence.STRONG
+                        if class_match_path == "class_name"
+                        else MatchConfidence.WEAK
+                    )
+                    competitor = candidate
                     break
 
         if competitor is None and last and first_initial:

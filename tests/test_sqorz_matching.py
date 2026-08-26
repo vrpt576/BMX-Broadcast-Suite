@@ -89,16 +89,33 @@ def test_strong_match_requires_the_same_resolved_class() -> None:
     assert time_for_phase(matches[0], "M1") == 41.2
 
 
-def test_strong_match_does_not_cross_classes() -> None:
+def test_a_plate_only_whole_event_fallback_match_never_reaches_strong() -> None:
+    """CONFIRMED against a real 829-rider national field during the dress
+    rehearsal: when class names don't line up, plate-only-across-the-whole-
+    event WILL collide by chance. A bare plate match there is capped at
+    "weak" (recorded, never displayed) -- "strong" requires the safety of a
+    genuinely class-scoped pool. See sqorz_matching.py's comment."""
     rider = FakeRider(bike_number=17, first_name="Nova", last_name="Archer")
     rows = [sqorz_row(plate="17", first_name="Someone", last_name="Else", class_name="8 Novice")]
 
     matches, report = match_class([rider], "7 Intermediate", rows)
 
-    # Class names disagree, but there's only one Sqorz class in this event,
-    # so the fallback is plate-only across the whole event -- still a match.
-    assert matches[0].confidence == MatchConfidence.STRONG
     assert report.class_match_path == "plate_only"
+    assert matches[0].confidence == MatchConfidence.WEAK
+    assert time_for_phase(matches[0], "M1") is None
+
+
+def test_a_plate_match_within_the_real_resolved_class_stays_strong() -> None:
+    rider = FakeRider(bike_number=17, first_name="Nova", last_name="Archer")
+    rows = [
+        sqorz_row(plate="17", first_name="Someone", last_name="Else", class_name="7 Intermediate"),
+        sqorz_row(plate="4", first_name="Other", last_name="Rider", class_name="8 Novice"),
+    ]
+
+    matches, report = match_class([rider], "7 Intermediate", rows)
+
+    assert report.class_match_path == "class_name"
+    assert matches[0].confidence == MatchConfidence.STRONG
 
 
 def test_weak_match_never_produces_a_displayed_time() -> None:

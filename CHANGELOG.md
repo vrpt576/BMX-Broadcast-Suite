@@ -12,6 +12,24 @@
   labels, rider identity, and official results; Sqorz supplies times only,
   and only for an "exact" or "strong" confidence plate/name match -- see
   `docs/sqorz-live-timing.md`.
+- Added a standalone Sqorz-only overlay (`/overlay/sqorz-timing`) with no
+  RaceManager dependency at all, for tracks where BBS can read Sqorz but not
+  RaceManager. Shows one class/phase's plate, rider, and time; selectable via
+  `?class=`/`?phase=` query parameters, defaulting to a simple "most recently
+  updated class" heuristic. Unlike the lineup overlay's timing column, Sqorz's
+  own phase wording is deliberately displayed here, since this overlay
+  presents Sqorz's own view of the event, not BBS's race program.
+- Hardened Sqorz matching: a bare plate-number match is now only trusted as
+  "strong" (displayed) when it's scoped to the rider's actual class. When
+  class names don't line up and matching falls back to searching the whole
+  event by plate alone, that match is capped at "weak" (never displayed) --
+  confirmed against a real 829-rider national field that a bare plate number
+  can otherwise coincidentally collide across unrelated classes at that
+  scale.
+- Fixed the lineup overlay's and standalone overlay's time columns clipping
+  at 1920x1080: the column was too narrow for a bold six-character time,
+  overflowing past the panel's edge. Caught during a dress rehearsal against
+  live Sqorz data before deploying on site.
 
 ## 1.2.17 - 2026-08-24
 

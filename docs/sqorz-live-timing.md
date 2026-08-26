@@ -53,6 +53,48 @@ wrong time. See `connector/services/sqorz_matching.py` for the exact rules, and 
 confidence, and which names on each side didn't match) — that's the first thing to check
 if a class isn't lining up at the track.
 
+A bare plate-number match ("strong") is only trusted when it's scoped to the
+rider's actual class (a handful of riders — a collision there is implausible).
+When RaceManager's and Sqorz's class names don't line up textually, matching
+falls back to searching every competitor in the whole event by plate alone
+(`match_report.class_match_path == "plate_only"`) — and confirmed against a
+real 829-rider national field during testing, a bare plate number **will**
+coincidentally collide across unrelated classes at that scale. A plate-only
+match found via that whole-event fallback is therefore capped at "weak"
+(recorded, never displayed), never promoted to "strong".
+
+## Standalone Sqorz-only overlay
+
+`/overlay/sqorz-timing` reads only the Sqorz feed — no RaceManager dependency
+at all (it never touches `MotoboardService`, `CurrentMotoService`, or the race
+slot catalog). Use it when RaceManager isn't reachable from BBS: it shows one
+class/phase's plate, rider, and time, with Sqorz's own phase wording displayed
+(e.g. "Moto 1", "Main") — unlike the lineup overlay's timing column, there is
+no BBS phase_label to protect here, since this overlay presents Sqorz's own
+view of the event, not BBS's RaceManager-derived race program.
+
+Select the race with query parameters, e.g.:
+
+```
+/overlay/sqorz-timing?class=11-12+Open&phase=M1
+```
+
+`class` matches Sqorz's `className` (its own wording, not RaceManager's).
+`phase` is a Sqorz `phaseCode`: `M1`, `M2`, `M3`, or `1F` (Main). Omit either
+or both and it picks a default: the class with the most recently updated
+Sqorz class-level timestamp, using that class's own current ranking phase.
+This is a deliberately simple heuristic — **confirmed against the live
+internet API that every class in one payload shares one identical timestamp**
+(it's a payload-generation time, not per-class), so in internet mode it
+resolves to whichever class comes first in Sqorz's own ordering. It should be
+more meaningful in LAN mode if `getPhaseBlockSummaries` turns out to carry a
+genuine per-block timestamp — unverified, confirm on site. Refine this once
+you've seen it against real LAN data.
+
+There's no Director UI for switching class/phase yet — bookmark or hand-type
+the URL with query parameters in OBS's Browser Source settings. That's an
+explicit scope cut for this trip (see `docs/sqorz-on-site-runbook.md`).
+
 ## Fixture provenance
 
 `tests/fixtures/sqorz/hoosier_day3_event.json` and `tests/fixtures/sqorz/usabmx_org.json`
