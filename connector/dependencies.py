@@ -74,6 +74,7 @@ def get_sqorz_service() -> SqorzService:
         file_path=settings.sqorz_file_path,
         poll_seconds=settings.sqorz_effective_poll_seconds,
         timeout_seconds=settings.sqorz_timeout_seconds,
+        raw_response_file=settings.sqorz_lan_raw_response_file,
     )
 
 

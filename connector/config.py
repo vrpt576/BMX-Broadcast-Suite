@@ -127,6 +127,9 @@ class Settings(BaseSettings):
     sqorz_poll_seconds: int | None = None
     sqorz_timeout_seconds: float = 2.0
     sqorz_class_alias_file: Path = Path("data/sqorz_class_aliases.json")
+    # LAN mode only: where the raw response is saved when it can't be parsed
+    # into any usable rider data -- see SqorzService._fetch_lan().
+    sqorz_lan_raw_response_file: Path = Path("data/sqorz_lan_last_response.json")
 
     # A bare `NAME=` in .env (exactly what .env.example ships for several of
     # these, and what ConfigurationService.save() writes when a field is
@@ -158,6 +161,7 @@ class Settings(BaseSettings):
         "sqorz_poll_seconds",
         "sqorz_timeout_seconds",
         "sqorz_class_alias_file",
+        "sqorz_lan_raw_response_file",
         "sql_port",
         "sql_connect_timeout",
         "sql_query_timeout",
@@ -167,6 +171,7 @@ class Settings(BaseSettings):
         "log_retention_days",
         "remote_control_enabled",
         "remote_admin_enabled",
+        "current_moto_default",
         mode="before",
     )
     @classmethod
@@ -259,6 +264,7 @@ def get_settings() -> Settings:
         "phase_override_file",
         "theme_dir",
         "sqorz_class_alias_file",
+        "sqorz_lan_raw_response_file",
     ):
         value = Path(getattr(settings, field))
         if not value.is_absolute():

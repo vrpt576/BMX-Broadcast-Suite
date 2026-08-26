@@ -17,12 +17,21 @@ scripts/sqorz_capture.py through the exact same parse_event_payload() used by
 internet mode -- only the fetch differs, so it's a genuine demo of real data
 with no network at all, for when neither the venue's LAN nor internet is
 available.
+
+LAN mode's response shapes are UNVERIFIED -- Sqorz has never published them.
+parse_lan_phase_rank_detail() tries a shape guessed from the verified
+internet API first; parse_lan_by_searching_the_tree() is a resilience
+fallback for when that guess doesn't match, searching the whole response for
+recognisable field names regardless of nesting. Neither is proof the real
+shape is understood -- that's RESILIENCE, not verification. See
+docs/sqorz-live-timing.md and scripts/sqorz_probe.py.
 """
 
 from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -171,6 +180,205 @@ def _first_list(payload: Any, *keys: str) -> list[Any]:
     return []
 
 
+# ---------------------------------------------------------------------------
+# Tree-search fallback for LAN mode: resilience, not verification.
+#
+# parse_lan_phase_rank_detail() below assumes one specific guessed nesting.
+# When that guess is wrong, the functions in this section instead walk the
+# ENTIRE response tree, at any depth, looking for dicts that carry
+# recognisable field names -- so a response shaped differently than guessed
+# can still yield real riders. They deliberately recognise ONLY the exact
+# field vocabulary the verified internet API uses (case/underscore
+# variations aside), never a broader set of guessed synonyms: a wrong
+# synonym guess could misattribute a value to the wrong meaning (e.g.
+# confusing `result` -- finish position -- with `racePosition` -- starting
+# gate; the two are never interchangeable, see sqorz_matching.py), which is
+# worse than finding nothing. A match here is not proof the real LAN
+# contract is understood, only that something with a known field name was
+# found somewhere in the response.
+# ---------------------------------------------------------------------------
+
+
+def _walk_dicts(node: Any) -> Iterator[dict[str, Any]]:
+    """Every dict anywhere in a JSON-shaped tree, depth-first (including the
+    node itself). Used only by the tree-search fallback below."""
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _walk_dicts(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _walk_dicts(item)
+
+
+def _normalize_key(key: str) -> str:
+    return key.replace("_", "").replace("-", "").lower()
+
+
+# canonical field -> the one normalised key it's recognised by.
+_TREE_SEARCH_KEYS: dict[str, str] = {
+    "plate": "plate",
+    "first_name": "firstname",
+    "last_name": "lastname",
+    "transponder": "transponder",
+    "class_code": "classcode",
+    "class_name": "classname",
+    "phase_code": "phasecode",
+    "phase_block_code": "phaseblockcode",
+    "phase_name": "phasename",
+    "time": "time",
+    "race_position": "raceposition",
+    "rank": "rank",
+    "result": "result",
+}
+
+
+def _tree_search_find(d: dict[str, Any], field: str) -> Any:
+    target = _TREE_SEARCH_KEYS[field]
+    for key, value in d.items():
+        if _normalize_key(key) == target:
+            return value
+    return None
+
+
+def _looks_like_a_phase_block(d: dict[str, Any]) -> bool:
+    return _tree_search_find(d, "class_code") is not None and (
+        _tree_search_find(d, "phase_block_code") is not None
+        or _tree_search_find(d, "phase_code") is not None
+    )
+
+
+def find_phase_blocks_by_searching_the_tree(payload: Any) -> list[dict[str, Any]]:
+    """Resilience fallback for getPhaseBlockSummaries: when _first_list's
+    guessed container keys find nothing, search the whole response for
+    dicts that look like a (classCode, phaseBlockCode) pair instead."""
+    blocks: list[dict[str, Any]] = []
+    seen: set[tuple[Any, Any]] = set()
+    for candidate in _walk_dicts(payload):
+        if not _looks_like_a_phase_block(candidate):
+            continue
+        class_code = _tree_search_find(candidate, "class_code")
+        phase_block_code = _tree_search_find(candidate, "phase_block_code") or _tree_search_find(
+            candidate, "phase_code"
+        )
+        key = (class_code, phase_block_code)
+        if key in seen:
+            continue
+        seen.add(key)
+        blocks.append(
+            {
+                "classCode": class_code,
+                "className": _tree_search_find(candidate, "class_name"),
+                "phaseBlockCode": phase_block_code,
+            }
+        )
+    return blocks
+
+
+def _looks_like_a_competitor(d: dict[str, Any]) -> bool:
+    return _tree_search_find(d, "last_name") is not None or _tree_search_find(d, "plate") is not None
+
+
+def _looks_like_a_phase_detail(d: dict[str, Any]) -> bool:
+    return (
+        _tree_search_find(d, "time") is not None
+        or _tree_search_find(d, "result") is not None
+        or _tree_search_find(d, "phase_code") is not None
+    )
+
+
+def _iter_candidate_records(payload: Any) -> Iterator[dict[str, Any]]:
+    """Every list-item dict found anywhere in the tree is a candidate "one
+    rider's record" boundary -- a list is the natural signal of "multiple
+    repeated entries" in a JSON API, so each item is treated as everything
+    about one rider, however its own internals happen to be arranged. If
+    the payload has no list in it anywhere, it's inherently a single record
+    already (nothing else for it to be confused with), so it's yielded on
+    its own instead.
+    """
+    found_a_list = False
+    if isinstance(payload, (dict, list)):
+        for node in _walk_dicts(payload):
+            for value in node.values():
+                if isinstance(value, list):
+                    found_a_list = True
+                    for item in value:
+                        if isinstance(item, dict):
+                            yield item
+    if isinstance(payload, list):
+        found_a_list = True
+        for item in payload:
+            if isinstance(item, dict):
+                yield item
+    if not found_a_list and isinstance(payload, dict):
+        yield payload
+
+
+def parse_lan_by_searching_the_tree(
+    payload: Any, *, class_code: str | None, class_name: str | None
+) -> list[SqorzRiderTime]:
+    """Last-resort fallback when parse_lan_phase_rank_detail's guessed shape
+    matches nothing. For each candidate record (see _iter_candidate_records
+    above), searches its own subtree for a name/plate to use as the rider's
+    identity, then pairs that identity with every phase-detail-looking dict
+    (a time, result, or phase code) found anywhere else within that SAME
+    record -- covering both a detail nested inside a competitor object
+    (competitor.details) and a detail that's merely a sibling of one under
+    a shared wrapper ({"rider": {...}, "results": [...]}), without assuming
+    which of those two shapes it is. See the module section docstring above
+    for what this does and does not prove.
+    """
+    rows: list[SqorzRiderTime] = []
+    for record in _iter_candidate_records(payload):
+        subtree = list(_walk_dicts(record))
+        identity_source = next((d for d in subtree if _looks_like_a_competitor(d)), None)
+        if identity_source is None:
+            continue
+        plate = _tree_search_find(identity_source, "plate")
+        first_name = _tree_search_find(identity_source, "first_name")
+        last_name = _tree_search_find(identity_source, "last_name")
+        transponder = _tree_search_find(identity_source, "transponder")
+
+        for detail in subtree:
+            if not _looks_like_a_phase_detail(detail):
+                continue
+            phase_code = _tree_search_find(detail, "phase_code") or class_code
+            if not phase_code:
+                continue
+            raw_time = _tree_search_find(detail, "time")
+            rows.append(
+                SqorzRiderTime(
+                    class_code=_tree_search_find(detail, "class_code") or class_code,
+                    class_name=_tree_search_find(detail, "class_name") or class_name,
+                    plate=plate,
+                    first_name=first_name,
+                    last_name=last_name,
+                    transponder=transponder,
+                    phase_code=str(phase_code),
+                    phase_name=_tree_search_find(detail, "phase_name"),
+                    time_seconds=_parse_time(raw_time),
+                    time_raw=raw_time if isinstance(raw_time, str) else None,
+                    race_position=_parse_int(_tree_search_find(detail, "race_position")),
+                    rank=_parse_int(_tree_search_find(detail, "rank")),
+                    result=_parse_int(_tree_search_find(detail, "result")),
+                )
+            )
+
+    seen: set[tuple[Any, Any, Any, str]] = set()
+    deduped: list[SqorzRiderTime] = []
+    for row in rows:
+        key = (row.plate, row.first_name, row.last_name, row.phase_code)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
+def _has_any_content(raw_responses: dict[str, Any]) -> bool:
+    return any(value not in (None, {}, []) for value in raw_responses.values())
+
+
 def parse_lan_phase_rank_detail(
     payload: Any, *, class_code: str | None, class_name: str | None
 ) -> list[SqorzRiderTime]:
@@ -181,7 +389,9 @@ def parse_lan_phase_rank_detail(
     rows, on the theory that both surfaces come from the same underlying
     data model. Confirm the real shape on site with scripts/sqorz_probe.py
     and adjust the candidate keys below once captured -- until then this
-    tolerates being wrong by returning [] rather than raising.
+    tolerates being wrong by returning [] rather than raising. See
+    parse_lan_by_searching_the_tree() above for the fallback SqorzService
+    tries when this guess matches nothing.
     """
     rows: list[SqorzRiderTime] = []
     for competitor in _first_list(payload, "competitors", "rankDetails", "results", "data"):
@@ -261,6 +471,7 @@ class SqorzService:
         file_path: str = "",
         poll_seconds: float = 10.0,
         timeout_seconds: float = 2.0,
+        raw_response_file: Path | None = None,
         clock: Any = time.monotonic,
     ) -> None:
         self.enabled = enabled
@@ -272,6 +483,10 @@ class SqorzService:
         self.file_path = file_path
         self.poll_seconds = poll_seconds
         self.timeout_seconds = timeout_seconds
+        # Where the raw LAN response is saved when parsing yields nothing
+        # usable -- see _fetch_lan(). None disables the disk save (still
+        # kept in memory via last_raw_lan_response either way).
+        self.raw_response_file = raw_response_file
         self._clock = clock
         self._cache: list[SqorzRiderTime] = []
         self._cached_at: float | None = None
@@ -280,6 +495,13 @@ class SqorzService:
         self.last_match_report: Any = None
         self.last_match_class_name: str | None = None
         self.last_match_class_alias: str | None = None
+        # LAN mode only -- the most recent raw response(s), kept in memory
+        # regardless of whether parsing found anything, so a status page can
+        # show them without a terminal. See connector/routes/sqorz_status.py.
+        self.last_raw_lan_response: dict[str, Any] | None = None
+        # Set only when LAN responded but nothing recognisable was found in
+        # it -- never set for "reachable, genuinely nothing racing yet".
+        self.last_lan_parse_warning: str | None = None
 
     def get_riders(self) -> SqorzFetchResult:
         if not self.enabled:
@@ -345,12 +567,20 @@ class SqorzService:
         return parse_event_payload(payload)
 
     def _fetch_lan(self) -> list[SqorzRiderTime]:
-        # UNVERIFIED end to end -- see parse_lan_phase_rank_detail. This calls
-        # the documented function signatures; the response shapes are not
-        # documented by Sqorz and must be confirmed on site.
-        blocks = self._call_lan("getPhaseBlockSummaries", [])
+        # UNVERIFIED end to end -- the response shapes are not documented by
+        # Sqorz. This calls the documented function signatures; parsing
+        # tries the guessed shape first, falling back to the tree-search
+        # resilience path when that finds nothing -- see
+        # parse_lan_phase_rank_detail/parse_lan_by_searching_the_tree above.
+        raw_responses: dict[str, Any] = {}
+        blocks_response = self._call_lan("getPhaseBlockSummaries", [])
+        raw_responses["getPhaseBlockSummaries"] = blocks_response
+        blocks = _first_list(blocks_response, "phaseBlockSummaries", "blocks", "data")
+        if not blocks:
+            blocks = find_phase_blocks_by_searching_the_tree(blocks_response)
+
         rows: list[SqorzRiderTime] = []
-        for block in _first_list(blocks, "phaseBlockSummaries", "blocks", "data"):
+        for block in blocks:
             if not isinstance(block, dict):
                 continue
             class_code = block.get("classCode")
@@ -368,14 +598,41 @@ class SqorzService:
                     }
                 ],
             )
-            rows.extend(
-                parse_lan_phase_rank_detail(
-                    detail_payload,
-                    class_code=class_code,
-                    class_name=block.get("className"),
-                )
+            raw_responses[f"getPhaseRankDetail[{class_code}/{phase_block_code}]"] = detail_payload
+            parsed = parse_lan_phase_rank_detail(
+                detail_payload, class_code=class_code, class_name=block.get("className")
             )
+            if not parsed:
+                parsed = parse_lan_by_searching_the_tree(
+                    detail_payload, class_code=class_code, class_name=block.get("className")
+                )
+            rows.extend(parsed)
+
+        self.last_raw_lan_response = raw_responses
+        if not rows and _has_any_content(raw_responses):
+            self._save_raw_lan_response(raw_responses)
+            self.last_lan_parse_warning = (
+                "Sqorz LAN responded, but no rider data could be recognised "
+                "in the response shape -- this is a parsing gap, not proof "
+                "Sqorz has no data yet. Raw response saved to "
+                f"{self.raw_response_file}. Send scripts/sqorz_probe.py's "
+                "output back so the parser can be finished against the real "
+                "shape -- see docs/sqorz-live-timing.md."
+            )
+        else:
+            self.last_lan_parse_warning = None
         return rows
+
+    def _save_raw_lan_response(self, raw_responses: dict[str, Any]) -> None:
+        if self.raw_response_file is None:
+            return
+        try:
+            self.raw_response_file.parent.mkdir(parents=True, exist_ok=True)
+            self.raw_response_file.write_text(
+                json.dumps(raw_responses, indent=2, default=str), encoding="utf-8"
+            )
+        except OSError:
+            pass  # best-effort only -- a disk problem must never break Sqorz polling
 
     def _get_json(self, url: str) -> dict[str, Any]:
         request = Request(

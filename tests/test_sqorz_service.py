@@ -7,7 +7,9 @@ from pathlib import Path
 
 from connector.services.sqorz_service import (
     SqorzService,
+    find_phase_blocks_by_searching_the_tree,
     parse_event_payload,
+    parse_lan_by_searching_the_tree,
     parse_lan_phase_rank_detail,
     plausible_finish,
 )
@@ -196,6 +198,102 @@ def test_lan_parsing_extracts_a_flat_shape() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Tree-search resilience fallback -- for when the guessed LAN shape is wrong
+# ---------------------------------------------------------------------------
+
+
+def test_tree_search_finds_a_competitor_nested_completely_differently_than_guessed() -> None:
+    """Plate/name one level deeper than guessed, wrapped in an unexpected
+    container key, time/result under a differently-named nested key --
+    none of this matches parse_lan_phase_rank_detail's specific shape, but
+    every field name itself is still the known vocabulary."""
+    payload = {
+        "raceData": {
+            "riders": [
+                {
+                    "rider": {"plate": "9", "firstName": "ALEX", "lastName": "RIVERA"},
+                    "results": [{"phaseCode": "M1", "time": "41.220", "result": 2}],
+                }
+            ]
+        }
+    }
+    rows = parse_lan_by_searching_the_tree(payload, class_code="C1", class_name="Test Class")
+
+    assert len(rows) == 1
+    assert rows[0].last_name == "RIVERA"
+    assert rows[0].plate == "9"
+    assert rows[0].time_seconds == 41.220
+    assert rows[0].result == 2
+    assert rows[0].class_code == "C1"
+
+
+def test_tree_search_still_handles_a_flat_shape() -> None:
+    payload = [{"plate": "3", "lastName": "OKAFOR", "time": "50.0", "phaseCode": "M2"}]
+    rows = parse_lan_by_searching_the_tree(payload, class_code=None, class_name=None)
+
+    assert len(rows) == 1
+    assert rows[0].phase_code == "M2"
+    assert rows[0].time_seconds == 50.0
+
+
+def test_tree_search_finds_nothing_in_a_genuinely_unrecognisable_shape() -> None:
+    payload = {"foo": [{"bar": 1, "baz": "qux"}]}
+    assert parse_lan_by_searching_the_tree(payload, class_code="C1", class_name="X") == []
+    assert parse_lan_by_searching_the_tree(None, class_code="C1", class_name="X") == []
+    assert parse_lan_by_searching_the_tree("not even a dict", class_code="C1", class_name="X") == []
+
+
+def test_tree_search_never_confuses_result_with_race_position() -> None:
+    """The one thing this must never do: attribute a value to the wrong
+    field just because it's numeric. result (finish) and racePosition
+    (starting gate) are never interchangeable -- see sqorz_matching.py."""
+    payload = [
+        {
+            "plate": "1",
+            "lastName": "NGUYEN",
+            "phaseCode": "M1",
+            "time": "45.0",
+            "racePosition": 7,
+            "result": 2,
+            "rank": 1,
+        }
+    ]
+    row = parse_lan_by_searching_the_tree(payload, class_code=None, class_name=None)[0]
+    assert row.race_position == 7
+    assert row.result == 2
+    assert row.rank == 1
+
+
+def test_tree_search_deduplicates_a_competitor_reachable_two_ways() -> None:
+    """A dict that satisfies both "looks like a competitor" and "looks like
+    a phase detail" (e.g. a flat row) must not produce the same row twice
+    just because _walk_dicts visits it as both the competitor and its own
+    detail."""
+    payload = {"plate": "4", "lastName": "PARK", "phaseCode": "M1", "time": "48.5"}
+    rows = parse_lan_by_searching_the_tree(payload, class_code=None, class_name=None)
+    assert len(rows) == 1
+
+
+def test_phase_block_tree_search_finds_pairs_in_an_unguessed_container() -> None:
+    payload = {"summary": {"data": [{"classCode": "2204", "phaseBlockCode": "M1", "className": "11-12 Open"}]}}
+    blocks = find_phase_blocks_by_searching_the_tree(payload)
+    assert blocks == [{"classCode": "2204", "className": "11-12 Open", "phaseBlockCode": "M1"}]
+
+
+def test_phase_block_tree_search_accepts_phase_code_as_a_stand_in() -> None:
+    """UNVERIFIED which key name Sqorz's LAN API actually uses for this --
+    phaseCode is accepted as a plausible alternative to phaseBlockCode."""
+    payload = [{"classCode": "2204", "phaseCode": "M1"}]
+    blocks = find_phase_blocks_by_searching_the_tree(payload)
+    assert blocks == [{"classCode": "2204", "className": None, "phaseBlockCode": "M1"}]
+
+
+def test_phase_block_tree_search_finds_nothing_in_an_unrecognisable_shape() -> None:
+    assert find_phase_blocks_by_searching_the_tree({"nope": "nothing here"}) == []
+    assert find_phase_blocks_by_searching_the_tree(None) == []
+
+
+# ---------------------------------------------------------------------------
 # SqorzService: disabled/unreachable never fails, throttled polling, cache
 # ---------------------------------------------------------------------------
 
@@ -293,6 +391,129 @@ def test_stale_cache_is_served_and_flagged_when_sqorz_goes_unreachable() -> None
     clock.advance(50)  # well past poll_seconds * 3
     third = service.get_riders()
     assert third.stale is True
+
+
+# ---------------------------------------------------------------------------
+# LAN mode via SqorzService: fallback wiring, raw-response capture, and the
+# distinction between "genuinely nothing racing yet" and "couldn't parse it"
+# ---------------------------------------------------------------------------
+
+
+def test_lan_mode_uses_the_tree_search_fallback_when_the_guessed_shape_fails(tmp_path) -> None:
+    """End-to-end proof the fallback is actually wired in, not just tested
+    in isolation: a shape parse_lan_phase_rank_detail can't handle, but
+    parse_lan_by_searching_the_tree can, still produces real riders."""
+    service = SqorzService(
+        enabled=True,
+        mode="lan",
+        host="scoring",
+        raw_response_file=tmp_path / "raw.json",
+        clock=Clock(),
+    )
+
+    def fake_call_lan(func: str, args: list) -> object:
+        if func == "getPhaseBlockSummaries":
+            return {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1", "className": "Test"}]}
+        return {
+            "wrapper": {
+                "rider": {"plate": "9", "firstName": "ALEX", "lastName": "RIVERA"},
+                "detail": {"phaseCode": "M1", "time": "41.220", "result": 2},
+            }
+        }
+
+    service._call_lan = fake_call_lan
+    result = service.get_riders()
+
+    assert result.reachable is True
+    row = next(r for r in result.riders if r.last_name == "RIVERA")
+    assert row.time_seconds == 41.220
+    assert service.last_lan_parse_warning is None  # the fallback succeeded -- not a failure
+    assert not tmp_path.joinpath("raw.json").exists()  # nothing to flag, nothing saved
+
+
+def test_lan_mode_saves_the_raw_response_and_warns_when_nothing_parses(tmp_path) -> None:
+    raw_file = tmp_path / "raw.json"
+    service = SqorzService(
+        enabled=True, mode="lan", host="scoring", raw_response_file=raw_file, clock=Clock()
+    )
+
+    def fake_call_lan(func: str, args: list) -> object:
+        if func == "getPhaseBlockSummaries":
+            return {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1"}]}
+        # Real content, but nothing recognisable in it at all.
+        return {"totallyUnexpectedShape": {"nested": ["stuff", 123, True]}}
+
+    service._call_lan = fake_call_lan
+    result = service.get_riders()
+
+    assert result.reachable is True  # it DID respond -- this isn't a network failure
+    assert result.riders == []
+    assert service.last_lan_parse_warning is not None
+    assert str(raw_file) in service.last_lan_parse_warning
+    assert raw_file.exists()
+    saved = json.loads(raw_file.read_text(encoding="utf-8"))
+    assert saved["getPhaseBlockSummaries"] == {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1"}]}
+
+
+def test_lan_mode_does_not_warn_when_there_is_genuinely_nothing_to_find(tmp_path) -> None:
+    """Reachable, but no classes/blocks at all -- a normal state before an
+    event starts, not a parsing failure. Must not be flagged the same way
+    as an unrecognisable-but-non-empty response."""
+    raw_file = tmp_path / "raw.json"
+    service = SqorzService(
+        enabled=True, mode="lan", host="scoring", raw_response_file=raw_file, clock=Clock()
+    )
+    service._call_lan = lambda func, args: {}
+
+    result = service.get_riders()
+
+    assert result.reachable is True
+    assert result.riders == []
+    assert service.last_lan_parse_warning is None
+    assert not raw_file.exists()
+
+
+def test_lan_mode_keeps_the_last_raw_response_in_memory_even_on_success(tmp_path) -> None:
+    """last_raw_lan_response is for the live status page's "raw" link --
+    must be populated whether parsing succeeded or not."""
+    service = SqorzService(
+        enabled=True,
+        mode="lan",
+        host="scoring",
+        raw_response_file=tmp_path / "raw.json",
+        clock=Clock(),
+    )
+    detail = {"competitors": [{"plate": "1", "lastName": "OK", "competitorRankDetails": [{"phaseCode": "M1", "time": "40.0"}]}]}
+    service._call_lan = lambda func, args: (
+        {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1"}]}
+        if func == "getPhaseBlockSummaries"
+        else detail
+    )
+
+    service.get_riders()
+
+    assert service.last_raw_lan_response is not None
+    assert "getPhaseBlockSummaries" in service.last_raw_lan_response
+
+
+def test_lan_raw_response_save_is_best_effort_never_fatal(tmp_path) -> None:
+    """A bad raw_response_file (e.g. a directory in the way) must degrade
+    the save, never break Sqorz polling itself."""
+    blocking_directory = tmp_path / "raw.json"
+    blocking_directory.mkdir()  # a directory sitting where the file should go
+    service = SqorzService(
+        enabled=True, mode="lan", host="scoring", raw_response_file=blocking_directory, clock=Clock()
+    )
+    service._call_lan = lambda func, args: (
+        {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1"}]}
+        if func == "getPhaseBlockSummaries"
+        else {"unrecognisable": True}
+    )
+
+    result = service.get_riders()  # must not raise
+
+    assert result.reachable is True
+    assert result.riders == []
 
 
 # ---------------------------------------------------------------------------
