@@ -5,12 +5,13 @@ import os
 from pathlib import Path
 import sys
 
-from pydantic import Field, field_validator
+from pydantic import Field, TypeAdapter, ValidationError, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 APPLICATION_ROOT = Path(__file__).resolve().parents[1]
 WINDOWS_DATA_DIRECTORY = Path("BMX Broadcast Suite") / "UserData"
+VALID_SQORZ_MODES = ("internet", "lan", "file")
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:
@@ -122,24 +123,71 @@ class Settings(BaseSettings):
     sqorz_port: int = 4343
     sqorz_file_path: str = ""
     # None = mode-aware default (10s internet, 2s LAN -- see
-    # sqorz_effective_poll_seconds). An explicit value always wins. Left
-    # unset rather than blanked to a stored empty string -- a bare
-    # BBS_SQORZ_POLL_SECONDS= in .env (exactly what .env.example ships and
-    # what ConfigurationService.save() writes when cleared) is read by
-    # pydantic-settings as the literal string "", which would otherwise fail
-    # int|None validation and crash BBS at startup before FastAPI even
-    # loads. The validator below is what actually prevents that; confirmed
-    # live during the pre-trip rehearsal.
+    # sqorz_effective_poll_seconds). An explicit value always wins.
     sqorz_poll_seconds: int | None = None
     sqorz_timeout_seconds: float = 2.0
     sqorz_class_alias_file: Path = Path("data/sqorz_class_aliases.json")
 
-    @field_validator("sqorz_poll_seconds", mode="before")
+    # A bare `NAME=` in .env (exactly what .env.example ships for several of
+    # these, and what ConfigurationService.save() writes when a field is
+    # cleared) is read by pydantic-settings as the literal string "". For
+    # every field above except the plain str ones, that used to fail type
+    # validation and crash BBS at startup before FastAPI even loaded --
+    # confirmed live during the pre-trip rehearsal for
+    # BBS_SQORZ_POLL_SECONDS, and true of every other non-str field here for
+    # the same reason (a bool/int/float/Path field has no valid parse of "").
+    # A typo'd, non-blank value (e.g. BBS_SQORZ_PORT=44e3) is exactly as real
+    # a risk and must not crash the whole connector either -- RaceManager,
+    # the Director, and the existing overlays must still come up even if
+    # Sqorz's own config is broken. Both cases fall back to this field's own
+    # declared default; a non-blank value that still doesn't parse also
+    # prints a startup-time warning naming the setting and the bad value, so
+    # a real typo is loud (in the console, not silently swallowed) without
+    # being fatal.
+    @field_validator(
+        "sqorz_enabled",
+        "sqorz_port",
+        "sqorz_poll_seconds",
+        "sqorz_timeout_seconds",
+        "sqorz_class_alias_file",
+        mode="before",
+    )
     @classmethod
-    def _blank_sqorz_poll_seconds_means_unset(cls, value: object) -> object:
-        if isinstance(value, str) and value.strip() == "":
-            return None
+    def _blank_or_unparseable_sqorz_value_falls_back_to_default(
+        cls, value: object, info: ValidationInfo
+    ) -> object:
+        if not isinstance(value, str):
+            return value
+        default = cls.model_fields[info.field_name].default
+        if value.strip() == "":
+            return default
+        try:
+            TypeAdapter(cls.model_fields[info.field_name].annotation).validate_python(value)
+        except ValidationError:
+            print(
+                f"WARNING: BBS_{info.field_name.upper()}={value!r} is not a valid value "
+                f"-- falling back to the default ({default!r}).",
+                file=sys.stderr,
+            )
+            return default
         return value
+
+    @field_validator("sqorz_mode", mode="before")
+    @classmethod
+    def _blank_or_unrecognised_sqorz_mode_falls_back_to_internet(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip().lower()
+        if normalized == "":
+            return "internet"
+        if normalized not in VALID_SQORZ_MODES:
+            print(
+                f"WARNING: BBS_SQORZ_MODE={value!r} is not one of "
+                f"{VALID_SQORZ_MODES} -- falling back to 'internet'.",
+                file=sys.stderr,
+            )
+            return "internet"
+        return normalized
 
     @property
     def sqorz_effective_poll_seconds(self) -> float:

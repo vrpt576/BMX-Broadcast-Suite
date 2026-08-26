@@ -42,6 +42,17 @@ aggressively (2s) for snappier updates.
   scoring computer at the track. Sqorz does not publish the LAN response shapes, so that
   path is written defensively (tolerates unknown/missing fields, never raises) and is
   **unverified** until confirmed on site with `scripts/sqorz_probe.py`.
+
+  `scripts/sqorz_lan_mock.py` is a throwaway local stand-in for this backend (stdlib only,
+  not shipped in the installer) that answers `POST /api?func=...` with the real Hoosier
+  fixture reshaped into a **guessed** response per function. Run it
+  (`python scripts/sqorz_lan_mock.py --port 4343`), point BBS at
+  `BBS_SQORZ_MODE=lan` / `BBS_SQORZ_HOST=127.0.0.1` / `BBS_SQORZ_PORT=4343`, and it proves
+  BBS forms a correct request, parses *a* plausible response, enforces its own timeout, and
+  falls back to last-known-good (flagged stale) when the mock is killed mid-poll —
+  `tests/test_sqorz_lan_end_to_end.py` automates exactly this. **It does not verify the real
+  LAN contract** — the response shapes are guesses, not Smith Rock's actual data. Only
+  `scripts/sqorz_probe.py` against the real scoring computer does that.
 - **File replay** (`BBS_SQORZ_MODE=file`, `BBS_SQORZ_FILE_PATH=...`): reads a payload saved
   with `scripts/sqorz_capture.py` from disk, through the *exact same* `parse_event_payload()`
   the internet backend uses -- only the fetch differs, so it's a genuine demo of real data
