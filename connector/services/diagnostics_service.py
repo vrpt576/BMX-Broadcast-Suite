@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from connector.config import Settings
+from connector.services.sqorz_service import SqorzService
 from database.racemanager import RaceManagerDatabase, RaceManagerDatabaseError, pyodbc
 
 
@@ -23,9 +24,15 @@ class DiagnosticCheck:
 
 
 class DiagnosticsService:
-    def __init__(self, settings: Settings, database: RaceManagerDatabase) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        database: RaceManagerDatabase,
+        sqorz: SqorzService | None = None,
+    ) -> None:
         self.settings = settings
         self.database = database
+        self.sqorz = sqorz
 
     def run(self) -> dict[str, Any]:
         checks: list[DiagnosticCheck] = []
@@ -35,6 +42,7 @@ class DiagnosticsService:
         checks.append(self._configuration_check())
         checks.append(self._network_check())
         checks.extend(self._database_checks())
+        checks.append(self._sqorz_check())
 
         required = [check for check in checks if check.required]
         overall = "ok" if all(check.status == "ok" for check in required) else "attention"
@@ -55,6 +63,7 @@ class DiagnosticsService:
                 "password_configured": bool(self.settings.sql_password),
                 "state_file": str(self.settings.current_moto_state_file),
             },
+            "sqorz": self._sqorz_status(),
             "checks": [asdict(check) for check in checks],
         }
 
@@ -140,3 +149,44 @@ class DiagnosticsService:
         else:
             checks.append(DiagnosticCheck("event", "Current RaceManager event", "ok", f"{event.get('event_name')} — {event.get('total_motos')} motos, {event.get('total_riders')} riders. Motoboard {event.get('motoboard_id')}.", required=False))
         return checks
+
+    def _sqorz_status(self) -> dict[str, Any]:
+        """Mode, reachability, last fetch age, and match-report summary.
+
+        Optional and never required -- Sqorz being off or unreachable is not
+        a diagnostics failure, just a status to report.
+        """
+        if self.sqorz is None or not self.sqorz.enabled:
+            return {"enabled": False}
+        fetch = self.sqorz.get_riders()
+        report = self.sqorz.last_match_report
+        return {
+            "enabled": True,
+            "mode": self.sqorz.mode,
+            "reachable": fetch.reachable,
+            "stale": fetch.stale,
+            "last_fetch_age_seconds": (
+                round(fetch.age_seconds, 1) if fetch.age_seconds is not None else None
+            ),
+            "last_error": fetch.error,
+            "match_report": (
+                {
+                    "counts": report.counts,
+                    "unmatched_bbs": report.unmatched_bbs,
+                    "unmatched_sqorz": report.unmatched_sqorz,
+                    "class_match_path": report.class_match_path,
+                }
+                if report is not None
+                else None
+            ),
+        }
+
+    def _sqorz_check(self) -> DiagnosticCheck:
+        if self.sqorz is None or not self.sqorz.enabled:
+            return DiagnosticCheck("sqorz", "Sqorz live timing", "ok", "Disabled.", required=False)
+        fetch = self.sqorz.get_riders()
+        if fetch.reachable:
+            detail = f"{self.sqorz.mode} mode, last fetch {round(fetch.age_seconds or 0, 1)}s ago."
+            return DiagnosticCheck("sqorz", "Sqorz live timing", "ok", detail, required=False)
+        detail = f"{self.sqorz.mode} mode unreachable: {fetch.error or 'no successful fetch yet'}."
+        return DiagnosticCheck("sqorz", "Sqorz live timing", "warning", detail, required=False)

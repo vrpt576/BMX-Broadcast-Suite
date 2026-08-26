@@ -1,0 +1,1852 @@
+{
+  "accountId": "61883ee06830e19742d56d61",
+  "regionCode": "US",
+  "eventId": "6a8198e2d91badc23cb0c54f",
+  "eventSummary": {
+    "eventId": "6a8198e2d91badc23cb0c54f",
+    "eventName": "Hoosier - Day 3",
+    "eventDate": "2026-08-16",
+    "eventEndDate": "2026-08-16",
+    "eventType": "race",
+    "sportType": "bmx",
+    "laps": false,
+    "publish": true,
+    "streamUrl": null,
+    "ruleBookName": "2025 USA Nationals",
+    "entered": 264,
+    "registered": 264,
+    "peopleCount": {
+      "entered": 201,
+      "registered": 201
+    },
+    "enabledClasses": 80,
+    "enteredClasses": 50,
+    "raceClasses": 50,
+    "seedingRequired": 0,
+    "seedingMissing": 0,
+    "seedsRequired": 0,
+    "seeded": 0,
+    "plateProblems": 15,
+    "transponderProblems": 2,
+    "mergeHints": 0,
+    "phases": 152,
+    "drawReadyPhases": 0,
+    "drawStatus": "DRAWN",
+    "races": 167,
+    "drawnRaces": 167,
+    "completeRaces": 167,
+    "scoredRaces": 167,
+    "completeScoredRaces": 167,
+    "openSessionRaces": 0,
+    "participationOnlyScoring": false,
+    "problemRaces": 0,
+    "transponderSummary": {
+      "transponderScoring": true,
+      "requiredTransponders": 264,
+      "missingTransponders": 2
+    },
+    "externalScoringSystem": null,
+    "entrySystem": null,
+    "entrySystemMode": null,
+    "entrySystemUrl": null,
+    "status": 8,
+    "costSummaries": []
+  },
+  "classRanks": [
+    {
+      "classCode": "2204",
+      "perpetualClassCode": "2204",
+      "className": "11-12 Open",
+      "classSetCode": "usa-2025-open",
+      "classType": "OPEN",
+      "rankPhaseCode": "1F",
+      "phaseName": "Main",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "18016352",
+          "firstName": "RACYN",
+          "lastName": "MURFIN",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "3",
+              "racePosition": 7,
+              "result": 1,
+              "score": 1,
+              "time": "47.529"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 7
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F3",
+              "racePosition": 1,
+              "result": 1,
+              "time": "50.195"
+            }
+          ],
+          "rank": 1,
+          "plate": "20",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "RP-15904",
+          "groupId": "1801",
+          "groupName": "Spok.WA"
+        },
+        {
+          "memberId": "93002472",
+          "firstName": "BRYSON",
+          "lastName": "ADAMS",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 9,
+              "raceName": "3",
+              "racePosition": 3,
+              "result": 100400,
+              "score": 5
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 1,
+              "raceName": "4",
+              "racePosition": 7,
+              "result": 1,
+              "score": 6,
+              "time": "51.815"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F3",
+              "racePosition": 5,
+              "result": 2,
+              "time": "50.373"
+            }
+          ],
+          "rank": 2,
+          "plate": "1",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "CR-79699",
+          "groupId": "1952",
+          "groupName": "Indy.IN"
+        },
+        {
+          "memberId": "19064652",
+          "firstName": "TEVIN",
+          "lastName": "BYNUM",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 3,
+              "raceName": "4",
+              "racePosition": 4,
+              "result": 2,
+              "score": 2,
+              "time": "49.131"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 8
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F3",
+              "racePosition": 3,
+              "result": 3,
+              "time": "50.383"
+            }
+          ],
+          "rank": 3,
+          "plate": "2",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "PC-23985",
+          "groupId": "1316",
+          "groupName": "Horn.NC"
+        },
+        {
+          "memberId": "17524773",
+          "firstName": "HUNTER",
+          "lastName": "LESLIE",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "4",
+              "racePosition": 2,
+              "result": 1,
+              "score": 1,
+              "time": "48.094"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 6
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 4,
+              "raceName": "F3",
+              "racePosition": 2,
+              "result": 4,
+              "time": "50.586"
+            }
+          ],
+          "rank": 4,
+          "plate": "13",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "KP-76530",
+          "groupId": "1752",
+          "groupName": "Fort.IN"
+        },
+        {
+          "memberId": "19134275",
+          "firstName": "CALEB",
+          "lastName": "GASSAWAY",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 4,
+              "raceName": "3",
+              "racePosition": 5,
+              "result": 2,
+              "score": 2,
+              "time": "49.386"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 9
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 5,
+              "raceName": "F3",
+              "racePosition": 4,
+              "result": 5,
+              "time": "54.126"
+            }
+          ],
+          "rank": 5,
+          "plate": "14",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "GZ-27243",
+          "groupId": "1913",
+          "groupName": "Stow.NY"
+        },
+        {
+          "memberId": "15778005",
+          "firstName": "MICHAEL",
+          "lastName": "FARY",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 5,
+              "raceName": "3",
+              "racePosition": 1,
+              "result": 3,
+              "score": 3,
+              "time": "52.188"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 3,
+              "raceName": "4",
+              "racePosition": 5,
+              "result": 3,
+              "score": 6,
+              "time": "54.389"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 6,
+              "raceName": "F3",
+              "racePosition": 7,
+              "result": 6,
+              "time": "60.671"
+            }
+          ],
+          "rank": 6,
+          "plate": "5",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "VC-28427",
+          "groupId": "1577",
+          "groupName": "Stee.IN"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 2,
+          "competitors": 9
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 1,
+          "competitors": 5
+        },
+        {
+          "phaseCode": "1F",
+          "phaseName": "Main",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 8
+        }
+      ]
+    },
+    {
+      "classCode": "2206",
+      "perpetualClassCode": "2206",
+      "className": "15-16 Open",
+      "classSetCode": "usa-2025-open",
+      "classType": "OPEN",
+      "rankPhaseCode": "M3",
+      "phaseName": "Moto 3",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "18864611",
+          "firstName": "WYATT",
+          "lastName": "QUICK",
+          "age": 15,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "6",
+              "racePosition": 5,
+              "result": 1,
+              "score": 1,
+              "time": "48.776"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 1,
+              "raceName": "6",
+              "racePosition": 7,
+              "result": 1,
+              "score": 2,
+              "time": "48.776"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F5",
+              "racePosition": 1,
+              "result": 1,
+              "score": 3,
+              "time": "47.666"
+            }
+          ],
+          "rank": 1,
+          "plate": "6 G",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "RS-07827",
+          "groupId": "1886",
+          "groupName": "Akro.OH"
+        },
+        {
+          "memberId": "16231024",
+          "firstName": "DOMINICK ERIC",
+          "lastName": "COATES",
+          "age": 58,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "6",
+              "racePosition": 3,
+              "result": 2,
+              "score": 2,
+              "time": "52.814"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 2,
+              "raceName": "6",
+              "racePosition": 5,
+              "result": 2,
+              "score": 4,
+              "time": "52.814"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F5",
+              "racePosition": 7,
+              "result": 2,
+              "score": 6,
+              "time": "50.580"
+            }
+          ],
+          "rank": 2,
+          "plate": "25",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "NZ-04964",
+          "groupId": "1623",
+          "groupName": "Ches.MD"
+        },
+        {
+          "memberId": "18865608",
+          "firstName": "BILLY",
+          "lastName": "BALCER",
+          "age": 41,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 3,
+              "raceName": "6",
+              "racePosition": 7,
+              "result": 3,
+              "score": 3,
+              "time": "54.501"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 3,
+              "raceName": "6",
+              "racePosition": 1,
+              "result": 3,
+              "score": 6,
+              "time": "54.501"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F5",
+              "racePosition": 3,
+              "result": 3,
+              "score": 9,
+              "time": "57.318"
+            }
+          ],
+          "rank": 3,
+          "plate": "38",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "FC-30784",
+          "groupId": "1886",
+          "groupName": "Akro.OH"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 1,
+          "competitors": 3
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 1,
+          "competitors": 3
+        },
+        {
+          "phaseCode": "M3",
+          "phaseName": "Moto 3",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 3
+        }
+      ]
+    },
+    {
+      "classCode": "601",
+      "perpetualClassCode": "601",
+      "className": "9-10 Girls Cruiser",
+      "classSetCode": "usa-2025-cruiser",
+      "classType": "24",
+      "rankPhaseCode": "M3",
+      "phaseName": "Moto 3",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "18016336",
+          "firstName": "BRISTOL",
+          "lastName": "ALMY",
+          "age": 9,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "7",
+              "racePosition": 5,
+              "result": 1,
+              "score": 1,
+              "time": "54.664"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 1,
+              "raceName": "7",
+              "racePosition": 7,
+              "result": 1,
+              "score": 2,
+              "time": "54.664"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F6",
+              "racePosition": 1,
+              "result": 2,
+              "score": 4,
+              "time": "56.184"
+            }
+          ],
+          "rank": 1,
+          "plate": "1",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "FF-12522",
+          "groupId": "1801",
+          "groupName": "Spok.WA"
+        },
+        {
+          "memberId": "19203617",
+          "firstName": "SELENA",
+          "lastName": "WHITE",
+          "age": 10,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "7",
+              "racePosition": 3,
+              "result": 2,
+              "score": 2,
+              "time": "55.600"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 2,
+              "raceName": "7",
+              "racePosition": 5,
+              "result": 2,
+              "score": 4,
+              "time": "55.600"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F6",
+              "racePosition": 7,
+              "result": 1,
+              "score": 5,
+              "time": "55.698"
+            }
+          ],
+          "rank": 2,
+          "plate": "3",
+          "plateType": "GC",
+          "registered": true,
+          "transponder": "TT-38060",
+          "groupId": "1799",
+          "groupName": "Rich.MI"
+        },
+        {
+          "memberId": "17704869",
+          "firstName": "ALEXA",
+          "lastName": "RICHARDS",
+          "age": 8,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 3,
+              "raceName": "7",
+              "racePosition": 7,
+              "result": 3,
+              "score": 3,
+              "time": "67.161"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 3,
+              "raceName": "7",
+              "racePosition": 1,
+              "result": 3,
+              "score": 6,
+              "time": "67.161"
+            },
+            {
+              "phaseCode": "M3",
+              "phaseName": "Moto 3",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F6",
+              "racePosition": 3,
+              "result": 3,
+              "score": 9,
+              "time": "69.289"
+            }
+          ],
+          "rank": 3,
+          "plate": "869",
+          "registered": true,
+          "transponder": "RP-97062",
+          "groupId": "1813",
+          "groupName": "Musi.TN"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 1,
+          "competitors": 3
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 1,
+          "competitors": 3
+        },
+        {
+          "phaseCode": "M3",
+          "phaseName": "Moto 3",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 3
+        }
+      ]
+    },
+    {
+      "classCode": "506",
+      "perpetualClassCode": "506",
+      "className": "12 Cruiser",
+      "classSetCode": "usa-2025-cruiser",
+      "classType": "24",
+      "rankPhaseCode": "1F",
+      "phaseName": "Main",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "12025969",
+          "firstName": "ALEXANDER",
+          "lastName": "MARTIN",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "15",
+              "racePosition": 8,
+              "result": 2,
+              "score": 2,
+              "time": "48.014",
+              "photo": 2
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 5
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F14",
+              "racePosition": 2,
+              "result": 1,
+              "time": "46.161"
+            }
+          ],
+          "rank": 1,
+          "plate": "7",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "TF-54892",
+          "groupId": "1202",
+          "groupName": "Whi.CAS"
+        },
+        {
+          "memberId": "17404798",
+          "firstName": "LEONIDAS",
+          "lastName": "AHRENS",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "15",
+              "racePosition": 4,
+              "result": 1,
+              "score": 1,
+              "time": "46.222"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 4
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F14",
+              "racePosition": 1,
+              "result": 2,
+              "time": "46.498"
+            }
+          ],
+          "rank": 2,
+          "plate": "6",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "HK-45869",
+          "groupId": "1740",
+          "groupName": "Gret.LA"
+        },
+        {
+          "memberId": "15498339",
+          "firstName": "MARSHALL",
+          "lastName": "FALKOWSKI",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 3,
+              "raceName": "15",
+              "racePosition": 3,
+              "result": 3,
+              "score": 3,
+              "time": "48.023",
+              "photo": 2
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 7
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F14",
+              "racePosition": 3,
+              "result": 3,
+              "time": "47.549"
+            }
+          ],
+          "rank": 3,
+          "plate": "9",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "FH-13374",
+          "groupId": "1549",
+          "groupName": "Rum.MN"
+        },
+        {
+          "memberId": "15778167",
+          "firstName": "CASTIEL",
+          "lastName": "PEARSON",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 5,
+              "raceName": "15",
+              "racePosition": 1,
+              "result": 5,
+              "score": 5,
+              "time": "49.636"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 2,
+              "raceName": "15",
+              "racePosition": 5,
+              "result": 2,
+              "score": 7,
+              "time": "49.636"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 4,
+              "raceName": "F14",
+              "racePosition": 5,
+              "result": 4,
+              "time": "49.108"
+            }
+          ],
+          "rank": 4,
+          "plate": "1",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "FC-58338",
+          "groupId": "1577",
+          "groupName": "Stee.IN"
+        },
+        {
+          "memberId": "20033386",
+          "firstName": "ZAYDEN",
+          "lastName": "YEUBANKS",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 6,
+              "raceName": "15",
+              "racePosition": 7,
+              "result": 6,
+              "score": 6,
+              "time": "51.615"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 3,
+              "raceName": "15",
+              "racePosition": 3,
+              "result": 3,
+              "score": 9,
+              "time": "51.615"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 5,
+              "raceName": "F14",
+              "racePosition": 6,
+              "result": 5,
+              "time": "50.297"
+            }
+          ],
+          "rank": 5,
+          "plate": "41",
+          "plateType": "NAT",
+          "registered": true,
+          "transponder": "CR-75140",
+          "groupId": "1480",
+          "groupName": "Sand.OK"
+        },
+        {
+          "memberId": "18395247",
+          "firstName": "REEYCE",
+          "lastName": "PERITO",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 4,
+              "raceName": "15",
+              "racePosition": 6,
+              "result": 4,
+              "score": 4,
+              "time": "49.210"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 1,
+              "raceName": "15",
+              "racePosition": 2,
+              "result": 1,
+              "score": 5,
+              "time": "49.210"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 6,
+              "raceName": "F14",
+              "racePosition": 4,
+              "result": 6,
+              "time": "51.622"
+            }
+          ],
+          "rank": 6,
+          "plate": "2",
+          "plateType": "GC",
+          "registered": true,
+          "transponder": "KH-53591",
+          "groupId": "1839",
+          "groupName": "Shor.NY"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 1,
+          "competitors": 7
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 1,
+          "competitors": 4
+        },
+        {
+          "phaseCode": "1F",
+          "phaseName": "Main",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 7
+        }
+      ]
+    },
+    {
+      "classCode": "308",
+      "perpetualClassCode": "308",
+      "className": "12 Expert",
+      "classSetCode": "usa-2025-expert",
+      "classType": "20",
+      "rankPhaseCode": "1F",
+      "phaseName": "Main",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "11784312",
+          "firstName": "ZAYDEN",
+          "lastName": "BROCKUNIER",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "58",
+              "racePosition": 7,
+              "result": 1,
+              "score": 1,
+              "time": "45.020"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 13
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 4,
+              "raceName": "S1",
+              "racePosition": 1,
+              "result": 2,
+              "time": "49.023"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F57",
+              "racePosition": 6,
+              "result": 1,
+              "time": "44.120"
+            }
+          ],
+          "rank": 1,
+          "plate": "4",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "SG-13106",
+          "groupId": "442",
+          "groupName": "Rkfd.IL"
+        },
+        {
+          "memberId": "18016352",
+          "firstName": "RACYN",
+          "lastName": "MURFIN",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 5,
+              "raceName": "58",
+              "racePosition": 3,
+              "result": 2,
+              "score": 2,
+              "time": "47.856"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 19
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 1,
+              "raceName": "S2",
+              "racePosition": 1,
+              "result": 1,
+              "time": "47.461"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F57",
+              "racePosition": 1,
+              "result": 2,
+              "time": "46.175"
+            }
+          ],
+          "rank": 2,
+          "plate": "20",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "RP-15904",
+          "groupId": "1801",
+          "groupName": "Spok.WA"
+        },
+        {
+          "memberId": "12025969",
+          "firstName": "ALEXANDER",
+          "lastName": "MARTIN",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "60",
+              "racePosition": 1,
+              "result": 1,
+              "score": 1,
+              "time": "48.250"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 14
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 2,
+              "raceName": "S1",
+              "racePosition": 2,
+              "result": 1,
+              "time": "48.521"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F57",
+              "racePosition": 4,
+              "result": 3,
+              "time": "46.573"
+            }
+          ],
+          "rank": 3,
+          "plate": "13",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "FC-61282",
+          "groupId": "1202",
+          "groupName": "Whi.CAS"
+        },
+        {
+          "memberId": "93016185",
+          "firstName": "EDRIC",
+          "lastName": "HAWTHORNE",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 6,
+              "raceName": "60",
+              "racePosition": 8,
+              "result": 2,
+              "score": 2,
+              "time": "48.793"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 21
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 3,
+              "raceName": "S2",
+              "racePosition": 2,
+              "result": 2,
+              "time": "48.189"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 4,
+              "raceName": "F57",
+              "racePosition": 2,
+              "result": 4,
+              "time": "47.718"
+            }
+          ],
+          "rank": 4,
+          "plate": "7 D",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "GK-13035",
+          "groupId": "1498",
+          "groupName": "Rayt.MO"
+        },
+        {
+          "memberId": "15498339",
+          "firstName": "MARSHALL",
+          "lastName": "FALKOWSKI",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 4,
+              "raceName": "59",
+              "racePosition": 2,
+              "result": 1,
+              "score": 1,
+              "time": "48.989"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 15
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 5,
+              "raceName": "S2",
+              "racePosition": 3,
+              "result": 3,
+              "time": "48.478"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 5,
+              "raceName": "F57",
+              "racePosition": 3,
+              "result": 5,
+              "time": "48.365"
+            }
+          ],
+          "rank": 5,
+          "plate": "20",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "KH-05209",
+          "groupId": "1549",
+          "groupName": "Rum.MN"
+        },
+        {
+          "memberId": "19194129",
+          "firstName": "SAWYER",
+          "lastName": "RANSDELL",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 7,
+              "raceName": "61",
+              "racePosition": 1,
+              "result": 2,
+              "score": 2,
+              "time": "49.288"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 20
+            },
+            {
+              "phaseCode": "2F",
+              "phaseName": "Semi Final",
+              "phaseBlockCode": "2F",
+              "rank": 7,
+              "raceName": "S2",
+              "racePosition": 4,
+              "result": 4,
+              "time": "48.795"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 6,
+              "raceName": "F57",
+              "racePosition": 5,
+              "result": 6,
+              "time": "48.798"
+            }
+          ],
+          "rank": 6,
+          "plate": "2",
+          "plateType": "GC",
+          "registered": true,
+          "transponder": "SG-34876",
+          "groupId": "1268",
+          "groupName": "Kett.OH"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 4,
+          "competitors": 21
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 4,
+          "competitors": 13
+        },
+        {
+          "phaseCode": "2F",
+          "phaseName": "Semi Final",
+          "phaseBlockCode": "2F",
+          "races": 2,
+          "competitors": 16
+        },
+        {
+          "phaseCode": "1F",
+          "phaseName": "Main",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 8
+        }
+      ]
+    },
+    {
+      "classCode": "403",
+      "perpetualClassCode": "403",
+      "className": "7 Girls Expert",
+      "classSetCode": "usa-2025-expert",
+      "classType": "20",
+      "rankPhaseCode": "1F",
+      "phaseName": "Main",
+      "participationOnly": false,
+      "timestamp": "2026-08-21T18:57:07.598Z",
+      "competitorRankSummaries": [
+        {
+          "memberId": "93009592",
+          "firstName": "DELANEY",
+          "lastName": "CARRAGHER",
+          "age": 7,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 2,
+              "raceName": "42",
+              "racePosition": 8,
+              "result": 2,
+              "score": 2,
+              "time": "58.978"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 6
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 1,
+              "raceName": "F41",
+              "racePosition": 2,
+              "result": 1,
+              "time": "57.880"
+            }
+          ],
+          "rank": 1,
+          "plate": "46",
+          "plateType": "NAT",
+          "registered": true,
+          "transponder": "SW-90757",
+          "groupId": "1858",
+          "groupName": "Cent.NJ"
+        },
+        {
+          "memberId": "14884843",
+          "firstName": "SCARLETT",
+          "lastName": "SCHMITT",
+          "age": 7,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 1,
+              "raceName": "42",
+              "racePosition": 6,
+              "result": 1,
+              "score": 1,
+              "time": "57.063"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 4
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 2,
+              "raceName": "F41",
+              "racePosition": 1,
+              "result": 2,
+              "time": "58.788"
+            }
+          ],
+          "rank": 2,
+          "plate": "8",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "SS-98620",
+          "groupId": "1488",
+          "groupName": "Pine.MN"
+        },
+        {
+          "memberId": "4426209",
+          "firstName": "MIRRA",
+          "lastName": "ROGERS",
+          "age": 7,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 4,
+              "raceName": "42",
+              "racePosition": 5,
+              "result": 4,
+              "score": 4,
+              "time": "62.409"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 2,
+              "raceName": "42",
+              "racePosition": 1,
+              "result": 2,
+              "score": 6,
+              "time": "62.409"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 3,
+              "raceName": "F41",
+              "racePosition": 4,
+              "result": 3,
+              "time": "60.358"
+            }
+          ],
+          "rank": 3,
+          "plate": "3",
+          "plateType": "GC",
+          "registered": true,
+          "transponder": "LC-19200",
+          "groupId": "442",
+          "groupName": "Rkfd.IL"
+        },
+        {
+          "memberId": "18585377",
+          "firstName": "LILIANA",
+          "lastName": "DESOUZA",
+          "age": 7,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 3,
+              "raceName": "42",
+              "racePosition": 7,
+              "result": 3,
+              "score": 3,
+              "time": "60.847"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 1,
+              "raceName": "42",
+              "racePosition": 3,
+              "result": 1,
+              "score": 4,
+              "time": "60.847"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 4,
+              "raceName": "F41",
+              "racePosition": 3,
+              "result": 4,
+              "time": "61.306"
+            }
+          ],
+          "rank": 4,
+          "plate": "9",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "PX-08642",
+          "groupId": "1858",
+          "groupName": "Cent.NJ"
+        },
+        {
+          "memberId": "93027893",
+          "firstName": "WILLOW",
+          "lastName": "SIMONS",
+          "age": 6,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 5,
+              "raceName": "42",
+              "racePosition": 1,
+              "result": 5,
+              "score": 5,
+              "time": "67.943"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 3,
+              "raceName": "42",
+              "racePosition": 5,
+              "result": 3,
+              "score": 8,
+              "time": "67.943"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 5,
+              "raceName": "F41",
+              "racePosition": 5,
+              "result": 5,
+              "time": "67.183"
+            }
+          ],
+          "rank": 5,
+          "plate": "2",
+          "plateType": "GC",
+          "registered": true,
+          "transponder": "GW-89117",
+          "groupId": "1549",
+          "groupName": "Rum.MN"
+        },
+        {
+          "memberId": "93021385",
+          "firstName": "KAMRY",
+          "lastName": "EICH",
+          "age": 6,
+          "gender": 0,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 6,
+              "raceName": "42",
+              "racePosition": 3,
+              "result": 6,
+              "score": 6,
+              "time": "67.954"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 5,
+              "raceName": "42",
+              "racePosition": 7,
+              "result": 4,
+              "score": 10,
+              "time": "67.954"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 6,
+              "raceName": "F41",
+              "racePosition": 6,
+              "result": 6,
+              "time": "68.210"
+            }
+          ],
+          "rank": 6,
+          "plate": "5",
+          "plateType": "NAG",
+          "registered": true,
+          "transponder": "SX-92181",
+          "groupId": "1921",
+          "groupName": "East.IL"
+        }
+      ],
+      "classPhaseSummaries": [
+        {
+          "phaseCode": "M1",
+          "phaseName": "Moto 1",
+          "phaseBlockCode": "M1",
+          "races": 1,
+          "competitors": 6
+        },
+        {
+          "phaseCode": "M2",
+          "phaseName": "Moto 2",
+          "phaseBlockCode": "M2",
+          "races": 1,
+          "competitors": 4
+        },
+        {
+          "phaseCode": "1F",
+          "phaseName": "Main",
+          "phaseBlockCode": "1F",
+          "races": 1,
+          "competitors": 6
+        }
+      ]
+    }
+  ],
+  "phaseBlockSummaries": [
+    {
+      "phaseBlockCode": "M1",
+      "phaseBlockName": "1st Moto",
+      "standardPhaseBlock": true,
+      "completePhases": 50,
+      "races": 57,
+      "drawnRaces": 57,
+      "completeRaces": 57,
+      "problemRaces": 0,
+      "openSessionRaces": 0,
+      "drawStatus": "DRAWN",
+      "scoredRaces": 57,
+      "completeScoredRaces": 57,
+      "stagedRaces": 0,
+      "phaseOrderIndex": 0
+    },
+    {
+      "phaseBlockCode": "M2",
+      "phaseBlockName": "2nd Moto",
+      "standardPhaseBlock": true,
+      "completePhases": 50,
+      "races": 56,
+      "drawnRaces": 56,
+      "completeRaces": 56,
+      "problemRaces": 0,
+      "openSessionRaces": 0,
+      "drawStatus": "DRAWN",
+      "scoredRaces": 56,
+      "completeScoredRaces": 56,
+      "stagedRaces": 0,
+      "phaseOrderIndex": 69
+    },
+    {
+      "phaseBlockCode": "2F",
+      "phaseBlockName": "Semi Main",
+      "standardPhaseBlock": true,
+      "completePhases": 2,
+      "races": 4,
+      "drawnRaces": 4,
+      "completeRaces": 4,
+      "problemRaces": 0,
+      "openSessionRaces": 0,
+      "drawStatus": "DRAWN",
+      "scoredRaces": 4,
+      "completeScoredRaces": 4,
+      "stagedRaces": 0,
+      "phaseOrderIndex": 414
+    },
+    {
+      "phaseBlockCode": "1F",
+      "phaseBlockName": "Main",
+      "standardPhaseBlock": true,
+      "completePhases": 50,
+      "races": 50,
+      "drawnRaces": 50,
+      "completeRaces": 50,
+      "problemRaces": 0,
+      "openSessionRaces": 0,
+      "drawStatus": "DRAWN",
+      "scoredRaces": 50,
+      "completeScoredRaces": 50,
+      "stagedRaces": 0,
+      "phaseOrderIndex": 759
+    }
+  ],
+  "classSetDetails": [],
+  "raceOrder": [],
+  "groups": [
+    {
+      "groupId": "1441",
+      "groupName": "Burlington BMX",
+      "groupShortName": "Burl.NC",
+      "groupStateCode": "NC",
+      "groupCountryCode": "USA",
+      "groupType": "Club"
+    },
+    {
+      "groupId": "1178",
+      "groupName": "The Hill BMX",
+      "groupShortName": "Hill.IL",
+      "groupStateCode": "IL",
+      "groupCountryCode": "USA",
+      "groupType": "Club"
+    },
+    {
+      "groupId": "1498",
+      "groupName": "Raytown BMX",
+      "groupShortName": "Rayt.MO",
+      "groupStateCode": "MO",
+      "groupCountryCode": "USA",
+      "groupType": "Club"
+    },
+    {
+      "groupId": "1960",
+      "groupName": "Hesperia BMX",
+      "groupShortName": "Hes.CAS",
+      "groupStateCode": "CAS",
+      "groupCountryCode": "USA",
+      "groupType": "Club"
+    },
+    {
+      "groupId": "1740",
+      "groupName": "Gretna BMX Raceway",
+      "groupShortName": "Gret.LA",
+      "groupStateCode": "LA",
+      "groupCountryCode": "USA",
+      "groupType": "Club"
+    }
+  ],
+  "groupDisplayType": "state",
+  "lowBatteryTransponders": [
+    "HR-70971"
+  ],
+  "legacyLicenses": [],
+  "utcOffset": -240,
+  "sponsorGroups": [],
+  "sessionVersion": 4,
+  "updateVersion": 801,
+  "photosVersion": 1,
+  "version": 8,
+  "timestamp": "2026-08-21T18:57:07.598Z",
+  "trackConfig": {
+    "trackId": "1",
+    "trackName": "Race Track",
+    "trackType": "line",
+    "trackEnabled": true,
+    "trackGate": true,
+    "trackStartFrom": "start",
+    "validationMethod": "time",
+    "trackLoops": [
+      {
+        "loopId": "1/C",
+        "loopName": "Corner"
+      },
+      {
+        "loopId": "1/F",
+        "loopName": "Finish"
+      }
+    ]
+  }
+}

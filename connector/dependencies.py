@@ -11,6 +11,7 @@ from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
+from connector.services.sqorz_service import SqorzService
 
 
 @lru_cache
@@ -59,6 +60,21 @@ def get_race_program_export_service() -> RaceProgramExportService:
     )
 
 
+@lru_cache
+def get_sqorz_service() -> SqorzService:
+    settings = get_settings()
+    return SqorzService(
+        enabled=settings.sqorz_enabled,
+        mode=settings.sqorz_mode,
+        event_id=settings.sqorz_event_id,
+        org_code=settings.sqorz_org_code,
+        host=settings.sqorz_host,
+        port=settings.sqorz_port,
+        poll_seconds=settings.sqorz_effective_poll_seconds,
+        timeout_seconds=settings.sqorz_timeout_seconds,
+    )
+
+
 def get_current_lineup_service() -> CurrentLineupService:
     settings = get_settings()
     return CurrentLineupService(
@@ -66,6 +82,7 @@ def get_current_lineup_service() -> CurrentLineupService:
         get_event_service(),
         get_motoboard_service(),
         settings.lineup_cache_file,
+        sqorz=get_sqorz_service(),
     )
 
 

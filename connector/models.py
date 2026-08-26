@@ -407,6 +407,11 @@ class LineupRider(ApiModel):
     nickname: str | None = None
     age: int | None = Field(default=None, ge=0, le=120)
     home_track: str | None = None
+    # Optional Sqorz live-timing time in seconds for the currently selected
+    # round. Only set for an "exact" or "strong" confidence match -- see
+    # connector/services/sqorz_matching.py. Null when Sqorz is disabled,
+    # unconfigured, unreachable, or the rider isn't confidently matched.
+    time_seconds: float | None = None
 
 
 class CurrentLineup(ApiModel):
