@@ -68,7 +68,12 @@ def test_sqorz_unreachable_returns_200_with_no_times(tmp_path: Path) -> None:
     app.dependency_overrides.clear()
 
 
-def _matching_nova_payload() -> dict:
+def _matching_nova_payload(*, race_position: int | None = None, result: int | None = None) -> dict:
+    detail: dict = {"phaseCode": "M1", "phaseName": "Moto 1", "time": "41.234"}
+    if race_position is not None:
+        detail["racePosition"] = race_position
+    if result is not None:
+        detail["result"] = result
     return {
         "classRanks": [
             {
@@ -79,9 +84,7 @@ def _matching_nova_payload() -> dict:
                         "plate": "17",
                         "firstName": "Nova",
                         "lastName": "Archer",
-                        "competitorRankDetails": [
-                            {"phaseCode": "M1", "phaseName": "Moto 1", "time": "41.234"}
-                        ],
+                        "competitorRankDetails": [detail],
                     }
                 ],
             }
@@ -120,6 +123,83 @@ def test_sqorz_confidently_matched_rider_gets_a_time_for_a_real_lineup(tmp_path:
     # Every other rider has no Sqorz data -- blank, not a guess.
     others = [r for r in result.riders if r.last_name != "Archer"]
     assert all(r.time_seconds is None for r in others)
+
+
+def test_a_plausible_finish_flows_through_to_the_lineup_alongside_the_time(tmp_path: Path) -> None:
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="real-event")
+    sqorz._get_json = lambda url: _matching_nova_payload(result=2)
+    service = CurrentLineupService(
+        CurrentMotoService(tmp_path / "current.json"),
+        NoDatabaseEvents(),
+        NoDatabaseMotos(),
+        tmp_path / "cache.json",
+        sqorz=sqorz,
+    )
+    lineup = CurrentLineup(
+        moto_number=1,
+        race_phase=RacePhase.ROUND_1,
+        class_name="7 Intermediate",
+        riders=[LineupRider(bike_number=17, first_name="Nova", last_name="Archer")],
+        source="racemanager",
+    )
+
+    result = service._augment_with_sqorz(lineup)
+
+    assert result.riders[0].finish == 2
+
+
+def test_an_implausible_result_status_code_never_shows_as_a_finish(tmp_path: Path) -> None:
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="real-event")
+    sqorz._get_json = lambda url: _matching_nova_payload(result=100400)
+    service = CurrentLineupService(
+        CurrentMotoService(tmp_path / "current.json"),
+        NoDatabaseEvents(),
+        NoDatabaseMotos(),
+        tmp_path / "cache.json",
+        sqorz=sqorz,
+    )
+    lineup = CurrentLineup(
+        moto_number=1,
+        race_phase=RacePhase.ROUND_1,
+        class_name="7 Intermediate",
+        riders=[LineupRider(bike_number=17, first_name="Nova", last_name="Archer")],
+        source="racemanager",
+    )
+
+    result = service._augment_with_sqorz(lineup)
+
+    assert result.riders[0].finish is None
+
+
+def test_a_gate_mismatch_against_racemanagers_own_assignment_suppresses_the_time(
+    tmp_path: Path,
+) -> None:
+    """End-to-end wiring check: _augment_with_sqorz must actually pass the
+    resolved phase_code into match_class for the gate cross-check to run at
+    all -- otherwise this rider (an unambiguous plate+name exact match)
+    would show a time despite Sqorz's own racePosition disagreeing with the
+    gate RaceManager assigned."""
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="real-event")
+    sqorz._get_json = lambda url: _matching_nova_payload(race_position=6)
+    service = CurrentLineupService(
+        CurrentMotoService(tmp_path / "current.json"),
+        NoDatabaseEvents(),
+        NoDatabaseMotos(),
+        tmp_path / "cache.json",
+        sqorz=sqorz,
+    )
+    lineup = CurrentLineup(
+        moto_number=1,
+        race_phase=RacePhase.ROUND_1,
+        class_name="7 Intermediate",
+        riders=[LineupRider(gate=2, bike_number=17, first_name="Nova", last_name="Archer")],
+        source="racemanager",
+    )
+
+    result = service._augment_with_sqorz(lineup)
+
+    assert result.riders[0].time_seconds is None
+    assert result.riders[0].finish is None
 
 
 def test_demo_lineup_never_receives_a_sqorz_time_even_with_a_perfect_match(
@@ -266,6 +346,15 @@ def test_the_served_page_reads_the_sqorz_caption_from_the_time_column_never_the_
         if "#time-label" in line and "textContent" in line
     )
     assert "sqorz_phase_code" in time_label_assignment
+
+
+def test_the_served_page_renders_a_blank_time_as_an_en_dash_and_finish_as_live() -> None:
+    from connector.routes.lineup import LINEUP_OVERLAY_HTML
+
+    assert "'–'" in LINEUP_OVERLAY_HTML  # not '' -- see docs/sqorz-live-timing.md
+    assert "'LIVE'" in LINEUP_OVERLAY_HTML
+    assert ">Plate<" in LINEUP_OVERLAY_HTML
+    assert ">Plate Number<" not in LINEUP_OVERLAY_HTML
 
 
 def test_an_alias_saved_between_two_polls_takes_effect_immediately(tmp_path: Path) -> None:

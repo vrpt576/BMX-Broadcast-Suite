@@ -55,7 +55,10 @@ SQORZ_TIMING_OVERLAY_HTML = r'''<!doctype html>
     .rider:last-child { border-bottom: 0; }
     .bike { padding: 0 .7em; color: var(--plate); font-size: 26px; font-weight: 900; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .name { padding: .3em .8em .3em .2em; font-size: 26px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .time { padding: 0 .7em; color: var(--plate); font-size: 26px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+    .time { padding: 0 .7em; color: var(--plate); display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: .05em; overflow: hidden; }
+    .time .value { font-size: 26px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+    .time .finish { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--muted-text); white-space: nowrap; }
+    .time .finish b { color: var(--plate); font-weight: 900; }
     .empty { padding: 1.2em; font-size: 24px; font-weight: 700; }
     .stale { border-top: 3px solid var(--warning); }
     .offline { display: none; background: var(--warning); color: var(--warning-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
@@ -145,7 +148,16 @@ function render(state) {
     const name = document.createElement('div'); name.className = 'name';
     name.textContent = `${rider.first_name || ''} ${rider.last_name || ''}`.trim() || 'UNKNOWN';
     const time = document.createElement('div'); time.className = 'time';
-    time.textContent = (rider.time_seconds === null || rider.time_seconds === undefined) ? '' : rider.time_seconds.toFixed(3);
+    const timeValue = document.createElement('div'); timeValue.className = 'value';
+    timeValue.textContent = (rider.time_seconds === null || rider.time_seconds === undefined) ? '–' : rider.time_seconds.toFixed(3);
+    time.append(timeValue);
+    if (rider.finish !== null && rider.finish !== undefined) {
+      const finish = document.createElement('div'); finish.className = 'finish';
+      const position = document.createElement('span'); position.textContent = `P${rider.finish} `;
+      const live = document.createElement('b'); live.textContent = 'LIVE';
+      finish.append(position, live);
+      time.append(finish);
+    }
     row.append(bike, name, time); ridersBox.append(row);
   }
   graphic.style.display = '';

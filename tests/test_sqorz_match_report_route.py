@@ -57,6 +57,7 @@ def test_a_computed_report_is_visible_with_counts_and_unmatched_names() -> None:
         unmatched_sqorz=["RACYN MURFIN"],
         class_match_path="class_name",
         ambiguous_plates=["11-12 Open #9 (Sqorz): Dylan Dobelle, Wade Hinderlider"],
+        gate_checks={"agree": 3, "disagree": 1},
     )
     sqorz.last_match_class_name = "11-12 Open"
     app.dependency_overrides[get_sqorz_service] = lambda: sqorz
@@ -71,6 +72,7 @@ def test_a_computed_report_is_visible_with_counts_and_unmatched_names() -> None:
     assert body["report"]["unmatched_sqorz"] == ["RACYN MURFIN"]
     assert "Dobelle" in body["report"]["ambiguous_plates"][0]
     assert "11-12 Open" in body["sqorz_classes"]
+    assert body["report"]["gate_checks"] == {"agree": 3, "disagree": 1}
     app.dependency_overrides.clear()
 
 
@@ -122,3 +124,4 @@ def test_the_page_serves_without_any_racemanager_dependency() -> None:
     response = TestClient(app).get("/sqorz-match-report")
     assert response.status_code == 200
     assert "Sqorz Match Report" in response.text
+    assert "Gate agreement" in response.text

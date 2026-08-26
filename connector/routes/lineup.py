@@ -48,13 +48,17 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
     .rider:last-child { border-bottom: 0; }
     .gate { align-self: stretch; display: grid; place-items: center; background: var(--gate); color: var(--gate-text); font-size: 32px; font-weight: 950; }
     .bike { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: center; }
-    .name { padding: .3em .8em .3em .2em; font-size: 28px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; }
-    .rider-meta { margin-top:.12em; color:var(--muted-text); font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:none; }
+    .name { padding: .3em .8em .3em .2em; font-size: 28px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; min-width: 0; }
+    .rider-meta { margin-top:.12em; color:var(--muted-text); font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .time-label, .time { display: none; }
     .riders.has-time .columns, .riders.has-time .rider { grid-template-columns: 78px 150px 1fr 150px; }
-    .riders.has-time .time-label, .riders.has-time .time { display: block; }
+    .riders.has-time .time-label { display: block; }
+    .riders.has-time .time { display: flex; }
     .time-label { text-align: right; }
-    .time { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+    .time { padding: 0 .7em; color: var(--plate); flex-direction: column; align-items: flex-end; justify-content: center; gap: .05em; overflow: hidden; }
+    .time .value { font-size: 27px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+    .time .finish { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--muted-text); white-space: nowrap; }
+    .time .finish b { color: var(--plate); font-weight: 900; }
     .empty { padding: 1.2em; font-size: 24px; font-weight: 700; }
     .offline { display: none; background: var(--warning); color: var(--warning-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
   </style>
@@ -67,7 +71,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
         <div id="class" class="class">7 INTERMEDIATE</div>
         <div id="moto" class="moto">MOTO 1</div>
       </div>
-      <div class="riders"><div class="columns"><div class="lane-label">Lane</div><div class="plate-label">Plate Number</div><div>Rider</div><div id="time-label" class="time-label">Time</div></div><div id="riders"></div></div>
+      <div class="riders"><div class="columns"><div class="lane-label">Lane</div><div class="plate-label">Plate</div><div>Rider</div><div id="time-label" class="time-label">Time</div></div><div id="riders"></div></div>
     </div>
     <div id="offline" class="offline">LINEUP DATA UNAVAILABLE</div>
   </section>
@@ -156,7 +160,16 @@ function render(state) {
     const metadata = metadataText(rider);
     if (metadata) { const subtitle=document.createElement('div'); subtitle.className='rider-meta'; subtitle.textContent=metadata; name.append(subtitle); }
     const time = document.createElement('div'); time.className = 'time';
-    time.textContent = (rider.time_seconds === null || rider.time_seconds === undefined) ? '' : rider.time_seconds.toFixed(3);
+    const timeValue = document.createElement('div'); timeValue.className = 'value';
+    timeValue.textContent = (rider.time_seconds === null || rider.time_seconds === undefined) ? '–' : rider.time_seconds.toFixed(3);
+    time.append(timeValue);
+    if (rider.finish !== null && rider.finish !== undefined) {
+      const finish = document.createElement('div'); finish.className = 'finish';
+      const position = document.createElement('span'); position.textContent = `P${rider.finish} `;
+      const live = document.createElement('b'); live.textContent = 'LIVE';
+      finish.append(position, live);
+      time.append(finish);
+    }
     row.append(gate, bike, name, time); ridersBox.append(row);
   }
   graphic.style.display = '';

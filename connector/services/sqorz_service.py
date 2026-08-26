@@ -45,6 +45,13 @@ class SqorzRiderTime:
     time_raw: str | None
     race_position: int | None
     rank: int | None
+    # Sqorz's own finish position for this phase, straight from the `result`
+    # key -- NOT `racePosition` (starting gate) and NOT `rank` (overall
+    # class standing, not per-race). Carries internal status codes for
+    # anything other than a placed finish (100400 and 103000 both confirmed
+    # live); callers must run this through plausible_finish() before
+    # display, never invent a DNF/DNS/DQ label from it.
+    result: int | None = None
     # Class-level metadata (same for every row of the same class), used only
     # by the standalone Sqorz overlay's "most recently updated" default --
     # see connector/services/sqorz_overlay_service.py. Optional/defaulted so
@@ -78,6 +85,24 @@ def _parse_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+# A BMX moto/main plates 8 riders max; anything outside 1-8 in Sqorz's
+# `result` field is a status code (100400 and 103000 both confirmed live on
+# withdrawn/no-show riders), never a real finish position.
+_PLAUSIBLE_FINISH_POSITIONS = range(1, 9)
+
+
+def plausible_finish(result: int | None) -> int | None:
+    """Sqorz's `result` field as a displayable finish, or None.
+
+    Renders exactly like a missing time when the value isn't a plausible
+    1-8 finish -- never guesses a DNF/DNS/DQ label from an internal status
+    code we don't have documentation for.
+    """
+    if result is None or result not in _PLAUSIBLE_FINISH_POSITIONS:
+        return None
+    return result
 
 
 def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
@@ -117,6 +142,7 @@ def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
                         time_raw=raw_time if isinstance(raw_time, str) else None,
                         race_position=_parse_int(detail.get("racePosition")),
                         rank=_parse_int(detail.get("rank")),
+                        result=_parse_int(detail.get("result")),
                         class_timestamp=(
                             class_timestamp if isinstance(class_timestamp, str) else None
                         ),
@@ -184,6 +210,7 @@ def parse_lan_phase_rank_detail(
                         time_raw=raw_time if isinstance(raw_time, str) else None,
                         race_position=_parse_int(detail.get("racePosition")),
                         rank=_parse_int(detail.get("rank")),
+                        result=_parse_int(detail.get("result")),
                     )
                 )
             continue
@@ -206,6 +233,7 @@ def parse_lan_phase_rank_detail(
                 time_raw=raw_time if isinstance(raw_time, str) else None,
                 race_position=_parse_int(competitor.get("racePosition")),
                 rank=_parse_int(competitor.get("rank")),
+                result=_parse_int(competitor.get("result")),
             )
         )
     return rows

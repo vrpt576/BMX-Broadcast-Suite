@@ -76,6 +76,31 @@ BMX district plates). A plate appearing more than once in the resolved class
 matches, since that disambiguates on its own, otherwise it falls to "weak".
 The collision is recorded in `match_report.ambiguous_plates`.
 
+### Finish position and the gate cross-check
+
+Alongside the time, BBS can show Sqorz's own finish position for the round
+(e.g. "P2"), marked "LIVE" to distinguish it from RaceManager's own official
+result (`ResultRider.finish`, a completely separate pipeline this feature
+never touches). It's read from Sqorz's `result` field and gated by the same
+confidence rule as the time — only "exact"/"strong" matches show it — plus
+one more: `result` carries internal status codes for anything other than a
+placed finish (`100400` and `103000` both confirmed live on
+withdrawn/no-show riders), and only a plausible 1-8 is ever displayed;
+anything else renders exactly like a missing time, never an invented
+DNF/DNS/DQ label.
+
+When BBS knows which round is showing, matching also cross-checks Sqorz's
+own `racePosition` (starting gate) against the gate RaceManager assigned the
+rider. Agreement can *rescue* an ambiguous plate collision straight to
+"strong" — confirmed live: Hoosier's "11-12 Open" has Dylan Dobelle and Wade
+Hinderlider both on plate 9, but they started from different gates (8 and 7),
+so if exactly one of them agrees with the gate BBS already knows, that's as
+disambiguating as a matching last name. Disagreement does the opposite: it
+demotes an otherwise-displayable match so nothing shows — a real mismatch is
+more likely than a coincidence, and this project never prefers a guess over
+silence. The agreement rate across all riders where both sides had a gate to
+compare is reported on `/sqorz-match-report` as **Gate agreement**.
+
 ### Class aliases
 
 RaceManager and Sqorz name classes independently, and often won't line up
@@ -96,8 +121,9 @@ to RaceManager or Sqorz.
 `/sqorz-match-report` is the on-site diagnosis tool: shows the live match
 state for whichever class the lineup overlay is currently displaying —
 counts by confidence tier, unmatched names on each side, any ambiguous-plate
-collisions, and which resolution path was used (`class_name` / `alias` /
-`plate_only` / `no_sqorz_data`) — plus the alias-setting form above. The same
+collisions, which resolution path was used (`class_name` / `alias` /
+`plate_only` / `no_sqorz_data`), and the gate agreement rate (see above) —
+plus the alias-setting form above. The same
 data is available as JSON at `GET /api/sqorz/match-report` if you'd rather
 script against it. It only ever reflects the most recently viewed class (the
 report is computed as a side effect of a lineup poll, not a standing
@@ -109,7 +135,8 @@ first if the page says "(none yet -- open the lineup or Director once)".
 `/overlay/sqorz-timing` reads only the Sqorz feed — no RaceManager dependency
 at all (it never touches `MotoboardService`, `CurrentMotoService`, or the race
 slot catalog). Use it when RaceManager isn't reachable from BBS: it shows one
-class/phase's plate, rider, and time, with Sqorz's own phase wording displayed
+class/phase's plate, rider, time, and (when plausible) finish position, with
+Sqorz's own phase wording displayed
 (e.g. "Moto 1", "Main") — unlike the lineup overlay's timing column, there is
 no BBS phase_label to protect here, since this overlay presents Sqorz's own
 view of the event, not BBS's RaceManager-derived race program.

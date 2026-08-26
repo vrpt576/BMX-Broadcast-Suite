@@ -96,13 +96,21 @@ doesn't match RaceManager's. There's no config fix for this today; it needs
 either Sqorz's class names to be edited to match RaceManager's, or a future
 class-code mapping table (out of scope for this trip).
 
+**D. A rider you expect to be "exact"/"strong" is blank, and
+`match_report.gate_checks` shows a disagree.**
+BBS cross-checks Sqorz's own starting gate (`racePosition`) against the gate
+RaceManager assigned the rider for the round showing, and demotes the match
+(shows nothing) when they disagree — more likely a real mismatch (wrong
+round selected, stale gate assignment) than a coincidence. Check you're on
+the round you think you're on; if `gate_checks` shows mostly disagreement
+across the whole class, the round selection itself is probably off.
+
 ## 5. Fallback: demo real timing without their LAN
 
 Two fallbacks, in order of how little they need to go right.
 
-**File mode — works with zero network, always.** Before you leave (see
-section 6 of the pre-departure checklist), capture a real event while you
-have internet:
+**File mode — works with zero network, always.** Before you leave, capture a
+real event while you have internet:
 
 ```powershell
 python scripts\sqorz_capture.py --event-id 6a8198e2d91badc23cb0c54f --out demo-event.json

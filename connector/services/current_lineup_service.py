@@ -21,7 +21,12 @@ from connector.services.current_moto_service import CurrentMotoService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
 from connector.services.sqorz_class_alias_service import SqorzClassAliasStore
-from connector.services.sqorz_matching import ROUND_PHASE_TO_SQORZ_CODE, match_class, time_for_phase
+from connector.services.sqorz_matching import (
+    ROUND_PHASE_TO_SQORZ_CODE,
+    finish_for_phase,
+    match_class,
+    time_for_phase,
+)
 from connector.services.sqorz_service import SqorzService
 
 DEMO_MOTO = Moto.model_validate(
@@ -221,7 +226,7 @@ class CurrentLineupService:
                 else None
             )
             matches, report = match_class(
-                lineup.riders, lineup.class_name, fetch.riders, class_alias
+                lineup.riders, lineup.class_name, fetch.riders, class_alias, phase_code
             )
             # Shared on the SqorzService singleton (not this instance, which
             # is rebuilt per request) so the match-report page can show the
@@ -233,7 +238,12 @@ class CurrentLineupService:
         except Exception:  # noqa: BLE001 -- Sqorz must never fail the lineup
             return lineup
         updated_riders = [
-            rider.model_copy(update={"time_seconds": time_for_phase(match, phase_code)})
+            rider.model_copy(
+                update={
+                    "time_seconds": time_for_phase(match, phase_code),
+                    "finish": finish_for_phase(match, phase_code),
+                }
+            )
             for rider, match in zip(lineup.riders, matches)
         ]
         return lineup.model_copy(

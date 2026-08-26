@@ -22,6 +22,13 @@ match relies on plate alone, so it is only trusted when the plate is unique
 on BOTH sides within the resolved class -- an ambiguous plate never reaches
 "strong"; it can still reach "exact" if the last name also matches (which
 disambiguates on its own), otherwise it falls to "weak" (never displayed).
+
+When match_class() is given a phase_code, it also cross-checks Sqorz's own
+racePosition (starting gate) for that phase against the gate RaceManager
+assigned the rider. Agreement can rescue an otherwise-unresolved ambiguous
+plate straight to "strong" (see match_class); disagreement demotes an
+otherwise-displayable match down to "weak" -- a real mismatch is more likely
+than luck, and nothing here ever prefers a guess over silence.
 """
 
 from __future__ import annotations
@@ -33,7 +40,7 @@ from enum import Enum
 from typing import Protocol
 
 from connector.models import RacePhase
-from connector.services.sqorz_service import SqorzRiderTime
+from connector.services.sqorz_service import SqorzRiderTime, plausible_finish
 
 # BBS's own round -> the Sqorz phaseCode that carries that round's time.
 # Never the reverse: a Sqorz phase name must never reach a phase_label or a
@@ -62,6 +69,7 @@ class BbsRiderLike(Protocol):
     bike_number: str | int | None
     first_name: str
     last_name: str
+    gate: int | None
 
 
 def _normalize(value: object) -> str:
@@ -127,6 +135,12 @@ class MatchReport:
     unmatched_sqorz: list[str]
     class_match_path: str  # "class_name" | "plate_only" | "no_sqorz_data"
     ambiguous_plates: list[str] = field(default_factory=list)
+    # How often Sqorz's own racePosition (starting gate) agreed with the
+    # gate RaceManager assigned, among riders where both sides had a gate
+    # to compare -- only populated when match_class() is given a
+    # phase_code. {} means no cross-check was possible (no phase_code, or
+    # no comparable pair found yet).
+    gate_checks: dict[str, int] = field(default_factory=dict)
 
 
 def _competitor_key(competitor: SqorzCompetitor) -> tuple[str, str, str, str]:
@@ -187,17 +201,34 @@ def _ambiguous_bbs_plates(bbs_riders: list[BbsRiderLike]) -> dict[str, list[BbsR
     return {plate: group for plate, group in by_plate.items() if len(group) > 1}
 
 
+def _gate_for_phase(competitor: SqorzCompetitor, phase_code: str | None) -> int | None:
+    if phase_code is None:
+        return None
+    row = competitor.times_by_phase.get(phase_code)
+    return row.race_position if row else None
+
+
 def match_class(
     bbs_riders: list[BbsRiderLike],
     bbs_class_name: str,
     sqorz_rows: list[SqorzRiderTime],
     class_alias: str | None = None,
+    phase_code: str | None = None,
 ) -> tuple[list[RiderMatch], MatchReport]:
     """Match every rider in one BBS lineup to a Sqorz competitor.
 
     ``class_alias``, when given, is an operator-set override (see
     SqorzClassAliasStore) pointing at the Sqorz className/classCode to use
     for this BBS class, taking priority over normalised-name matching.
+
+    ``phase_code``, when given, enables a gate cross-check: Sqorz's own
+    racePosition (starting gate) for this phase is compared against the
+    gate RaceManager assigned the rider. Agreement can rescue an otherwise
+    unresolved ambiguous-plate collision (see _ambiguous_sqorz_plates);
+    disagreement demotes an otherwise-displayable match so nothing is
+    shown -- a real mismatch is more likely than a coincidence, and this
+    project never guesses. Unavailable on either side leaves the match
+    exactly as the plate/name tiers above produced it.
 
     Returns matches in the same order as ``bbs_riders``, plus a report for
     on-site debugging (counts by confidence, and the unmatched names on both
@@ -209,6 +240,7 @@ def match_class(
     )
     sqorz_ambiguous = _ambiguous_sqorz_plates(class_competitors)
     bbs_ambiguous = _ambiguous_bbs_plates(bbs_riders)
+    gate_checks = {"agree": 0, "disagree": 0}
 
     ambiguous_plate_notes: list[str] = [
         f"{bbs_class_name} #{group[0].plate} (Sqorz): "
@@ -274,6 +306,32 @@ def match_class(
                     )
                     competitor = candidate
                     break
+        elif (
+            competitor is None
+            and plate
+            and phase_code is not None
+            and plate in sqorz_ambiguous
+        ):
+            # The plate alone can't identify a competitor here -- it
+            # collides within this class (confirmed live: Hoosier's
+            # "11-12 Open" has both Dylan Dobelle and Wade Hinderlider on
+            # plate 9) -- but each colliding competitor started from a
+            # different gate, and RaceManager already assigned this rider
+            # a gate for this round. If exactly one of the colliding
+            # competitors' gate agrees, that's as disambiguating as a
+            # matching last name and promotes straight to "strong". Zero or
+            # more than one agreeing leaves it unresolved -- falls through
+            # to the weak last-name tier below, same as any other
+            # unresolved plate.
+            bbs_gate = rider.gate
+            if bbs_gate is not None:
+                agreeing = [
+                    candidate
+                    for candidate in sqorz_ambiguous[plate]
+                    if _gate_for_phase(candidate, phase_code) == bbs_gate
+                ]
+                if len(agreeing) == 1:
+                    competitor, confidence = agreeing[0], MatchConfidence.STRONG
 
         if competitor is None and last and first_initial:
             for candidate in class_competitors:
@@ -283,6 +341,16 @@ def match_class(
                 ):
                     competitor, confidence = candidate, MatchConfidence.WEAK
                     break
+
+        if phase_code is not None and competitor is not None and rider.gate is not None:
+            sqorz_gate = _gate_for_phase(competitor, phase_code)
+            if sqorz_gate is not None:
+                if sqorz_gate == rider.gate:
+                    gate_checks["agree"] += 1
+                else:
+                    gate_checks["disagree"] += 1
+                    if confidence in DISPLAYABLE_CONFIDENCE:
+                        confidence = MatchConfidence.WEAK
 
         matches.append(RiderMatch(confidence=confidence, competitor=competitor))
         counts[confidence.value] += 1
@@ -304,6 +372,7 @@ def match_class(
         unmatched_sqorz=unmatched_sqorz,
         class_match_path=class_match_path,
         ambiguous_plates=ambiguous_plate_notes,
+        gate_checks=gate_checks if phase_code is not None else {},
     )
     return matches, report
 
@@ -319,3 +388,16 @@ def time_for_phase(match: RiderMatch, phase_code: str) -> float | None:
         return None
     row = match.competitor.times_by_phase.get(phase_code)
     return row.time_seconds if row else None
+
+
+def finish_for_phase(match: RiderMatch, phase_code: str) -> int | None:
+    """A displayable finish position for this match at this phase, or None.
+
+    Same trust rule as time_for_phase (only exact/strong, only a real row
+    for this phase), plus Sqorz's own result-code plausibility check --
+    see plausible_finish().
+    """
+    if match.confidence not in DISPLAYABLE_CONFIDENCE or match.competitor is None:
+        return None
+    row = match.competitor.times_by_phase.get(phase_code)
+    return plausible_finish(row.result) if row else None

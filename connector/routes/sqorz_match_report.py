@@ -46,6 +46,7 @@ def sqorz_match_report(
                 "unmatched_sqorz": report.unmatched_sqorz,
                 "ambiguous_plates": report.ambiguous_plates,
                 "class_match_path": report.class_match_path,
+                "gate_checks": report.gate_checks,
             }
             if report is not None
             else None
@@ -115,9 +116,13 @@ async function load(){
     +'<span class="muted">Current class: <strong>'+esc(d.current_class_name||'(none yet -- open the lineup or Director once)')+'</strong>'
     +(d.current_class_alias?' &nbsp;alias &rarr; '+esc(d.current_class_alias):'')+'</span>';
   const counts=(d.report&&d.report.counts)||{};
+  const gateChecks=(d.report&&d.report.gate_checks)||{};
+  const gateTotal=(gateChecks.agree||0)+(gateChecks.disagree||0);
+  const gateRate=gateTotal?Math.round(100*(gateChecks.agree||0)/gateTotal)+'% ('+gateChecks.agree+'/'+gateTotal+')':'—';
   document.querySelector('#counts').innerHTML=['exact','strong','weak','none'].map(k=>
     '<div class="card"><div class="label">'+k+'</div><div class="value">'+esc(counts[k]??0)+'</div></div>').join('')
-    +'<div class="card"><div class="label">Match path</div><div class="value" style="font-size:16px">'+esc((d.report&&d.report.class_match_path)||'—')+'</div></div>';
+    +'<div class="card"><div class="label">Match path</div><div class="value" style="font-size:16px">'+esc((d.report&&d.report.class_match_path)||'—')+'</div></div>'
+    +'<div class="card"><div class="label">Gate agreement</div><div class="value" style="font-size:16px">'+esc(gateRate)+'</div></div>';
   document.querySelector('#unmatched-bbs').innerHTML=(d.report&&d.report.unmatched_bbs.length?d.report.unmatched_bbs.map(esc).join('<br>'):'<span class="muted">none</span>');
   document.querySelector('#unmatched-sqorz').innerHTML=(d.report&&d.report.unmatched_sqorz.length?d.report.unmatched_sqorz.map(esc).join('<br>'):'<span class="muted">none</span>');
   const ambiguous=(d.report&&d.report.ambiguous_plates)||[];
