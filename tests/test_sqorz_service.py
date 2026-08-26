@@ -9,6 +9,7 @@ from connector.services.sqorz_service import (
     SqorzService,
     parse_event_payload,
     parse_lan_phase_rank_detail,
+    plausible_finish,
 )
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sqorz"
@@ -55,6 +56,22 @@ def test_parses_every_class_rank_and_phase_detail_from_the_real_fixture() -> Non
     assert murfin_moto1.time_raw == "47.529"
     assert murfin_moto1.race_position == 7
     assert murfin_moto1.rank == 1
+    assert murfin_moto1.result == 1
+
+
+def test_a_real_status_code_parses_as_the_raw_int_not_a_finish_position() -> None:
+    """result=100400 -- confirmed live on Bryson Adams' M1 row -- is an
+    internal Sqorz status code, not a finish. Parsing keeps the raw value
+    (nothing here decides what it means); plausible_finish() is what turns
+    it into a hidden value at display time."""
+    payload = load_event_fixture()
+    rows = parse_event_payload(payload)
+
+    adams_moto1 = next(
+        row for row in rows if row.last_name == "ADAMS" and row.phase_code == "M1"
+    )
+    assert adams_moto1.result == 100400
+    assert plausible_finish(adams_moto1.result) is None
 
 
 def test_a_phase_with_no_recorded_time_parses_to_none_not_an_exception() -> None:
@@ -114,6 +131,28 @@ def test_time_string_parsing_handles_malformed_values() -> None:
 
 
 # ---------------------------------------------------------------------------
+# plausible_finish -- the only thing allowed to turn `result` into a display
+# ---------------------------------------------------------------------------
+
+
+def test_plausible_finish_passes_through_a_real_placed_finish() -> None:
+    for position in range(1, 9):
+        assert plausible_finish(position) == position
+
+
+def test_plausible_finish_hides_none() -> None:
+    assert plausible_finish(None) is None
+
+
+def test_plausible_finish_hides_out_of_range_status_codes() -> None:
+    # 100400 and 103000 both confirmed live on withdrawn/no-show riders;
+    # 0 and 9 are included as boundary cases a real BMX moto never produces
+    # (8 riders max per race).
+    for status in (0, 9, 100400, 103000, -1):
+        assert plausible_finish(status) is None
+
+
+# ---------------------------------------------------------------------------
 # LAN parsing -- defensive against an undocumented, possibly-different shape
 # ---------------------------------------------------------------------------
 
@@ -132,7 +171,9 @@ def test_lan_parsing_extracts_a_nested_shape_matching_the_internet_api() -> None
                 "plate": "5",
                 "firstName": "PAT",
                 "lastName": "SMITH",
-                "competitorRankDetails": [{"phaseCode": "M1", "time": "40.1", "rank": 2}],
+                "competitorRankDetails": [
+                    {"phaseCode": "M1", "time": "40.1", "rank": 2, "result": 1}
+                ],
             }
         ]
     }
@@ -141,13 +182,17 @@ def test_lan_parsing_extracts_a_nested_shape_matching_the_internet_api() -> None
     assert rows[0].last_name == "SMITH"
     assert rows[0].time_seconds == 40.1
     assert rows[0].class_code == "C1"
+    assert rows[0].result == 1
 
 
 def test_lan_parsing_extracts_a_flat_shape() -> None:
-    payload = [{"plate": "6", "firstName": "JO", "lastName": "LEE", "time": "39.5"}]
+    payload = [
+        {"plate": "6", "firstName": "JO", "lastName": "LEE", "time": "39.5", "result": 3}
+    ]
     rows = parse_lan_phase_rank_detail(payload, class_code="C2", class_name="Flat Class")
     assert len(rows) == 1
     assert rows[0].time_seconds == 39.5
+    assert rows[0].result == 3
 
 
 # ---------------------------------------------------------------------------
@@ -248,3 +293,62 @@ def test_stale_cache_is_served_and_flagged_when_sqorz_goes_unreachable() -> None
     clock.advance(50)  # well past poll_seconds * 3
     third = service.get_riders()
     assert third.stale is True
+
+
+# ---------------------------------------------------------------------------
+# File/replay mode -- same parsing pipeline as internet mode, no network
+# ---------------------------------------------------------------------------
+
+
+def test_file_mode_replays_a_real_saved_payload(tmp_path) -> None:
+    saved = tmp_path / "demo-event.json"
+    saved.write_text(json.dumps(load_event_fixture()), encoding="utf-8")
+
+    service = SqorzService(enabled=True, mode="file", file_path=str(saved), clock=Clock())
+    result = service.get_riders()
+
+    assert result.reachable is True
+    assert result.error is None
+    murfin_moto1 = next(
+        row for row in result.riders if row.last_name == "MURFIN" and row.phase_code == "M1"
+    )
+    assert murfin_moto1.time_seconds == 47.529
+
+
+def test_file_mode_goes_through_the_identical_parser_as_internet_mode(tmp_path) -> None:
+    saved = tmp_path / "demo-event.json"
+    saved.write_text(json.dumps(load_event_fixture()), encoding="utf-8")
+
+    file_service = SqorzService(enabled=True, mode="file", file_path=str(saved), clock=Clock())
+    internet_service = SqorzService(enabled=True, mode="internet", event_id="x", clock=Clock())
+    internet_service._get_json = lambda url: load_event_fixture()
+
+    assert file_service.get_riders().riders == internet_service.get_riders().riders
+
+
+def test_file_mode_missing_path_configured_degrades_instead_of_raising() -> None:
+    service = SqorzService(enabled=True, mode="file", file_path="", clock=Clock())
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert result.error
+
+
+def test_file_mode_nonexistent_file_degrades_instead_of_raising(tmp_path) -> None:
+    service = SqorzService(
+        enabled=True, mode="file", file_path=str(tmp_path / "does-not-exist.json"), clock=Clock()
+    )
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert "does-not-exist" in (result.error or "")
+
+
+def test_file_mode_malformed_json_degrades_instead_of_raising(tmp_path) -> None:
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    service = SqorzService(enabled=True, mode="file", file_path=str(bad), clock=Clock())
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert result.error

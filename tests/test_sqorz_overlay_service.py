@@ -24,6 +24,7 @@ def row(
     first_name: str = "A",
     last_name: str = "B",
     time_seconds: float | None = 40.0,
+    result: int | None = None,
     class_timestamp: str | None = None,
     class_rank_phase_code: str | None = None,
 ) -> SqorzRiderTime:
@@ -40,6 +41,7 @@ def row(
         time_raw=str(time_seconds) if time_seconds is not None else None,
         race_position=None,
         rank=None,
+        result=result,
         class_timestamp=class_timestamp,
         class_rank_phase_code=class_rank_phase_code,
     )
@@ -85,6 +87,29 @@ def test_blank_time_is_none_not_a_guess() -> None:
     rows = [row(class_name="X", time_seconds=None)]
     race = build_race(rows, class_name="X", phase_code="M1")
     assert race.riders[0].time_seconds is None
+
+
+def test_finish_carries_through_a_plausible_result() -> None:
+    rows = [row(class_name="X", result=2)]
+    race = build_race(rows, class_name="X", phase_code="M1")
+    assert race.riders[0].finish == 2
+
+
+def test_finish_hides_an_implausible_status_code() -> None:
+    rows = [row(class_name="X", result=100400)]
+    race = build_race(rows, class_name="X", phase_code="M1")
+    assert race.riders[0].finish is None
+
+
+def test_finish_never_affects_the_fastest_first_sort_order() -> None:
+    """A slower rider can easily have a better cumulative finish across
+    other phases -- this overlay sorts by this phase's time, full stop."""
+    rows = [
+        row(class_name="X", last_name="Slow", time_seconds=50.0, result=1),
+        row(class_name="X", last_name="Fast", time_seconds=40.0, result=4),
+    ]
+    race = build_race(rows, class_name="X", phase_code="M1")
+    assert [r.last_name for r in race.riders] == ["Fast", "Slow"]
 
 
 def test_sqorz_phase_name_is_carried_through_deliberately() -> None:

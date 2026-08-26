@@ -11,6 +11,7 @@ from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
+from connector.services.sqorz_class_alias_service import SqorzClassAliasStore
 from connector.services.sqorz_service import SqorzService
 
 
@@ -70,9 +71,15 @@ def get_sqorz_service() -> SqorzService:
         org_code=settings.sqorz_org_code,
         host=settings.sqorz_host,
         port=settings.sqorz_port,
+        file_path=settings.sqorz_file_path,
         poll_seconds=settings.sqorz_effective_poll_seconds,
         timeout_seconds=settings.sqorz_timeout_seconds,
     )
+
+
+@lru_cache
+def get_sqorz_class_alias_store() -> SqorzClassAliasStore:
+    return SqorzClassAliasStore(get_settings().sqorz_class_alias_file)
 
 
 def get_current_lineup_service() -> CurrentLineupService:
@@ -83,6 +90,7 @@ def get_current_lineup_service() -> CurrentLineupService:
         get_motoboard_service(),
         settings.lineup_cache_file,
         sqorz=get_sqorz_service(),
+        sqorz_class_aliases=get_sqorz_class_alias_store(),
     )
 
 

@@ -1,4 +1,4 @@
-"""Read-only Sqorz live-timing client: internet or LAN, never fatal.
+"""Read-only Sqorz live-timing client: internet, LAN, or a saved file, never fatal.
 
 Sqorz supplies rider TIMES only. It never sets a round/phase label -- BBS
 decides "Round 1"/"Moto 3"/"Main" from RaceManager's own class finalization
@@ -6,10 +6,17 @@ method (see docs/racemanager-round-model.md and CLAUDE.md). Nothing in this
 module should ever be treated as a phase label.
 
 Follows the stdlib urllib pattern already used by connector/service_status.py
--- no new runtime dependency. Both backends use a short timeout, cache the
-last good payload in memory, and are polled no more often than the
-configured interval; a failed fetch serves the cache (marked stale) instead
-of raising, so an optional, unreachable, or slow Sqorz never fails a request.
+-- no new runtime dependency. All three backends use a short timeout (file
+mode: none needed), cache the last good payload in memory, and are polled no
+more often than the configured interval; a failed fetch serves the cache
+(marked stale) instead of raising, so an optional, unreachable, or slow Sqorz
+never fails a request.
+
+"file" mode (BBS_SQORZ_MODE=file) replays a payload saved with
+scripts/sqorz_capture.py through the exact same parse_event_payload() used by
+internet mode -- only the fetch differs, so it's a genuine demo of real data
+with no network at all, for when neither the venue's LAN nor internet is
+available.
 """
 
 from __future__ import annotations
@@ -17,6 +24,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
@@ -37,6 +45,13 @@ class SqorzRiderTime:
     time_raw: str | None
     race_position: int | None
     rank: int | None
+    # Sqorz's own finish position for this phase, straight from the `result`
+    # key -- NOT `racePosition` (starting gate) and NOT `rank` (overall
+    # class standing, not per-race). Carries internal status codes for
+    # anything other than a placed finish (100400 and 103000 both confirmed
+    # live); callers must run this through plausible_finish() before
+    # display, never invent a DNF/DNS/DQ label from it.
+    result: int | None = None
     # Class-level metadata (same for every row of the same class), used only
     # by the standalone Sqorz overlay's "most recently updated" default --
     # see connector/services/sqorz_overlay_service.py. Optional/defaulted so
@@ -70,6 +85,24 @@ def _parse_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+# A BMX moto/main plates 8 riders max; anything outside 1-8 in Sqorz's
+# `result` field is a status code (100400 and 103000 both confirmed live on
+# withdrawn/no-show riders), never a real finish position.
+_PLAUSIBLE_FINISH_POSITIONS = range(1, 9)
+
+
+def plausible_finish(result: int | None) -> int | None:
+    """Sqorz's `result` field as a displayable finish, or None.
+
+    Renders exactly like a missing time when the value isn't a plausible
+    1-8 finish -- never guesses a DNF/DNS/DQ label from an internal status
+    code we don't have documentation for.
+    """
+    if result is None or result not in _PLAUSIBLE_FINISH_POSITIONS:
+        return None
+    return result
 
 
 def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
@@ -109,6 +142,7 @@ def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
                         time_raw=raw_time if isinstance(raw_time, str) else None,
                         race_position=_parse_int(detail.get("racePosition")),
                         rank=_parse_int(detail.get("rank")),
+                        result=_parse_int(detail.get("result")),
                         class_timestamp=(
                             class_timestamp if isinstance(class_timestamp, str) else None
                         ),
@@ -176,6 +210,7 @@ def parse_lan_phase_rank_detail(
                         time_raw=raw_time if isinstance(raw_time, str) else None,
                         race_position=_parse_int(detail.get("racePosition")),
                         rank=_parse_int(detail.get("rank")),
+                        result=_parse_int(detail.get("result")),
                     )
                 )
             continue
@@ -198,6 +233,7 @@ def parse_lan_phase_rank_detail(
                 time_raw=raw_time if isinstance(raw_time, str) else None,
                 race_position=_parse_int(competitor.get("racePosition")),
                 rank=_parse_int(competitor.get("rank")),
+                result=_parse_int(competitor.get("result")),
             )
         )
     return rows
@@ -207,9 +243,10 @@ class SqorzService:
     """Poll Sqorz (internet or LAN) with a short timeout and a last-good cache.
 
     A single instance is shared for the life of the process (see
-    connector/dependencies.py); ``last_match_report`` is written by
-    CurrentLineupService after each match so the diagnostics endpoint has
-    something to report without needing its own copy of the match logic.
+    connector/dependencies.py); ``last_match_report``/``last_match_class_name``/
+    ``last_match_class_alias`` are written by CurrentLineupService after each
+    match so the diagnostics endpoint and /sqorz-match-report page have
+    something to report without needing their own copy of the match logic.
     """
 
     def __init__(
@@ -221,6 +258,7 @@ class SqorzService:
         org_code: str = "",
         host: str = "",
         port: int = 4343,
+        file_path: str = "",
         poll_seconds: float = 10.0,
         timeout_seconds: float = 2.0,
         clock: Any = time.monotonic,
@@ -231,6 +269,7 @@ class SqorzService:
         self.org_code = org_code
         self.host = host
         self.port = port
+        self.file_path = file_path
         self.poll_seconds = poll_seconds
         self.timeout_seconds = timeout_seconds
         self._clock = clock
@@ -239,6 +278,8 @@ class SqorzService:
         self._last_fetch_attempt: float | None = None
         self._last_error: str | None = None
         self.last_match_report: Any = None
+        self.last_match_class_name: str | None = None
+        self.last_match_class_alias: str | None = None
 
     def get_riders(self) -> SqorzFetchResult:
         if not self.enabled:
@@ -278,12 +319,29 @@ class SqorzService:
     def _fetch(self) -> list[SqorzRiderTime]:
         if self.mode == "lan":
             return self._fetch_lan()
+        if self.mode == "file":
+            return self._fetch_file()
         return self._fetch_internet()
 
     def _fetch_internet(self) -> list[SqorzRiderTime]:
         if not self.event_id:
             raise ValueError("BBS_SQORZ_EVENT_ID is not configured.")
         payload = self._get_json(f"https://our.sqorz.com/json/event/{self.event_id}")
+        return parse_event_payload(payload)
+
+    def _fetch_file(self) -> list[SqorzRiderTime]:
+        """Replay a payload saved with scripts/sqorz_capture.py.
+
+        Through the exact same parse_event_payload() internet mode uses --
+        only the fetch differs, so this is a genuine demo of real data with
+        no network involved at all.
+        """
+        if not self.file_path:
+            raise ValueError("BBS_SQORZ_FILE_PATH is not configured.")
+        path = Path(self.file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"Sqorz replay file not found: {path}")
+        payload = json.loads(path.read_text(encoding="utf-8"))
         return parse_event_payload(payload)
 
     def _fetch_lan(self) -> list[SqorzRiderTime]:

@@ -17,7 +17,7 @@ sqorz_matching.py, which enforces the opposite rule for the lineup overlay).
 from __future__ import annotations
 
 from connector.models import SqorzOverlayRace, SqorzOverlayRider, SqorzOverlayState
-from connector.services.sqorz_service import SqorzRiderTime, SqorzService
+from connector.services.sqorz_service import SqorzRiderTime, SqorzService, plausible_finish
 
 
 def _default_class_and_phase(rows: list[SqorzRiderTime]) -> tuple[str | None, str | None]:
@@ -90,6 +90,7 @@ def build_race(
             first_name=row.first_name,
             last_name=row.last_name,
             time_seconds=row.time_seconds,
+            finish=plausible_finish(row.result),
         )
         for row in matching
     ]

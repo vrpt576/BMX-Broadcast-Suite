@@ -71,6 +71,31 @@ def test_explicit_class_and_phase_query_params_select_the_race() -> None:
     app.dependency_overrides.clear()
 
 
+def test_finish_position_is_present_and_status_codes_are_hidden() -> None:
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="fixture")
+    sqorz._get_json = lambda url: load_event_fixture()
+    app.dependency_overrides[get_sqorz_service] = lambda: sqorz
+
+    response = TestClient(app).get(
+        "/api/sqorz/current", params={"class": "11-12 Open", "phase": "M1"}
+    )
+
+    riders = {r["last_name"]: r for r in response.json()["race"]["riders"]}
+    assert riders["MURFIN"]["finish"] == 1
+    # ADAMS' real M1 result is the internal status code 100400 -- must never
+    # surface as a finish position, only as the same blank a missing result
+    # gets.
+    assert riders["ADAMS"]["finish"] is None
+    app.dependency_overrides.clear()
+
+
+def test_the_served_page_renders_a_blank_time_as_an_en_dash() -> None:
+    from connector.routes.sqorz_timing import SQORZ_TIMING_OVERLAY_HTML
+
+    assert "'–'" in SQORZ_TIMING_OVERLAY_HTML
+    assert "'LIVE'" in SQORZ_TIMING_OVERLAY_HTML
+
+
 def test_sqorz_phase_name_is_present_in_this_response_by_design() -> None:
     """Opposite rule from the lineup overlay's phase_label protection --
     this endpoint IS Sqorz's own view, so its phase wording is expected."""

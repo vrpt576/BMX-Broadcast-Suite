@@ -23,6 +23,33 @@ def test_sqorz_poll_seconds_explicit_value_overrides_the_mode_aware_default():
     assert settings.sqorz_effective_poll_seconds == 7.0
 
 
+def test_a_literal_blank_string_for_sqorz_poll_seconds_does_not_crash_settings(
+    tmp_path: Path,
+) -> None:
+    """CONFIRMED live during the pre-trip rehearsal: connector/.env.example
+    ships BBS_SQORZ_POLL_SECONDS= blank (the documented "mode-aware default"
+    state), and pydantic-settings reads a bare `KEY=` in a .env file as the
+    literal string "" -- which used to fail int|None validation and crash
+    BBS at import time, before FastAPI even started. Exercises the real
+    dotenv-loading path, not just constructor kwargs, since that's exactly
+    how it broke."""
+    env_file = tmp_path / '.env'
+    env_file.write_text('BBS_SQORZ_MODE=lan\nBBS_SQORZ_POLL_SECONDS=\n', encoding='utf-8')
+
+    settings = Settings(_env_file=env_file)
+
+    assert settings.sqorz_poll_seconds is None
+    assert settings.sqorz_effective_poll_seconds == 2.0  # lan mode-aware default
+
+
+def test_the_shipped_env_example_loads_without_crashing() -> None:
+    """The exact file `Copy-Item connector\\.env.example .env` produces --
+    this is what actually crashed BBS at startup before the validator above
+    was added. If this ever breaks again, so does every fresh checkout."""
+    example = Path(__file__).resolve().parents[1] / 'connector' / '.env.example'
+    Settings(_env_file=example)  # must not raise
+
+
 @pytest.fixture
 def isolated_env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     env_file = tmp_path / '.env'

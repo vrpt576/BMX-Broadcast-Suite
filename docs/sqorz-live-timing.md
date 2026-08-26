@@ -33,7 +33,7 @@ seconds, so polling faster than ~10s just re-fetches the same data, while the LA
 API sits on the scoring computer at the track and can be polled much more
 aggressively (2s) for snappier updates.
 
-## Two backends, one interface
+## Three backends, one interface
 
 - **Internet API** (`BBS_SQORZ_MODE=internet`): `GET https://our.sqorz.com/json/event/{id}`,
   public, no auth, refreshed by Sqorz roughly every 30 seconds. This is what the fixtures
@@ -42,6 +42,11 @@ aggressively (2s) for snappier updates.
   scoring computer at the track. Sqorz does not publish the LAN response shapes, so that
   path is written defensively (tolerates unknown/missing fields, never raises) and is
   **unverified** until confirmed on site with `scripts/sqorz_probe.py`.
+- **File replay** (`BBS_SQORZ_MODE=file`, `BBS_SQORZ_FILE_PATH=...`): reads a payload saved
+  with `scripts/sqorz_capture.py` from disk, through the *exact same* `parse_event_payload()`
+  the internet backend uses -- only the fetch differs, so it's a genuine demo of real data
+  with no network involved at all. Capture an event while you have internet, carry the file
+  with you, and point BBS at it if neither the venue's LAN nor internet is available.
 
 ## Matching, not guessing
 
@@ -63,12 +68,75 @@ coincidentally collide across unrelated classes at that scale. A plate-only
 match found via that whole-event fallback is therefore capped at "weak"
 (recorded, never displayed), never promoted to "strong".
 
+Plate is also not unique *within* one class — confirmed live: Hoosier's
+"11-12 Open" has both Dylan Dobelle and Wade Hinderlider on plate 9 (both USA
+BMX district plates). A plate appearing more than once in the resolved class
+(on either the Sqorz side or the RaceManager side) is excluded from the
+"strong" tier entirely — it can still reach "exact" if the last name also
+matches, since that disambiguates on its own, otherwise it falls to "weak".
+The collision is recorded in `match_report.ambiguous_plates`.
+
+### Finish position and the gate cross-check
+
+Alongside the time, BBS can show Sqorz's own finish position for the round
+(e.g. "P2"), marked "LIVE" to distinguish it from RaceManager's own official
+result (`ResultRider.finish`, a completely separate pipeline this feature
+never touches). It's read from Sqorz's `result` field and gated by the same
+confidence rule as the time — only "exact"/"strong" matches show it — plus
+one more: `result` carries internal status codes for anything other than a
+placed finish (`100400` and `103000` both confirmed live on
+withdrawn/no-show riders), and only a plausible 1-8 is ever displayed;
+anything else renders exactly like a missing time, never an invented
+DNF/DNS/DQ label.
+
+When BBS knows which round is showing, matching also cross-checks Sqorz's
+own `racePosition` (starting gate) against the gate RaceManager assigned the
+rider. Agreement can *rescue* an ambiguous plate collision straight to
+"strong" — confirmed live: Hoosier's "11-12 Open" has Dylan Dobelle and Wade
+Hinderlider both on plate 9, but they started from different gates (8 and 7),
+so if exactly one of them agrees with the gate BBS already knows, that's as
+disambiguating as a matching last name. Disagreement does the opposite: it
+demotes an otherwise-displayable match so nothing shows — a real mismatch is
+more likely than a coincidence, and this project never prefers a guess over
+silence. The agreement rate across all riders where both sides had a gate to
+compare is reported on `/sqorz-match-report` as **Gate agreement**.
+
+### Class aliases
+
+RaceManager and Sqorz name classes independently, and often won't line up
+textually (RaceManager "11-12 Open" vs. a Sqorz `classCode` like `2204`).
+When that happens, every rider in the class silently drops to "weak" (blank
+column) via the whole-event plate-only fallback above. Fix it with an
+operator-set alias: `PUT /api/sqorz/aliases` (or the **Set a class alias**
+form on `/sqorz-match-report`) maps a RaceManager class name to a Sqorz
+`className` or `classCode`. An alias always wins over automatic name
+matching, is at least as trusted as a normal class-name match for the
+"strong" tier, and takes effect on the very next poll — no restart, because
+`SqorzClassAliasStore` re-reads its file (`BBS_SQORZ_CLASS_ALIAS_FILE`,
+default `data/sqorz_class_aliases.json`) on every lookup. Never written back
+to RaceManager or Sqorz.
+
+### The match report
+
+`/sqorz-match-report` is the on-site diagnosis tool: shows the live match
+state for whichever class the lineup overlay is currently displaying —
+counts by confidence tier, unmatched names on each side, any ambiguous-plate
+collisions, which resolution path was used (`class_name` / `alias` /
+`plate_only` / `no_sqorz_data`), and the gate agreement rate (see above) —
+plus the alias-setting form above. The same
+data is available as JSON at `GET /api/sqorz/match-report` if you'd rather
+script against it. It only ever reflects the most recently viewed class (the
+report is computed as a side effect of a lineup poll, not a standing
+cross-event audit) — open the lineup or Director for the class you care about
+first if the page says "(none yet -- open the lineup or Director once)".
+
 ## Standalone Sqorz-only overlay
 
 `/overlay/sqorz-timing` reads only the Sqorz feed — no RaceManager dependency
 at all (it never touches `MotoboardService`, `CurrentMotoService`, or the race
 slot catalog). Use it when RaceManager isn't reachable from BBS: it shows one
-class/phase's plate, rider, and time, with Sqorz's own phase wording displayed
+class/phase's plate, rider, time, and (when plausible) finish position, with
+Sqorz's own phase wording displayed
 (e.g. "Moto 1", "Main") — unlike the lineup overlay's timing column, there is
 no BBS phase_label to protect here, since this overlay presents Sqorz's own
 view of the event, not BBS's RaceManager-derived race program.

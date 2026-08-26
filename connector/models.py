@@ -412,6 +412,13 @@ class LineupRider(ApiModel):
     # connector/services/sqorz_matching.py. Null when Sqorz is disabled,
     # unconfigured, unreachable, or the rider isn't confidently matched.
     time_seconds: float | None = None
+    # Sqorz's own live finish position for this round, same confidence gate
+    # and same source as time_seconds -- NOT ResultRider.finish below, which
+    # is RaceManager's official result and comes from a completely separate
+    # pipeline (current_results_service.py) that this module never touches.
+    # Null for anything Sqorz didn't report as a plausible 1-8 placed finish
+    # -- see plausible_finish() in sqorz_service.py.
+    finish: int | None = None
 
 
 class CurrentLineup(ApiModel):
@@ -437,6 +444,11 @@ class CurrentLineup(ApiModel):
     cached_at: datetime | None = None
     is_stale: bool = False
     warning: str | None = None
+    # Which Sqorz phaseCode riders[].time_seconds was read from, e.g. "M1".
+    # Sqorz vocabulary, shown only in the time column's own caption ("TIME
+    # (M1)") -- never a phase_label or a RaceStage.label. See
+    # sqorz_matching.py and CLAUDE.md's round/phase model.
+    sqorz_phase_code: str | None = None
 
 
 class ResultRider(ApiModel):
@@ -506,6 +518,9 @@ class SqorzOverlayRider(ApiModel):
     first_name: str | None = None
     last_name: str | None = None
     time_seconds: float | None = None
+    # Sqorz's own finish position, already run through plausible_finish() --
+    # see connector/services/sqorz_service.py.
+    finish: int | None = None
 
 
 class SqorzOverlayRace(ApiModel):

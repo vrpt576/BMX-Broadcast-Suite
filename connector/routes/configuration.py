@@ -75,18 +75,19 @@ CONFIG_HTML = r'''<!doctype html>
   <section class="card"><h2>Sqorz live timing (optional)</h2>
     <p class="muted">Shows rider times in the lineup overlay. Off by default; degrades to no times if unreachable.</p>
     <label><input id="sqorz_enabled" type="checkbox"> Enable Sqorz live timing</label>
-    <label>Mode<select id="sqorz_mode"><option value="internet">Internet</option><option value="lan">LAN (track scoring computer)</option></select></label>
+    <label>Mode<select id="sqorz_mode"><option value="internet">Internet</option><option value="lan">LAN (track scoring computer)</option><option value="file">File (replay a saved payload, no network)</option></select></label>
     <label>Event ID (internet mode)<input id="sqorz_event_id"></label>
     <label>Org code (optional)<input id="sqorz_org_code"></label>
     <label>LAN host (LAN mode)<input id="sqorz_host"></label>
     <label>LAN port<input id="sqorz_port" type="number"></label>
+    <label>Replay file path (file mode)<input id="sqorz_file_path" placeholder="e.g. C:\demo-event.json"></label>
     <label>Poll interval (seconds)<input id="sqorz_poll_seconds" type="number" placeholder="blank = 10 internet / 2 LAN"></label>
     <label>Timeout (seconds)<input id="sqorz_timeout_seconds" type="number" step="0.1"></label>
   </section>
 </div>
 <button id="save">Save configuration</button> <span id="status" class="muted"></span>
 </main><script>
-const fields=['track_name','default_theme','app_host','app_port','public_base_url','cors_origins','remote_control_enabled','control_token','remote_admin_enabled','admin_token','sql_host','sql_instance','sql_port','sql_database','sql_user','sql_password','sql_driver','sql_encrypt','sql_trust_server_certificate','sqorz_enabled','sqorz_mode','sqorz_event_id','sqorz_org_code','sqorz_host','sqorz_port','sqorz_poll_seconds','sqorz_timeout_seconds'];
+const fields=['track_name','default_theme','app_host','app_port','public_base_url','cors_origins','remote_control_enabled','control_token','remote_admin_enabled','admin_token','sql_host','sql_instance','sql_port','sql_database','sql_user','sql_password','sql_driver','sql_encrypt','sql_trust_server_certificate','sqorz_enabled','sqorz_mode','sqorz_event_id','sqorz_org_code','sqorz_host','sqorz_port','sqorz_file_path','sqorz_poll_seconds','sqorz_timeout_seconds'];
 const sessionToken=document.querySelector('#session_admin_token');
 function adminHeaders(extra={}){const headers=new Headers(extra);const token=sessionToken.value.trim();if(token)headers.set('X-BBS-Admin-Token',token);return headers}
 async function load(){const status=document.querySelector('#status');status.textContent='Loading…';const response=await fetch('/api/configuration',{cache:'no-store',headers:adminHeaders()});const data=await response.json();if(!response.ok){status.textContent=data.detail||'Configuration unavailable';status.className='error';return}for(const field of fields){const element=document.getElementById(field);if(element.type==='checkbox')element.checked=!!data[field];else element.value=data[field]??''}status.textContent='Configuration loaded.';status.className='ok'}
