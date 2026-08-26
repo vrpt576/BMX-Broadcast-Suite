@@ -131,29 +131,46 @@ class Settings(BaseSettings):
     # A bare `NAME=` in .env (exactly what .env.example ships for several of
     # these, and what ConfigurationService.save() writes when a field is
     # cleared) is read by pydantic-settings as the literal string "". For
-    # every field above except the plain str ones, that used to fail type
+    # every field below except the plain str ones, that used to fail type
     # validation and crash BBS at startup before FastAPI even loaded --
     # confirmed live during the pre-trip rehearsal for
     # BBS_SQORZ_POLL_SECONDS, and true of every other non-str field here for
     # the same reason (a bool/int/float/Path field has no valid parse of "").
-    # A typo'd, non-blank value (e.g. BBS_SQORZ_PORT=44e3) is exactly as real
-    # a risk and must not crash the whole connector either -- RaceManager,
-    # the Director, and the existing overlays must still come up even if
-    # Sqorz's own config is broken. Both cases fall back to this field's own
+    # A typo'd, non-blank value (e.g. BBS_APP_PORT=80e0) is exactly as real a
+    # risk and must not crash the whole connector either -- RaceManager, the
+    # Director, and the existing overlays must still come up even if one
+    # setting's own value is broken. Both cases fall back to this field's own
     # declared default; a non-blank value that still doesn't parse also
     # prints a startup-time warning naming the setting and the bad value, so
     # a real typo is loud (in the console, not silently swallowed) without
     # being fatal.
+    #
+    # BBS_SQL_PORT is deliberately in this list: a named SQL instance
+    # (BBS_SQL_INSTANCE, e.g. connecting as HOST\USABMX) takes precedence
+    # over a TCP port -- see the `sql_server` property below, untouched by
+    # this validator -- and the documented way to use a named instance is to
+    # leave BBS_SQL_PORT blank. That must not crash startup either. This
+    # validator only decides what value sql_port itself resolves to; it does
+    # not change sql_server's own instance-vs-port precedence logic.
     @field_validator(
         "sqorz_enabled",
         "sqorz_port",
         "sqorz_poll_seconds",
         "sqorz_timeout_seconds",
         "sqorz_class_alias_file",
+        "sql_port",
+        "sql_connect_timeout",
+        "sql_query_timeout",
+        "app_port",
+        "sql_encrypt",
+        "sql_trust_server_certificate",
+        "log_retention_days",
+        "remote_control_enabled",
+        "remote_admin_enabled",
         mode="before",
     )
     @classmethod
-    def _blank_or_unparseable_sqorz_value_falls_back_to_default(
+    def _blank_or_unparseable_value_falls_back_to_default(
         cls, value: object, info: ValidationInfo
     ) -> object:
         if not isinstance(value, str):
