@@ -2,34 +2,101 @@
 
 ## Unreleased
 
+## 1.2.18 - date TBD (not yet published -- see "Verification status" below)
+
+**Verification status, plainly:** the internet-mode Sqorz backend has been
+tested extensively against real, live Sqorz data (a real 2026-08-16 USA BMX
+national event) and is considered solid. **The LAN backend has never
+connected to a real Sqorz installation.** Its request handling, timeout
+behavior, and fallback-when-disconnected behavior are verified against a
+local mock server with *guessed* response shapes (see "resilience, not
+verification" below) -- not against Smith Rock's or any other track's actual
+scoring computer. This release is being validated live on 2026-08-28 before
+it is published; do not treat the LAN backend as confirmed working until
+then.
+
 - Added optional Sqorz live-timing integration: the lineup overlay can show
   each rider's time for the currently selected round, read from Sqorz's
-  public internet API or (unverified, pending on-site confirmation) its LAN
-  scoring API. Off by default (`BBS_SQORZ_ENABLED=false`); when disabled,
-  unconfigured, unreachable, or a rider can't be confidently matched, the
-  lineup endpoint is unchanged -- no time is shown, same as the existing
-  optional-column pattern. RaceManager remains the only source for round
-  labels, rider identity, and official results; Sqorz supplies times only,
-  and only for an "exact" or "strong" confidence plate/name match -- see
-  `docs/sqorz-live-timing.md`.
+  public internet API, its LAN scoring API, or a saved file replay. Off by
+  default (`BBS_SQORZ_ENABLED=false`); when disabled, unconfigured,
+  unreachable, or a rider can't be confidently matched, the lineup endpoint
+  is unchanged -- no time is shown, same as the existing optional-column
+  pattern. RaceManager remains the only source for round labels, rider
+  identity, gate assignment, and official results; Sqorz supplies times and
+  finish positions only, and only for an "exact" or "strong" confidence
+  plate/name match -- see `docs/sqorz-live-timing.md`.
 - Added a standalone Sqorz-only overlay (`/overlay/sqorz-timing`) with no
   RaceManager dependency at all, for tracks where BBS can read Sqorz but not
-  RaceManager. Shows one class/phase's plate, rider, and time; selectable via
-  `?class=`/`?phase=` query parameters, defaulting to a simple "most recently
-  updated class" heuristic. Unlike the lineup overlay's timing column, Sqorz's
-  own phase wording is deliberately displayed here, since this overlay
-  presents Sqorz's own view of the event, not BBS's race program.
-- Hardened Sqorz matching: a bare plate-number match is now only trusted as
-  "strong" (displayed) when it's scoped to the rider's actual class. When
-  class names don't line up and matching falls back to searching the whole
-  event by plate alone, that match is capped at "weak" (never displayed) --
-  confirmed against a real 829-rider national field that a bare plate number
-  can otherwise coincidentally collide across unrelated classes at that
-  scale.
+  RaceManager. Shows one class/phase's plate, rider, time, and finish
+  position; selectable via `?class=`/`?phase=` query parameters, defaulting
+  to a simple "most recently updated class" heuristic. Unlike the lineup
+  overlay's timing column, Sqorz's own phase wording is deliberately
+  displayed here, since this overlay presents Sqorz's own view of the event,
+  not BBS's race program.
+- Hardened Sqorz matching in three ways, all confirmed against real live
+  data: (1) a bare plate-number match is only trusted as "strong" (displayed)
+  when scoped to the rider's actual class -- when class names don't line up
+  and matching falls back to searching the whole event by plate alone, that
+  match is capped at "weak" (never displayed), confirmed against a real
+  829-rider national field where a bare plate number can otherwise
+  coincidentally collide across unrelated classes; (2) a plate that collides
+  *within* one class (confirmed live: two riders on plate 9 in the same
+  class) is excluded from "strong" on either side of the match, and can only
+  reach "exact" if the last name also disambiguates; (3) a demo/sample
+  lineup is now structurally incapable of ever receiving a real Sqorz time,
+  enforced as a boundary check before any matching runs at all, not left to
+  the confidence tiers to reject.
+- Added a gate cross-check: Sqorz's own starting-gate value is compared
+  against the gate RaceManager assigned the rider for the round showing.
+  Agreement can rescue an otherwise-unresolved ambiguous plate collision
+  straight to "strong" (confirmed against the real plate-9 collision above);
+  disagreement demotes an otherwise-displayable match so nothing shows,
+  since a real mismatch is more likely than a coincidence. The agreement
+  rate is visible on the new status page (see below).
+- Sqorz's own phase/round wording is now guaranteed to never appear in the
+  lineup overlay's round header (always BBS's own RaceManager-derived text)
+  -- it's shown only in the time column's own caption, e.g. "Time (M1)".
+- Added operator-editable class aliases, for when RaceManager's and Sqorz's
+  class names don't textually match: point a RaceManager class at the
+  correct Sqorz class from a web page, no file editing or restart needed.
+- Added a third Sqorz mode, file replay (`BBS_SQORZ_MODE=file`): replays a
+  payload captured ahead of time (`scripts/sqorz_capture.py`) through the
+  identical parsing/matching/overlay pipeline as the live internet backend --
+  real data with no network at all, for a venue with no usable connectivity.
+- Added a consolidated Sqorz status page (`/sqorz-status`), meant to be left
+  open throughout an event: mode, reachability, payload age, parsed
+  class/competitor counts, match confidence breakdown, ambiguous plates,
+  gate-agreement rate, class-alias editing, and (LAN mode) a link to the last
+  raw response received, all on one auto-refreshing page.
+- Hardened the LAN backend's parsing: when Sqorz's LAN response doesn't match
+  the shape guessed from the verified internet API, a fallback searches the
+  whole response for the same known field names regardless of nesting. When
+  neither approach finds anything usable in a non-empty response, the raw
+  response is saved to disk and a clear message says so on the status page --
+  never a silently blank overlay with no explanation. This is resilience
+  against an unknown shape, not verification that the shape is understood --
+  see "Verification status" above.
+- Added `scripts/sqorz_probe.py` / a bundled probe kit: a single
+  self-contained tool (no BBS installation required) that a non-technical
+  person at an unfamiliar track's scoring table can run to test LAN
+  reachability and capture real response shapes to send back, closing the
+  loop on the LAN backend's unverified status above.
+- Fixed a startup crash: a blank `BBS_SQORZ_POLL_SECONDS` value (exactly what
+  the shipped `.env.example` ships, and what the configuration UI writes when
+  the field is cleared) crashed BBS at import time, before the web server
+  even started. Extended the same fix to every other Sqorz setting, and to
+  `BBS_SQL_PORT` specifically (required blank for a named SQL-instance
+  connection -- see `CLAUDE.md`'s SQL instance/port note) plus the remaining
+  pre-existing numeric/boolean settings added around this release -- none of
+  them can crash startup on a blank or mistyped value now; a mistyped value
+  degrades just that setting's feature and prints a clear warning, instead of
+  taking down RaceManager, the Director, and the existing overlays.
 - Fixed the lineup overlay's and standalone overlay's time columns clipping
   at 1920x1080: the column was too narrow for a bold six-character time,
   overflowing past the panel's edge. Caught during a dress rehearsal against
-  live Sqorz data before deploying on site.
+  live Sqorz data before deploying on site. Also: a blank time now renders as
+  an en dash instead of empty space, and rider metadata (age/home track)
+  clamps to one line with an ellipsis instead of overflowing.
 
 ## 1.2.17 - 2026-08-24
 

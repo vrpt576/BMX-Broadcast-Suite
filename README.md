@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.17-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.2.18-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -50,9 +50,9 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.17
+## Current status — v1.2.18
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.17 fixes a third qualifying moto being announced as "Main" for a class that still races a separate final, so a class is never shown as Main twice, while retaining the Ref.Rounds bracket-name resolution from v1.2.16 and the theme and tray fixes from v1.2.15.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.18 adds optional [Sqorz live-timing integration](docs/sqorz-live-timing.md) — rider times and finish positions shown alongside the lineup, entirely additive and off by default — while retaining the Main-labeling fix from v1.2.17, the Ref.Rounds bracket-name resolution from v1.2.16, and the theme and tray fixes from v1.2.15. See the [changelog](CHANGELOG.md) for the full 1.2.18 verification status before relying on it in the field.
 
 ### Rider subtitle data
 
