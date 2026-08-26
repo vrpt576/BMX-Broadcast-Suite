@@ -492,3 +492,45 @@ class ResultsRollState(ApiModel):
     total_available_results: int = 0
     started_at: datetime | None = None
     next_change_at: datetime | None = None
+
+
+class SqorzOverlayRider(ApiModel):
+    """One competitor row for the standalone Sqorz-only overlay.
+
+    Unlike LineupRider.time_seconds (an optional column decorating a
+    RaceManager rider, see sqorz_matching.py), this whole model IS a Sqorz
+    competitor -- there is no RaceManager identity involved.
+    """
+
+    plate: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    time_seconds: float | None = None
+
+
+class SqorzOverlayRace(ApiModel):
+    """One class/phase as Sqorz itself presents it.
+
+    phase_name is Sqorz's own vocabulary (e.g. "Moto 1", "Main") and is
+    intentionally displayed here -- this overlay presents Sqorz's own view
+    of the event, not BBS's RaceManager-derived race program. It must never
+    be wired into a BBS phase_label or RaceStage.label (see CLAUDE.md,
+    docs/racemanager-round-model.md, and sqorz_matching.py).
+    """
+
+    class_code: str | None = None
+    class_name: str | None = None
+    phase_code: str
+    phase_name: str | None = None
+    riders: list[SqorzOverlayRider] = Field(default_factory=list)
+
+
+class SqorzOverlayState(ApiModel):
+    """Top-level response for the standalone Sqorz overlay -- never fatal."""
+
+    enabled: bool
+    reachable: bool = False
+    stale: bool = False
+    age_seconds: float | None = None
+    error: str | None = None
+    race: SqorzOverlayRace | None = None

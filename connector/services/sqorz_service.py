@@ -37,6 +37,12 @@ class SqorzRiderTime:
     time_raw: str | None
     race_position: int | None
     rank: int | None
+    # Class-level metadata (same for every row of the same class), used only
+    # by the standalone Sqorz overlay's "most recently updated" default --
+    # see connector/services/sqorz_overlay_service.py. Optional/defaulted so
+    # existing SqorzRiderTime(...) call sites are unaffected.
+    class_timestamp: str | None = None
+    class_rank_phase_code: str | None = None
 
 
 @dataclass
@@ -77,6 +83,8 @@ def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
             continue
         class_code = class_rank.get("classCode")
         class_name = class_rank.get("className")
+        class_timestamp = class_rank.get("timestamp")
+        class_rank_phase_code = class_rank.get("rankPhaseCode")
         for competitor in class_rank.get("competitorRankSummaries") or []:
             if not isinstance(competitor, dict):
                 continue
@@ -101,6 +109,12 @@ def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
                         time_raw=raw_time if isinstance(raw_time, str) else None,
                         race_position=_parse_int(detail.get("racePosition")),
                         rank=_parse_int(detail.get("rank")),
+                        class_timestamp=(
+                            class_timestamp if isinstance(class_timestamp, str) else None
+                        ),
+                        class_rank_phase_code=(
+                            class_rank_phase_code if isinstance(class_rank_phase_code, str) else None
+                        ),
                     )
                 )
     return rows

@@ -51,10 +51,10 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
     .name { padding: .3em .8em .3em .2em; font-size: 28px; font-weight: 850; text-transform: var(--text-transform); letter-spacing: .02em; }
     .rider-meta { margin-top:.12em; color:var(--muted-text); font-size:15px; font-weight:700; letter-spacing:.04em; text-transform:none; }
     .time-label, .time { display: none; }
-    .riders.has-time .columns, .riders.has-time .rider { grid-template-columns: 78px 150px 1fr 110px; }
+    .riders.has-time .columns, .riders.has-time .rider { grid-template-columns: 78px 150px 1fr 150px; }
     .riders.has-time .time-label, .riders.has-time .time { display: block; }
     .time-label { text-align: right; }
-    .time { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; }
+    .time { padding: 0 .7em; color: var(--plate); font-size: 27px; font-weight: 900; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: clip; white-space: nowrap; }
     .empty { padding: 1.2em; font-size: 24px; font-weight: 700; }
     .offline { display: none; background: var(--warning); color: var(--warning-text); padding: .7em 1em; font-size: 22px; font-weight: 800; width: fit-content; }
   </style>
