@@ -13,11 +13,21 @@ allowed to put a time on air:
 "weak" is recorded in the match report (useful for diagnosing a class that
 isn't lining up at the track) but never produces a displayed time. Guessing
 is worse than showing nothing.
+
+Plate is not unique, on either side. USA BMX district plates collide
+constantly within one class (confirmed live: Hoosier's "11-12 Open" has both
+Dylan Dobelle and Wade Hinderlider on plate 9), and nothing stops two
+RaceManager riders in one class from sharing a bike number either. A "strong"
+match relies on plate alone, so it is only trusted when the plate is unique
+on BOTH sides within the resolved class -- an ambiguous plate never reaches
+"strong"; it can still reach "exact" if the last name also matches (which
+disambiguates on its own), otherwise it falls to "weak" (never displayed).
 """
 
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Protocol
@@ -116,6 +126,7 @@ class MatchReport:
     unmatched_bbs: list[str]
     unmatched_sqorz: list[str]
     class_match_path: str  # "class_name" | "plate_only" | "no_sqorz_data"
+    ambiguous_plates: list[str] = field(default_factory=list)
 
 
 def _competitor_key(competitor: SqorzCompetitor) -> tuple[str, str, str, str]:
@@ -128,10 +139,25 @@ def _competitor_key(competitor: SqorzCompetitor) -> tuple[str, str, str, str]:
 
 
 def _competitors_for_class(
-    competitors: list[SqorzCompetitor], bbs_class_name: str
+    competitors: list[SqorzCompetitor],
+    bbs_class_name: str,
+    class_alias: str | None = None,
 ) -> tuple[list[SqorzCompetitor], str]:
     if not competitors:
         return [], "no_sqorz_data"
+    if class_alias:
+        # An operator-set alias always wins over inference (see
+        # SqorzClassAliasStore) -- matches against the Sqorz className or
+        # classCode the operator pointed at, e.g. RaceManager "11-12 Open"
+        # aliased to Sqorz's "2204".
+        alias_target = _normalize(class_alias)
+        aliased = [
+            c
+            for c in competitors
+            if _normalize(c.class_name) == alias_target or _normalize(c.class_code) == alias_target
+        ]
+        if aliased:
+            return aliased, "alias"
     target = _normalize(bbs_class_name)
     same_class = [c for c in competitors if _normalize(c.class_name) == target]
     if same_class:
@@ -141,19 +167,58 @@ def _competitors_for_class(
     return competitors, "plate_only"
 
 
+def _ambiguous_sqorz_plates(competitors: list[SqorzCompetitor]) -> dict[str, list[SqorzCompetitor]]:
+    """Normalised plate -> competitors sharing it, for plates that collide."""
+    by_plate: dict[str, list[SqorzCompetitor]] = defaultdict(list)
+    for competitor in competitors:
+        normalized = _normalize(competitor.plate)
+        if normalized:
+            by_plate[normalized].append(competitor)
+    return {plate: group for plate, group in by_plate.items() if len(group) > 1}
+
+
+def _ambiguous_bbs_plates(bbs_riders: list[BbsRiderLike]) -> dict[str, list[BbsRiderLike]]:
+    """Normalised bike_number -> riders sharing it, for numbers that collide."""
+    by_plate: dict[str, list[BbsRiderLike]] = defaultdict(list)
+    for rider in bbs_riders:
+        normalized = _normalize(rider.bike_number)
+        if normalized:
+            by_plate[normalized].append(rider)
+    return {plate: group for plate, group in by_plate.items() if len(group) > 1}
+
+
 def match_class(
     bbs_riders: list[BbsRiderLike],
     bbs_class_name: str,
     sqorz_rows: list[SqorzRiderTime],
+    class_alias: str | None = None,
 ) -> tuple[list[RiderMatch], MatchReport]:
     """Match every rider in one BBS lineup to a Sqorz competitor.
+
+    ``class_alias``, when given, is an operator-set override (see
+    SqorzClassAliasStore) pointing at the Sqorz className/classCode to use
+    for this BBS class, taking priority over normalised-name matching.
 
     Returns matches in the same order as ``bbs_riders``, plus a report for
     on-site debugging (counts by confidence, and the unmatched names on both
     sides).
     """
     all_competitors = group_by_competitor(sqorz_rows)
-    class_competitors, class_match_path = _competitors_for_class(all_competitors, bbs_class_name)
+    class_competitors, class_match_path = _competitors_for_class(
+        all_competitors, bbs_class_name, class_alias
+    )
+    sqorz_ambiguous = _ambiguous_sqorz_plates(class_competitors)
+    bbs_ambiguous = _ambiguous_bbs_plates(bbs_riders)
+
+    ambiguous_plate_notes: list[str] = [
+        f"{bbs_class_name} #{group[0].plate} (Sqorz): "
+        + ", ".join(competitor.display_name for competitor in group)
+        for group in sqorz_ambiguous.values()
+    ] + [
+        f"{bbs_class_name} #{group[0].bike_number} (RaceManager): "
+        + ", ".join(f"{rider.first_name} {rider.last_name}".strip() for rider in group)
+        for group in bbs_ambiguous.values()
+    ]
 
     matches: list[RiderMatch] = []
     matched_keys: set[tuple[str, str, str, str]] = set()
@@ -174,13 +239,28 @@ def match_class(
                     competitor, confidence = candidate, MatchConfidence.EXACT
                     break
 
-        if competitor is None and plate:
+        # A bare plate match ("strong") is only safe when the plate is
+        # unique on BOTH sides within the resolved class -- a handful of
+        # riders, where a genuine collision is implausible. Plate is not a
+        # unique key on either side: USA BMX district plates collide within
+        # one class (confirmed live), and nothing stops two RaceManager
+        # riders in a class from sharing a bike number either. An ambiguous
+        # plate can still reach "exact" above (last name disambiguates) but
+        # never "strong" on plate alone -- falls through to "weak" below.
+        if (
+            competitor is None
+            and plate
+            and plate not in sqorz_ambiguous
+            and plate not in bbs_ambiguous
+        ):
             for candidate in class_competitors:
                 if _normalize(candidate.plate) == plate:
-                    # A bare plate match is only safe when class_competitors
-                    # is genuinely scoped to this rider's class -- a handful
-                    # of riders, where a plate collision is implausible. When
-                    # class names didn't line up and this fell back to
+                    # A bare plate match is also only safe when
+                    # class_competitors is genuinely scoped to this rider's
+                    # class -- true for "class_name" (names lined up) and
+                    # "alias" (an operator explicitly confirmed the mapping,
+                    # at least as trustworthy as an automatic name match).
+                    # When class names didn't line up and this fell back to
                     # searching the whole event (class_match_path ==
                     # "plate_only"), that pool can be hundreds of riders
                     # across every class, and a bare plate number WILL
@@ -189,7 +269,7 @@ def match_class(
                     # time -- cap it at "weak".
                     confidence = (
                         MatchConfidence.STRONG
-                        if class_match_path == "class_name"
+                        if class_match_path in ("class_name", "alias")
                         else MatchConfidence.WEAK
                     )
                     competitor = candidate
@@ -223,6 +303,7 @@ def match_class(
         unmatched_bbs=unmatched_bbs,
         unmatched_sqorz=unmatched_sqorz,
         class_match_path=class_match_path,
+        ambiguous_plates=ambiguous_plate_notes,
     )
     return matches, report
 

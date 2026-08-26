@@ -36,23 +36,30 @@ real shape instead of the current best-effort guess.
 ## 2. Config values
 
 Set these in `/configuration` (Sqorz card) or directly in `.env`, then restart
-BBS. All optional, all off unless `BBS_SQORZ_ENABLED=true`.
+BBS. All optional, all off unless `BBS_SQORZ_ENABLED=true`. Three modes; try
+them in this order on arrival: **LAN first** (best data, needs their scoring
+computer reachable), **internet second** (needs working internet, gets
+Sqorz's own event if LAN is locked down), **file third** (always works, no
+network at all, but only as current as your last capture).
 
-| Setting | What to put |
-|---|---|
-| `BBS_SQORZ_ENABLED` | `true` |
-| `BBS_SQORZ_MODE` | `lan` (see switching below) |
-| `BBS_SQORZ_HOST` | the IP the probe found, e.g. `192.168.1.50` |
-| `BBS_SQORZ_PORT` | `4343` unless the probe found otherwise |
-| `BBS_SQORZ_POLL_SECONDS` | leave blank (defaults to 2s in LAN mode) |
-| `BBS_SQORZ_TIMEOUT_SECONDS` | `2` (default, probably fine) |
+| Setting | LAN mode | Internet mode | File mode |
+|---|---|---|---|
+| `BBS_SQORZ_ENABLED` | `true` | `true` | `true` |
+| `BBS_SQORZ_MODE` | `lan` | `internet` | `file` |
+| `BBS_SQORZ_HOST` | IP the probe found | — | — |
+| `BBS_SQORZ_PORT` | `4343` unless probe says otherwise | — | — |
+| `BBS_SQORZ_EVENT_ID` | — | the live event's id | — |
+| `BBS_SQORZ_FILE_PATH` | — | — | absolute path to the captured `.json` |
+| `BBS_SQORZ_POLL_SECONDS` | blank (2s default) | blank (10s default) | blank (10s default -- irrelevant, it's a static file) |
+| `BBS_SQORZ_TIMEOUT_SECONDS` | `2` | `2` | irrelevant, no network |
 
-## 3. Switching internet ↔ LAN mode
+## 3. Switching modes
 
-Just flip `BBS_SQORZ_MODE` and restart BBS (or save via `/configuration`,
-which restarts the Sqorz client automatically — no full BBS restart needed
-for this one setting). No other value needs to change between modes except
-whichever of `BBS_SQORZ_HOST`/`BBS_SQORZ_EVENT_ID` that mode actually uses.
+Just flip `BBS_SQORZ_MODE` and save via `/configuration` (restarts the Sqorz
+client automatically — no full BBS restart needed for this one setting), or
+edit `.env` and restart BBS. No other value needs to change except whichever
+of `BBS_SQORZ_HOST`/`BBS_SQORZ_EVENT_ID`/`BBS_SQORZ_FILE_PATH` that mode
+actually uses.
 
 ## 4. Three most likely failure modes
 
@@ -91,10 +98,30 @@ class-code mapping table (out of scope for this trip).
 
 ## 5. Fallback: demo real timing without their LAN
 
-If the venue's LAN is locked down and the probe can't reach anything, switch
-to internet mode against a real, currently-live public event so you can still
-show working, real timing (not fictional/demo data) — just not Smith Rock's
-own:
+Two fallbacks, in order of how little they need to go right.
+
+**File mode — works with zero network, always.** Before you leave (see
+section 6 of the pre-departure checklist), capture a real event while you
+have internet:
+
+```powershell
+python scripts\sqorz_capture.py --event-id 6a8198e2d91badc23cb0c54f --out demo-event.json
+```
+
+Then at the venue, regardless of what their network does:
+
+```
+BBS_SQORZ_ENABLED=true
+BBS_SQORZ_MODE=file
+BBS_SQORZ_FILE_PATH=<absolute path to demo-event.json>
+```
+
+This replays through the exact same parsing/matching/overlay pipeline as
+live data — it just doesn't update, since it's a snapshot from whenever you
+captured it.
+
+**Internet mode against a different live event — if you have internet but
+not their LAN.** Real, currently-updating data, just not Smith Rock's own:
 
 ```
 BBS_SQORZ_ENABLED=true
@@ -104,10 +131,10 @@ BBS_SQORZ_EVENT_ID=<a currently-running public event's Sqorz event id>
 
 Find a live event id from `https://our.sqorz.com/json/org/<orgCode>`
 (`BBS_SQORZ_ORG_CODE`, e.g. `usabmx`) — look for an event with a recent
-`eventDate` in its `events` list, and use its `eventId`. Point the
-**standalone Sqorz overlay** (`/overlay/sqorz-timing`) at it — it needs no
-RaceManager and will show real riders/times from that event immediately.
-This requires actual internet access, unlike the LAN path.
+`eventDate` in its `events` list, and use its `eventId`.
+
+Either way, point the **standalone Sqorz overlay** (`/overlay/sqorz-timing`)
+at it — it needs no RaceManager and will show real riders/times immediately.
 
 ## 6. Is it working? (no browser needed)
 

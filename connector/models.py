@@ -437,6 +437,11 @@ class CurrentLineup(ApiModel):
     cached_at: datetime | None = None
     is_stale: bool = False
     warning: str | None = None
+    # Which Sqorz phaseCode riders[].time_seconds was read from, e.g. "M1".
+    # Sqorz vocabulary, shown only in the time column's own caption ("TIME
+    # (M1)") -- never a phase_label or a RaceStage.label. See
+    # sqorz_matching.py and CLAUDE.md's round/phase model.
+    sqorz_phase_code: str | None = None
 
 
 class ResultRider(ApiModel):

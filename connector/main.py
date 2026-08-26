@@ -13,7 +13,7 @@ from database.racemanager import RaceManagerDatabaseError
 from connector.config import get_settings
 from connector.dependencies import get_results_roll_service
 from connector.security import evaluate_http_access
-from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, sqorz_timing, status as status_route, themes
+from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, motos, results, sqorz_match_report, sqorz_timing, status as status_route, themes
 from connector.services.logging_service import configure_logging
 
 settings = get_settings()
@@ -61,6 +61,7 @@ app.include_router(breaks.router, prefix=settings.api_prefix)
 app.include_router(configuration.router, prefix=settings.api_prefix)
 app.include_router(logs.router, prefix=settings.api_prefix)
 app.include_router(sqorz_timing.router, prefix=settings.api_prefix)
+app.include_router(sqorz_match_report.router, prefix=settings.api_prefix)
 app.include_router(broadcast_ws.router)
 
 # Human-facing pages live outside /api.
@@ -75,6 +76,7 @@ app.add_api_route("/overlay/lineup", lineup.rider_lineup_overlay, methods=["GET"
 app.add_api_route("/overlay/results", results.results_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/break", breaks.break_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 app.add_api_route("/overlay/sqorz-timing", sqorz_timing.sqorz_timing_overlay, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
+app.add_api_route("/sqorz-match-report", sqorz_match_report.sqorz_match_report_page, methods=["GET"], response_class=HTMLResponse, include_in_schema=False)
 
 
 @app.middleware("http")

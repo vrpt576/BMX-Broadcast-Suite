@@ -248,3 +248,62 @@ def test_stale_cache_is_served_and_flagged_when_sqorz_goes_unreachable() -> None
     clock.advance(50)  # well past poll_seconds * 3
     third = service.get_riders()
     assert third.stale is True
+
+
+# ---------------------------------------------------------------------------
+# File/replay mode -- same parsing pipeline as internet mode, no network
+# ---------------------------------------------------------------------------
+
+
+def test_file_mode_replays_a_real_saved_payload(tmp_path) -> None:
+    saved = tmp_path / "demo-event.json"
+    saved.write_text(json.dumps(load_event_fixture()), encoding="utf-8")
+
+    service = SqorzService(enabled=True, mode="file", file_path=str(saved), clock=Clock())
+    result = service.get_riders()
+
+    assert result.reachable is True
+    assert result.error is None
+    murfin_moto1 = next(
+        row for row in result.riders if row.last_name == "MURFIN" and row.phase_code == "M1"
+    )
+    assert murfin_moto1.time_seconds == 47.529
+
+
+def test_file_mode_goes_through_the_identical_parser_as_internet_mode(tmp_path) -> None:
+    saved = tmp_path / "demo-event.json"
+    saved.write_text(json.dumps(load_event_fixture()), encoding="utf-8")
+
+    file_service = SqorzService(enabled=True, mode="file", file_path=str(saved), clock=Clock())
+    internet_service = SqorzService(enabled=True, mode="internet", event_id="x", clock=Clock())
+    internet_service._get_json = lambda url: load_event_fixture()
+
+    assert file_service.get_riders().riders == internet_service.get_riders().riders
+
+
+def test_file_mode_missing_path_configured_degrades_instead_of_raising() -> None:
+    service = SqorzService(enabled=True, mode="file", file_path="", clock=Clock())
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert result.error
+
+
+def test_file_mode_nonexistent_file_degrades_instead_of_raising(tmp_path) -> None:
+    service = SqorzService(
+        enabled=True, mode="file", file_path=str(tmp_path / "does-not-exist.json"), clock=Clock()
+    )
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert "does-not-exist" in (result.error or "")
+
+
+def test_file_mode_malformed_json_degrades_instead_of_raising(tmp_path) -> None:
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not valid json", encoding="utf-8")
+    service = SqorzService(enabled=True, mode="file", file_path=str(bad), clock=Clock())
+    result = service.get_riders()
+    assert result.riders == []
+    assert result.reachable is False
+    assert result.error

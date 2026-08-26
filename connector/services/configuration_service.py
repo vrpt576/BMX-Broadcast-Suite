@@ -24,7 +24,7 @@ FIELDS = {
     'remote_admin_enabled':'BBS_REMOTE_ADMIN_ENABLED','admin_token':'BBS_ADMIN_TOKEN',
     'sqorz_enabled':'BBS_SQORZ_ENABLED','sqorz_mode':'BBS_SQORZ_MODE',
     'sqorz_event_id':'BBS_SQORZ_EVENT_ID','sqorz_org_code':'BBS_SQORZ_ORG_CODE',
-    'sqorz_host':'BBS_SQORZ_HOST','sqorz_port':'BBS_SQORZ_PORT',
+    'sqorz_host':'BBS_SQORZ_HOST','sqorz_port':'BBS_SQORZ_PORT','sqorz_file_path':'BBS_SQORZ_FILE_PATH',
     'sqorz_poll_seconds':'BBS_SQORZ_POLL_SECONDS','sqorz_timeout_seconds':'BBS_SQORZ_TIMEOUT_SECONDS',
 }
 

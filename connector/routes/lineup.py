@@ -67,7 +67,7 @@ LINEUP_OVERLAY_HTML = r'''<!doctype html>
         <div id="class" class="class">7 INTERMEDIATE</div>
         <div id="moto" class="moto">MOTO 1</div>
       </div>
-      <div class="riders"><div class="columns"><div class="lane-label">Lane</div><div class="plate-label">Plate Number</div><div>Rider</div><div class="time-label">Time</div></div><div id="riders"></div></div>
+      <div class="riders"><div class="columns"><div class="lane-label">Lane</div><div class="plate-label">Plate Number</div><div>Rider</div><div id="time-label" class="time-label">Time</div></div><div id="riders"></div></div>
     </div>
     <div id="offline" class="offline">LINEUP DATA UNAVAILABLE</div>
   </section>
@@ -135,6 +135,10 @@ function render(state) {
   ridersBox.replaceChildren();
   const hasTime = state.riders.some(rider => rider.time_seconds !== null && rider.time_seconds !== undefined);
   ridersBox.parentElement.classList.toggle('has-time', hasTime);
+  // The Sqorz phase code (e.g. "M1") is shown ONLY in the time column's own
+  // caption -- never in the round header (#round), which is BBS's own
+  // RaceManager-derived phase name and nothing else. See CLAUDE.md.
+  document.querySelector('#time-label').textContent = state.sqorz_phase_code ? `Time (${state.sqorz_phase_code})` : 'Time';
   if (!state.riders.length) {
     const row = document.createElement('div');
     row.className = 'empty';

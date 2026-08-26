@@ -330,6 +330,97 @@
           "transponder": "VC-28427",
           "groupId": "1577",
           "groupName": "Stee.IN"
+        },
+        {
+          "memberId": "18644752",
+          "firstName": "DYLAN",
+          "lastName": "DOBELLE",
+          "age": 12,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 7,
+              "raceName": "3",
+              "racePosition": 8,
+              "result": 4,
+              "score": 4,
+              "time": "55.682"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 2,
+              "raceName": "4",
+              "racePosition": 4,
+              "result": 2,
+              "score": 6,
+              "time": "53.274"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 8,
+              "raceName": "F3",
+              "racePosition": 6,
+              "result": 100400
+            }
+          ],
+          "rank": 8,
+          "plate": "9",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "TL-49090",
+          "groupId": "1833",
+          "groupName": "Trum.CT"
+        },
+        {
+          "memberId": "94004958",
+          "firstName": "WADE",
+          "lastName": "HINDERLIDER",
+          "age": 8,
+          "gender": 1,
+          "competitorRankDetails": [
+            {
+              "phaseCode": "M1",
+              "phaseName": "Moto 1",
+              "phaseBlockCode": "M1",
+              "rank": 6,
+              "raceName": "4",
+              "racePosition": 7,
+              "result": 3,
+              "score": 3,
+              "time": "56.094"
+            },
+            {
+              "phaseCode": "M2",
+              "phaseName": "Moto 2",
+              "phaseBlockCode": "M2",
+              "rank": 5,
+              "raceName": "4",
+              "racePosition": 3,
+              "result": 5,
+              "score": 8,
+              "time": "58.002"
+            },
+            {
+              "phaseCode": "1F",
+              "phaseName": "Main",
+              "phaseBlockCode": "1F",
+              "rank": 9
+            }
+          ],
+          "rank": 9,
+          "plate": "9",
+          "plateType": "DIST",
+          "registered": true,
+          "transponder": "FK-78648",
+          "groupId": "442",
+          "groupName": "Rkfd.IL"
         }
       ],
       "classPhaseSummaries": [

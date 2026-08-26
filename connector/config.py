@@ -120,12 +120,14 @@ class Settings(BaseSettings):
     sqorz_org_code: str = ""
     sqorz_host: str = ""
     sqorz_port: int = 4343
+    sqorz_file_path: str = ""
     # None = mode-aware default (10s internet, 2s LAN -- see
     # sqorz_effective_poll_seconds). An explicit value always wins. Left
     # unset rather than blanked to a stored empty string, which would fail
     # to parse as int on the next load -- see ConfigurationService.save().
     sqorz_poll_seconds: int | None = None
     sqorz_timeout_seconds: float = 2.0
+    sqorz_class_alias_file: Path = Path("data/sqorz_class_aliases.json")
 
     @property
     def sqorz_effective_poll_seconds(self) -> float:
@@ -179,6 +181,7 @@ def get_settings() -> Settings:
         "results_roll_state_file",
         "phase_override_file",
         "theme_dir",
+        "sqorz_class_alias_file",
     ):
         value = Path(getattr(settings, field))
         if not value.is_absolute():
