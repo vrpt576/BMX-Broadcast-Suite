@@ -1,19 +1,25 @@
-"""No Sqorz setting may crash BBS at startup -- blank, absent, or garbage.
+"""No hardened setting may crash BBS at startup -- blank, absent, or garbage.
 
 BBS_SQORZ_POLL_SECONDS='' (exactly what .env.example ships, and exactly what
 ConfigurationService.save() writes when a field is cleared) crashed BBS at
 import time before FastAPI even loaded (see connector/config.py's history).
-That was one instance of a whole class of bug: every non-str Sqorz setting
+That was one instance of a whole class of bug: every non-str setting
 (bool/int/float/int|None/Path) has no valid parse of the empty string, and a
-typo'd non-blank value is exactly as real a risk as a blank one.
+typo'd non-blank value is exactly as real a risk as a blank one. Originally
+fixed for the Sqorz settings; then extended to BBS_SQL_PORT and the other
+numeric/boolean settings a fresh .env can realistically leave empty --
+BBS_SQL_PORT specifically because a named SQL instance connection
+(`BBS_SQL_INSTANCE`, e.g. HOST\\USABMX) is documented as requiring
+BBS_SQL_PORT to be left blank (see connector/config.py's `sql_server`
+property), which is exactly the shape that used to crash.
 
 connector/main.py calls `settings = get_settings()` at module import time,
 before the FastAPI app object even exists -- so a Settings() construction
-that raises IS "the whole connector going down", not just a degraded Sqorz
+that raises IS "the whole connector going down", not just a degraded
 feature. Proving Settings(_env_file=...) never raises for any of these
 inputs is therefore the precise test for "RaceManager, the Director, and the
 existing overlays must still come up" -- nothing else in main.py's
-module-level code depends on a Sqorz field's value.
+module-level code depends on any one of these fields' values.
 """
 
 from __future__ import annotations
@@ -25,6 +31,23 @@ import pytest
 from connector.config import Settings
 
 ENV_EXAMPLE = Path(__file__).resolve().parents[1] / "connector" / ".env.example"
+
+# Non-Sqorz settings hardened the same way, on top of every BBS_SQORZ_* key
+# (discovered directly from .env.example below). Named explicitly, rather
+# than auto-discovered like the Sqorz keys, because this is a deliberately
+# narrow list -- other pre-existing settings have the identical fragility
+# (see connector/config.py's history) but were left alone on purpose.
+HARDENED_NON_SQORZ_KEYS = (
+    "BBS_SQL_PORT",
+    "BBS_SQL_CONNECT_TIMEOUT",
+    "BBS_SQL_QUERY_TIMEOUT",
+    "BBS_APP_PORT",
+    "BBS_SQL_ENCRYPT",
+    "BBS_SQL_TRUST_SERVER_CERTIFICATE",
+    "BBS_LOG_RETENTION_DAYS",
+    "BBS_REMOTE_CONTROL_ENABLED",
+    "BBS_REMOTE_ADMIN_ENABLED",
+)
 
 
 def _sqorz_keys() -> list[str]:
@@ -40,6 +63,7 @@ def _sqorz_keys() -> list[str]:
 
 
 SQORZ_KEYS = _sqorz_keys()
+HARDENED_KEYS = SQORZ_KEYS + list(HARDENED_NON_SQORZ_KEYS)
 
 
 def _example_with(key: str, replacement: str | None) -> str:
@@ -66,12 +90,22 @@ def test_sqorz_keys_were_actually_found() -> None:
     assert len(SQORZ_KEYS) >= 9
 
 
-@pytest.mark.parametrize("key", SQORZ_KEYS)
+def test_every_hardened_non_sqorz_key_is_actually_shipped_in_env_example() -> None:
+    """Guards HARDENED_NON_SQORZ_KEYS against drift -- if .env.example ever
+    renames or drops one of these lines, this fails loudly instead of the
+    parametrised test below silently exercising a key that doesn't exist."""
+    text = ENV_EXAMPLE.read_text(encoding="utf-8")
+    shipped = {line.split("=", 1)[0] for line in text.splitlines() if "=" in line}
+    for key in HARDENED_NON_SQORZ_KEYS:
+        assert key in shipped, f"{key} is no longer in connector/.env.example"
+
+
+@pytest.mark.parametrize("key", HARDENED_KEYS)
 @pytest.mark.parametrize(
     "state,replacement",
     [("blank", ""), ("absent", None), ("garbage", "not-a-real-value###")],
 )
-def test_every_shipped_sqorz_setting_survives_blank_absent_and_garbage(
+def test_every_hardened_setting_survives_blank_absent_and_garbage(
     tmp_path: Path, key: str, state: str, replacement: str | None
 ) -> None:
     env_file = tmp_path / ".env"
@@ -95,6 +129,15 @@ def test_every_shipped_sqorz_setting_survives_blank_absent_and_garbage(
         ("sqorz_poll_seconds", None),
         ("sqorz_timeout_seconds", 2.0),
         ("sqorz_class_alias_file", Path("data/sqorz_class_aliases.json")),
+        ("sql_port", 1433),
+        ("sql_connect_timeout", 2),
+        ("sql_query_timeout", 5),
+        ("app_port", 8000),
+        ("sql_encrypt", True),
+        ("sql_trust_server_certificate", True),
+        ("log_retention_days", 14),
+        ("remote_control_enabled", False),
+        ("remote_admin_enabled", False),
     ],
 )
 def test_blank_falls_back_to_the_declared_default(field: str, default: object) -> None:
@@ -108,6 +151,15 @@ def test_blank_falls_back_to_the_declared_default(field: str, default: object) -
         ("sqorz_port", 4343),
         ("sqorz_poll_seconds", None),
         ("sqorz_timeout_seconds", 2.0),
+        ("sql_port", 1433),
+        ("sql_connect_timeout", 2),
+        ("sql_query_timeout", 5),
+        ("app_port", 8000),
+        ("sql_encrypt", True),
+        ("sql_trust_server_certificate", True),
+        ("log_retention_days", 14),
+        ("remote_control_enabled", False),
+        ("remote_admin_enabled", False),
     ],
 )
 def test_garbage_falls_back_to_the_default_and_warns_by_name(
@@ -173,3 +225,18 @@ def test_whitespace_padded_numeric_values_still_parse() -> None:
     as a real-world "garbage" shape -- must still parse as the intended
     number, not be treated as unparseable."""
     assert Settings(_env_file=None, sqorz_port=" 4343 ").sqorz_port == 4343
+
+
+def test_a_blank_sql_port_still_connects_by_named_instance_not_port() -> None:
+    """The actual reason BBS_SQL_PORT is hardened at all: BBS_SQL_INSTANCE
+    (e.g. HOST\\USABMX) is documented to require a blank BBS_SQL_PORT, and
+    that must both (a) not crash Settings() -- covered above -- and (b)
+    still produce an instance-based, not port-based, connection string.
+    sql_server's own instance-vs-port precedence is untouched by the
+    fallback validator; this only proves the two compose correctly."""
+    settings = Settings(_env_file=None, sql_host="hostx", sql_instance="USABMX", sql_port="")
+
+    assert settings.sql_port == 1433  # the validator's fallback -- irrelevant below
+    assert settings.sql_server == "hostx\\USABMX"
+    assert ",1433" not in settings.sql_server
+    assert ",1433" not in settings.connection_string
