@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -123,11 +123,23 @@ class Settings(BaseSettings):
     sqorz_file_path: str = ""
     # None = mode-aware default (10s internet, 2s LAN -- see
     # sqorz_effective_poll_seconds). An explicit value always wins. Left
-    # unset rather than blanked to a stored empty string, which would fail
-    # to parse as int on the next load -- see ConfigurationService.save().
+    # unset rather than blanked to a stored empty string -- a bare
+    # BBS_SQORZ_POLL_SECONDS= in .env (exactly what .env.example ships and
+    # what ConfigurationService.save() writes when cleared) is read by
+    # pydantic-settings as the literal string "", which would otherwise fail
+    # int|None validation and crash BBS at startup before FastAPI even
+    # loads. The validator below is what actually prevents that; confirmed
+    # live during the pre-trip rehearsal.
     sqorz_poll_seconds: int | None = None
     sqorz_timeout_seconds: float = 2.0
     sqorz_class_alias_file: Path = Path("data/sqorz_class_aliases.json")
+
+    @field_validator("sqorz_poll_seconds", mode="before")
+    @classmethod
+    def _blank_sqorz_poll_seconds_means_unset(cls, value: object) -> object:
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
 
     @property
     def sqorz_effective_poll_seconds(self) -> float:
