@@ -45,6 +45,7 @@ class ConfigurationService:
         data['control_token'] = ''
         data['admin_token_configured'] = bool(settings.admin_token)
         data['admin_token'] = ''
+        data['sqorz_effective_poll_seconds'] = settings.sqorz_effective_poll_seconds
         data['restart_required_for'] = [
             'app_host','app_port','cors_origins','remote_control_enabled',
             'control_token','remote_admin_enabled','admin_token'
@@ -60,6 +61,12 @@ class ConfigurationService:
             if field in {'sql_password','control_token','admin_token'} and (
                 value is None or str(value) == ''
             ):
+                continue
+            if field == 'sqorz_poll_seconds' and value in (None, ''):
+                # Unset, not blanked -- an empty string would fail to parse
+                # as int on the next load. Absent means "mode-aware default"
+                # (see Settings.sqorz_effective_poll_seconds).
+                existing.pop(env_name, None)
                 continue
             if field in {
                 'app_port','sql_port','sql_connect_timeout','sql_query_timeout',

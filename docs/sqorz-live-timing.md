@@ -11,8 +11,27 @@ BBS can match with high confidence.
 Sqorz integration is off unless explicitly configured (`BBS_SQORZ_ENABLED=true`). When
 disabled, unconfigured, unreachable, slow, or returning unexpected data, the lineup
 endpoint still returns `200` with riders and no times — the same rule BBS already
-applies to the optional RaceManager `Nickname` column. See `docs/README.md` for the
-full settings list.
+applies to the optional RaceManager `Nickname` column. See `connector/.env.example`
+for the full settings list, or `/configuration` for the in-app editor.
+
+## Configuration
+
+| Setting | Default | Notes |
+|---|---|---|
+| `BBS_SQORZ_ENABLED` | `false` | Off unless explicitly turned on. |
+| `BBS_SQORZ_MODE` | `internet` | `internet` or `lan`. |
+| `BBS_SQORZ_EVENT_ID` | *(blank)* | Internet mode only. |
+| `BBS_SQORZ_ORG_CODE` | *(blank)* | Internet mode only, optional (event listing). |
+| `BBS_SQORZ_HOST` | *(blank)* | LAN mode only — the scoring computer's IP. |
+| `BBS_SQORZ_PORT` | `4343` | LAN mode only. |
+| `BBS_SQORZ_POLL_SECONDS` | *mode-aware* | Left blank, defaults to **10s in internet mode, 2s in LAN mode** (`Settings.sqorz_effective_poll_seconds`). An explicit value always wins over the mode-aware default. |
+| `BBS_SQORZ_TIMEOUT_SECONDS` | `2` | Per-request timeout, either backend. |
+
+The mode-aware poll default exists because the two backends have very different
+natural refresh rates: Sqorz's own internet API only updates roughly every 30
+seconds, so polling faster than ~10s just re-fetches the same data, while the LAN
+API sits on the scoring computer at the track and can be polled much more
+aggressively (2s) for snappier updates.
 
 ## Two backends, one interface
 

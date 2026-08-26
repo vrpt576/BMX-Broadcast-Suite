@@ -80,7 +80,7 @@ CONFIG_HTML = r'''<!doctype html>
     <label>Org code (optional)<input id="sqorz_org_code"></label>
     <label>LAN host (LAN mode)<input id="sqorz_host"></label>
     <label>LAN port<input id="sqorz_port" type="number"></label>
-    <label>Poll interval (seconds)<input id="sqorz_poll_seconds" type="number"></label>
+    <label>Poll interval (seconds)<input id="sqorz_poll_seconds" type="number" placeholder="blank = 10 internet / 2 LAN"></label>
     <label>Timeout (seconds)<input id="sqorz_timeout_seconds" type="number" step="0.1"></label>
   </section>
 </div>

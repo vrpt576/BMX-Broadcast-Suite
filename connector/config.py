@@ -120,8 +120,18 @@ class Settings(BaseSettings):
     sqorz_org_code: str = ""
     sqorz_host: str = ""
     sqorz_port: int = 4343
-    sqorz_poll_seconds: int = 10
+    # None = mode-aware default (10s internet, 2s LAN -- see
+    # sqorz_effective_poll_seconds). An explicit value always wins. Left
+    # unset rather than blanked to a stored empty string, which would fail
+    # to parse as int on the next load -- see ConfigurationService.save().
+    sqorz_poll_seconds: int | None = None
     sqorz_timeout_seconds: float = 2.0
+
+    @property
+    def sqorz_effective_poll_seconds(self) -> float:
+        if self.sqorz_poll_seconds is not None:
+            return float(self.sqorz_poll_seconds)
+        return 2.0 if self.sqorz_mode == "lan" else 10.0
 
     @property
     def sql_server(self) -> str:

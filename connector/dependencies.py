@@ -70,7 +70,7 @@ def get_sqorz_service() -> SqorzService:
         org_code=settings.sqorz_org_code,
         host=settings.sqorz_host,
         port=settings.sqorz_port,
-        poll_seconds=settings.sqorz_poll_seconds,
+        poll_seconds=settings.sqorz_effective_poll_seconds,
         timeout_seconds=settings.sqorz_timeout_seconds,
     )
 
