@@ -17,6 +17,7 @@ EULA text shipped alongside the driver.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +48,18 @@ DOWNLOAD_VERSION_AT_TIME_OF_WRITING = "18.6.2.1"
 # truncated transfer) -- refuse to run msiexec against it.
 MIN_PLAUSIBLE_INSTALLER_BYTES = 1_000_000
 
+# Testing aid only -- see docs/setup-wizard.md's "Testing aids" section. On
+# every real track machine this driver is either genuinely installed or
+# genuinely missing; there is no way to exercise the "missing" branch of
+# the Setup page (the license checkbox, the install buttons, the launch)
+# once Driver 18 is already present, which it will be on any machine that
+# already ran this wizard once. Setting this makes detect() report
+# "not acceptable" regardless of what's really installed, without faking
+# the installed_drivers list -- msiexec, if actually launched from that
+# screen, still runs for real against whatever is really on the machine.
+# Never set this outside of manual testing.
+FORCE_MISSING_ENV_VAR = "BBS_SETUP_FORCE_ODBC_MISSING"
+
 
 class OdbcInstallError(RuntimeError):
     """Raised when installing the ODBC driver fails or is refused."""
@@ -69,6 +82,8 @@ def detect() -> OdbcDriverStatus:
     except Exception:  # noqa: BLE001 - detection must never be fatal
         drivers = []
     preferred = next((driver for driver in ACCEPTABLE_DRIVERS if driver in drivers), None)
+    if os.environ.get(FORCE_MISSING_ENV_VAR):
+        return OdbcDriverStatus(installed_drivers=drivers, preferred_driver=None, acceptable=False)
     return OdbcDriverStatus(
         installed_drivers=drivers,
         preferred_driver=preferred,

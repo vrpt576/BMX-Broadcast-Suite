@@ -67,6 +67,42 @@ def test_drivers_call_raising_degrades_instead_of_raising(monkeypatch: pytest.Mo
 
 
 # ---------------------------------------------------------------------------
+# FORCE_MISSING_ENV_VAR -- testing aid only, see docs/setup-wizard.md.
+# Every machine this was developed on already has Driver 18 installed, so
+# without this there is no way to see the Setup page's "driver missing"
+# branch (the license checkbox, the install buttons) before a track
+# operator does.
+# ---------------------------------------------------------------------------
+
+
+def test_force_missing_env_var_reports_not_acceptable_even_with_a_real_driver_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(odbc_service, "pyodbc", FakeDrivers(["ODBC Driver 18 for SQL Server"]))
+    monkeypatch.setenv(odbc_service.FORCE_MISSING_ENV_VAR, "1")
+
+    status = odbc_service.detect()
+
+    assert status.acceptable is False
+    assert status.preferred_driver is None
+    # The real installed_drivers list is still reported truthfully --
+    # only `acceptable` is forced, so the UI's "not found" branch renders
+    # exactly as it would for a genuinely bare machine.
+    assert status.installed_drivers == ["ODBC Driver 18 for SQL Server"]
+
+
+def test_without_the_force_missing_env_var_detection_is_unaffected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(odbc_service, "pyodbc", FakeDrivers(["ODBC Driver 18 for SQL Server"]))
+    monkeypatch.delenv(odbc_service.FORCE_MISSING_ENV_VAR, raising=False)
+
+    status = odbc_service.detect()
+
+    assert status.acceptable is True
+
+
+# ---------------------------------------------------------------------------
 # Locating the bundled installer / license
 # ---------------------------------------------------------------------------
 

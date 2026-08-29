@@ -129,8 +129,23 @@ def odbc_install(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _timeout(settings) -> float:
-    return float(settings.sql_connect_timeout)
+def _timeout(settings) -> int:
+    # Must stay an int -- pyodbc.connect()'s timeout kwarg maps to a C
+    # long (SQL_ATTR_LOGIN_TIMEOUT); a float raises TypeError inside
+    # pyodbc itself before any connection attempt happens.
+    return int(settings.sql_connect_timeout)
+
+
+def _require_login_name(raw: str) -> str:
+    """Validated immediately after extraction from the request, before any
+    connection is attempted -- both so a bad login_name (the testing aid;
+    see sql_setup_service's module docstring) fails fast with a clear 400
+    instead of wasting a connection attempt, and so sql_setup_service's
+    own SqlSetupError never has a chance to surface as an unhandled 500."""
+    try:
+        return sql_setup.validate_login_name(raw)
+    except sql_setup.SqlSetupError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.get("/setup/sql/instances")
@@ -141,7 +156,7 @@ def sql_instances() -> dict[str, Any]:
 
 
 def _windows_auth_connect_or_none(
-    *, host: str, instance: str, database: str, timeout: float
+    *, host: str, instance: str, database: str, timeout: int
 ) -> tuple[Any, str | None]:
     connection_string = sql_setup.windows_auth_connection_string(
         host=host, instance=instance, database=database
@@ -157,6 +172,7 @@ def sql_preflight(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     host = str(payload.get("host") or "").strip()
     instance = str(payload.get("instance") or "").strip()
     database = str(payload.get("database") or "RACE").strip()
+    login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
     if not host:
         raise HTTPException(400, "host is required.")
 
@@ -170,7 +186,7 @@ def sql_preflight(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         port = None
     try:
         report = sql_setup.run_preflight(
-            connection, connection_error=error, tcp_host=host, tcp_port=port
+            connection, connection_error=error, tcp_host=host, tcp_port=port, login_name=login_name
         )
     finally:
         if connection is not None:
@@ -183,6 +199,7 @@ def sql_preflight(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         "integrated_security_only": report.integrated_security_only,
         "tcp_reachable": report.tcp_reachable,
         "existing_login_present": report.existing_login_present,
+        "service_account_is_sysadmin": report.service_account_is_sysadmin,
         "blocking_issues": report.blocking_issues,
         "can_run_automatically": report.connected and not report.blocking_issues,
     }
@@ -193,9 +210,14 @@ def sql_plan(
     payload: dict[str, Any] = Body(...),
     cache: PlanCache = Depends(get_sql_wizard_plan_cache),
 ) -> dict[str, Any]:
+    """The same-computer path: BBS opens the Windows-authenticated
+    connection itself, so it already knows whether the login exists and
+    can offer a precise create-or-reset plan. See /setup/sql/generate for
+    the separate-computer path, which never attempts this connection."""
     host = str(payload.get("host") or "").strip()
     instance = str(payload.get("instance") or "").strip()
     database = str(payload.get("database") or "RACE").strip()
+    login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
     if not host:
         raise HTTPException(400, "host is required.")
 
@@ -207,23 +229,53 @@ def sql_plan(
         raise HTTPException(
             409,
             f"Could not connect with Windows authentication to plan against: {error}. "
-            "Fix connectivity first (see /api/setup/sql/preflight), or generate the SQL "
-            "manually with an administrator who can connect.",
+            "If BBS is on a different computer than RaceManager, this is expected -- use "
+            "/api/setup/sql/generate instead (or the 'different computer' option on the "
+            "Setup page), which does not require this connection.",
         )
     try:
-        report = sql_setup.run_preflight(connection, tcp_host=host, tcp_port=payload.get("port"))
+        report = sql_setup.run_preflight(
+            connection, tcp_host=host, tcp_port=payload.get("port"), login_name=login_name
+        )
         if report.blocking_issues:
             raise HTTPException(409, " ".join(report.blocking_issues))
         plan = (
-            sql_setup.build_reset_password_plan(database=database)
+            sql_setup.build_reset_password_plan(database=database, login_name=login_name)
             if report.existing_login_present
-            else sql_setup.build_create_plan(database=database)
+            else sql_setup.build_create_plan(database=database, login_name=login_name)
         )
     finally:
         connection.close()
 
-    plan_id = cache.store(plan, host=host, instance=instance, database=database)
+    plan_id = cache.store(plan, host=host, instance=instance, database=database, login_name=login_name)
     return {"plan_id": plan_id, "kind": plan.kind, "sql": plan.sql}
+
+
+@router.post("/setup/sql/generate")
+def sql_generate(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """The separate-computer path: generates SQL to hand to whoever
+    administers the SQL Server, without BBS ever attempting to connect to
+    it. This is the expected route whenever BBS runs on a different
+    machine than RaceManager (the topology this project's own docs
+    recommend) -- BBS's service identity crosses the network as the
+    *computer* account there and essentially never has rights to connect,
+    so there is nothing for a preflight check to do. Not cached, not
+    tied to a plan_id -- there is no "run it for me" for this path, only
+    review-and-copy, followed by /setup/sql/verify-and-store once the
+    operator has run it themselves.
+
+    reset_password=true asks for the ALTER LOGIN form instead, for an
+    operator who already knows the login exists and wants to rotate its
+    password -- the default IF NOT EXISTS-guarded create is deliberately
+    inert against an existing login rather than resetting it by surprise.
+    """
+    database = str(payload.get("database") or "RACE").strip()
+    login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
+    if payload.get("reset_password"):
+        plan = sql_setup.build_reset_password_plan(database=database, login_name=login_name)
+    else:
+        plan = sql_setup.build_offline_create_plan(database=database, login_name=login_name)
+    return {"kind": plan.kind, "sql": plan.sql}
 
 
 @router.post("/setup/sql/apply")
@@ -261,19 +313,35 @@ def sql_apply(
         instance=cached.instance,
         database_name=cached.database,
         password=cached.plan.password,
+        login_name=cached.login_name,
         settings=settings,
     )
 
 
 @router.post("/setup/sql/verify-and-store")
 def sql_verify_and_store(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """The manual path: the operator ran the SQL from /setup/sql/plan
-    themselves (SSMS, sqlcmd, their own DBA) and is telling BBS the login
-    is ready. Verifies by actually connecting and reading a row -- BBS
-    never just trusts "I ran it"."""
+    """The manual path: the operator ran the generated SQL themselves
+    (SSMS, sqlcmd, their own DBA -- whether from /setup/sql/plan on the
+    same-computer path or /setup/sql/generate on the separate-computer
+    path) and is pasting the password back to confirm it's ready. This is
+    the PRIMARY path whenever BBS runs on a different computer than
+    RaceManager, not a fallback for a failed automatic attempt. The
+    pasted password is handled exactly like a wizard-generated one: never
+    logged (this route's body is never written to any log -- see
+    connector/main.py's request_logging middleware, which logs only
+    method/path/status/elapsed time), never echoed back in this or any
+    other response, never surfaced in /api/diagnostics. Verifies by
+    actually connecting and reading a row -- BBS never just trusts "I ran
+    it." On success it is written into BBS's own configuration file via
+    ConfigurationService (the same plaintext-in-.env storage every other
+    BBS secret already uses -- see docs/setup-wizard.md), and
+    ConfigurationService.save() clears BBS's cached database connection,
+    so BBS switches to using this login, not a Windows-auth/LocalSystem
+    connection, for all normal operation from that point on."""
     host = str(payload.get("host") or "").strip()
     instance = str(payload.get("instance") or "").strip()
     database_name = str(payload.get("database") or "RACE").strip()
+    login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
     password = str(payload.get("password") or "")
     if not host or not password:
         raise HTTPException(400, "host and password are required.")
@@ -282,28 +350,29 @@ def sql_verify_and_store(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         instance=instance,
         database_name=database_name,
         password=password,
+        login_name=login_name,
         settings=get_settings(),
     )
 
 
 def _verify_and_store(
-    *, host: str, instance: str, database_name: str, password: str, settings
+    *, host: str, instance: str, database_name: str, password: str, login_name: str, settings
 ) -> dict[str, Any]:
     connection_string = sql_setup.sql_auth_connection_string(
         host=host,
         instance=instance,
         database=database_name,
-        user=sql_setup.LOGIN_NAME,
+        user=login_name,
         password=password,
     )
     try:
         connection = sql_setup.connect(connection_string, timeout=_timeout(settings))
     except sql_setup.SqlSetupError as exc:
         raise HTTPException(
-            409, f"Created, but could not reconnect as {sql_setup.LOGIN_NAME} to verify: {exc}"
+            409, f"Created, but could not reconnect as {login_name} to verify: {exc}"
         ) from exc
     try:
-        proof = sql_setup.verify_login(connection)
+        proof = sql_setup.verify_login(connection, login_name=login_name)
     except sql_setup.SqlSetupError as exc:
         raise HTTPException(409, str(exc)) from exc
     finally:
@@ -314,7 +383,7 @@ def _verify_and_store(
             "sql_host": host,
             "sql_instance": instance,
             "sql_database": database_name,
-            "sql_user": sql_setup.LOGIN_NAME,
+            "sql_user": login_name,
             "sql_password": password,
         }
     )
@@ -322,8 +391,11 @@ def _verify_and_store(
 
 
 @router.get("/setup/sql/cleanup")
-def sql_cleanup(database: str = Query("RACE")) -> dict[str, Any]:
-    return {"sql": sql_setup.build_cleanup_sql(database=database)}
+def sql_cleanup(
+    database: str = Query("RACE"), login_name: str = Query(sql_setup.LOGIN_NAME)
+) -> dict[str, Any]:
+    login_name = _require_login_name(login_name)
+    return {"sql": sql_setup.build_cleanup_sql(database=database, login_name=login_name)}
 
 
 # ---------------------------------------------------------------------------
@@ -378,32 +450,58 @@ a{color:#f5b821}
 
 <div class="card" id="sql-card"><a id="sql"></a><h2>2. Read-only RaceManager account</h2>
   <div id="sql-body">
-    <label class="field">SQL Server host</label><input id="sql-host" value="localhost">
-    <label class="field">Instance (leave blank for a default instance)</label><input id="sql-instance" list="sql-instance-list">
-    <datalist id="sql-instance-list"></datalist>
-    <label class="field">Database</label><input id="sql-database" value="RACE">
-    <div class="row" style="margin-top:12px">
-      <button id="sql-preflight">Check connection</button>
-      <span id="sql-preflight-msg" class="muted"></span>
+    <p class="muted">This creates a SQL Server login called <code>bbs_connector</code> that can only <em>read</em> RaceManager's data. Once it's set up, BBS uses it -- not an administrator account -- for everything it does day to day.</p>
+
+    <label class="field">Is BBS installed on the same computer as RaceManager's SQL Server?</label>
+    <div class="row">
+      <button id="topology-same" class="secondary">Yes, same computer</button>
+      <button id="topology-different" class="secondary">No, a different computer</button>
     </div>
-    <div id="sql-issues"></div>
-    <div id="sql-plan-area" style="display:none">
-      <h2 style="margin-top:18px">Review before anything runs</h2>
-      <p class="muted">This is the exact SQL that will run. Copy it to hand to your own DBA if you'd rather run it yourself.</p>
-      <pre id="sql-plan-text"></pre>
-      <div class="row">
-        <button id="sql-copy" class="secondary">Copy SQL</button>
-        <button id="sql-run-auto">Run it for me</button>
-        <span id="sql-apply-msg" class="muted"></span>
+    <p class="muted" style="margin-top:8px">Not sure? If BBS runs on a dedicated broadcast PC, or is reached over a network like Tailscale, choose "a different computer" -- that's a normal, expected setup, not something to fix.</p>
+
+    <div id="sql-fields" style="display:none">
+      <label class="field">SQL Server host</label><input id="sql-host" value="localhost">
+      <label class="field">Instance (leave blank for a default instance)</label><input id="sql-instance" list="sql-instance-list">
+      <datalist id="sql-instance-list"></datalist>
+      <label class="field">Database</label><input id="sql-database" value="RACE">
+
+      <div id="sql-same-pc-ui" style="display:none">
+        <div class="row" style="margin-top:12px">
+          <button id="sql-preflight">Check connection automatically</button>
+          <span id="sql-preflight-msg" class="muted"></span>
+        </div>
+        <div id="sql-sysadmin-note" class="issue" style="display:none;background:#182636;border-color:#2c4863;color:#bcd6ee"></div>
       </div>
-      <div id="sql-manual-area" style="margin-top:14px">
-        <p class="muted">Ran it yourself instead? Paste the password shown above back here and BBS will verify it and save it.</p>
+
+      <div id="sql-issues"></div>
+
+      <div id="sql-generate-ui" style="display:none">
+        <p class="muted" id="sql-generate-intro">BBS did not connect to generate this -- that's expected here. Hand the SQL below to whoever administers this SQL Server.</p>
         <div class="row">
-          <input id="sql-manual-password" placeholder="password from the SQL above" style="min-width:280px">
-          <button id="sql-manual-verify" class="secondary">Verify and save</button>
+          <button id="sql-generate">Generate the SQL</button>
+          <label class="row" style="font-size:13px;font-weight:normal"><input type="checkbox" id="sql-generate-reset"> This login already exists -- generate a password reset instead</label>
+        </div>
+      </div>
+
+      <div id="sql-plan-area" style="display:none">
+        <h2 style="margin-top:18px">Review before anything runs</h2>
+        <p class="muted" id="sql-plan-intro">This is the exact SQL that will run. Copy it to hand to whoever administers this SQL Server.</p>
+        <pre id="sql-plan-text"></pre>
+        <div class="row">
+          <button id="sql-copy" class="secondary">Copy SQL</button>
+          <button id="sql-run-auto" style="display:none">Run it for me</button>
+          <span id="sql-apply-msg" class="muted"></span>
+        </div>
+        <div id="sql-manual-area" style="margin-top:14px">
+          <p class="muted">Once this SQL has run -- by BBS automatically, by you, or by your DBA -- paste the password shown above back here and BBS will verify it and save it.</p>
+          <div class="row">
+            <input id="sql-manual-password" placeholder="password from the SQL above" style="min-width:280px">
+            <button id="sql-manual-verify" class="secondary">Verify and save</button>
+          </div>
         </div>
       </div>
     </div>
+
     <details style="margin-top:16px"><summary class="muted">Undo this later</summary>
       <p class="muted">Run this on the SQL Server to remove the account BBS created:</p>
       <pre id="sql-cleanup-text">Loading...</pre>
@@ -475,20 +573,52 @@ function sqlParams(){
   };
 }
 
+function selectTopology(mode){
+  document.querySelector('#sql-fields').style.display='block';
+  document.querySelector('#sql-same-pc-ui').style.display = mode==='same' ? 'block' : 'none';
+  document.querySelector('#sql-generate-ui').style.display = mode==='different' ? 'block' : 'none';
+  document.querySelector('#sql-issues').innerHTML='';
+  document.querySelector('#sql-sysadmin-note').style.display='none';
+  document.querySelector('#sql-plan-area').style.display='none';
+  document.querySelector('#sql-preflight-msg').textContent='';
+  const hostInput=document.querySelector('#sql-host');
+  if(mode==='different'){
+    // "localhost" would point BBS's own verification step at itself, not
+    // at RaceManager's machine -- that default is actively wrong here.
+    if(hostInput.value.trim()==='localhost') hostInput.value='';
+    hostInput.placeholder='hostname or IP of the RaceManager computer';
+  } else {
+    if(!hostInput.value.trim()) hostInput.value='localhost';
+    hostInput.placeholder='';
+  }
+}
+document.querySelector('#topology-same').addEventListener('click', ()=>selectTopology('same'));
+document.querySelector('#topology-different').addEventListener('click', ()=>selectTopology('different'));
+
 document.querySelector('#sql-preflight').addEventListener('click', async ()=>{
   const msg=document.querySelector('#sql-preflight-msg');
   const issues=document.querySelector('#sql-issues');
-  msg.textContent='Checking...'; issues.innerHTML=''; document.querySelector('#sql-plan-area').style.display='none';
+  const sysadminNote=document.querySelector('#sql-sysadmin-note');
+  msg.textContent='Checking...'; issues.innerHTML=''; sysadminNote.style.display='none';
+  document.querySelector('#sql-plan-area').style.display='none';
+  document.querySelector('#sql-generate-ui').style.display='none';
   const r=await fetch('/api/setup/sql/preflight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sqlParams())});
   const d=await r.json();
   if(!d.connected_with_windows_auth){
-    msg.textContent='Could not connect with Windows authentication: '+esc(d.connection_error||'unknown error');
-  } else {
-    msg.textContent='Connected'+(d.server_version?(' -- '+esc(d.server_version)):'')+(d.existing_login_present?' (bbs_connector already exists -- will offer a password reset).':' (bbs_connector does not exist yet -- will offer to create it).');
+    msg.textContent="Couldn't connect automatically -- that can happen even on the same computer, depending on what account BBS's service runs under. Use \"Generate the SQL\" below instead.";
+    document.querySelector('#sql-generate-ui').style.display='block';
+    return;
+  }
+  msg.textContent='Connected'+(d.server_version?(' -- '+esc(d.server_version)):'')+(d.existing_login_present?' (bbs_connector already exists -- will offer a password reset).':' (bbs_connector does not exist yet -- will offer to create it).');
+  if(d.service_account_is_sysadmin===true){
+    sysadminNote.style.display='block';
+    sysadminNote.textContent="Note: the account BBS is running as currently has sysadmin rights on this SQL Server. That's this SQL Server's own configuration, not something BBS controls -- but it means your scoring database currently trusts BBS's service account more broadly than it needs to. Once this wizard finishes, BBS switches to using the new read-only bbs_connector login for everything it does day to day, regardless.";
   }
   (d.blocking_issues||[]).forEach(issue=>{const el=document.createElement('div');el.className='issue';el.textContent=issue;issues.append(el)});
-  if(d.can_run_automatically || d.tcp_reachable!==false){
+  if(d.can_run_automatically){
     await requestPlan();
+  } else {
+    document.querySelector('#sql-generate-ui').style.display='block';
   }
 });
 
@@ -498,8 +628,25 @@ async function requestPlan(){
   if(!r.ok){document.querySelector('#sql-preflight-msg').textContent=d.detail||'Could not generate a plan.';return}
   currentPlanId=d.plan_id; currentPlanSql=d.sql;
   document.querySelector('#sql-plan-text').textContent=d.sql;
+  document.querySelector('#sql-plan-intro').textContent="This is the exact SQL that will run. Copy it to hand to whoever administers this SQL Server if you'd rather run it yourself.";
+  document.querySelector('#sql-run-auto').style.display='inline-block';
   document.querySelector('#sql-plan-area').style.display='block';
 }
+
+document.querySelector('#sql-generate').addEventListener('click', async ()=>{
+  const resetPassword=document.querySelector('#sql-generate-reset').checked;
+  const body={...sqlParams(), reset_password: resetPassword};
+  const r=await fetch('/api/setup/sql/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(!r.ok){return}
+  currentPlanId=null; currentPlanSql=d.sql;
+  document.querySelector('#sql-plan-text').textContent=d.sql;
+  document.querySelector('#sql-plan-intro').textContent=resetPassword
+    ? 'This resets the password for an existing bbs_connector login. Hand it to whoever administers this SQL Server.'
+    : "This safely creates bbs_connector only if it doesn't already exist -- running it against an existing login changes nothing. Hand it to whoever administers this SQL Server.";
+  document.querySelector('#sql-run-auto').style.display='none';
+  document.querySelector('#sql-plan-area').style.display='block';
+});
 
 document.querySelector('#sql-copy').addEventListener('click', async ()=>{
   try{await navigator.clipboard.writeText(currentPlanSql||'')}catch(e){}
