@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.2.18"
+$Version = "1.3.0"
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $Packaging = Join-Path $Root "packaging\windows"
 $Dependencies = Join-Path $Packaging "dependencies"
@@ -94,7 +94,9 @@ $RequiredTracked = @(
     "packaging/windows/dependencies/python-3.12.10-embed-amd64.zip",
     "packaging/windows/dependencies/Python-LICENSE.txt",
     "packaging/windows/dependencies/tools/wix.4.0.6.nupkg",
-    "packaging/windows/dependencies/tools/WixToolset.Util.wixext.4.0.6.nupkg"
+    "packaging/windows/dependencies/tools/WixToolset.Util.wixext.4.0.6.nupkg",
+    "packaging/windows/dependencies/msodbcsql18-x64.msi",
+    "packaging/windows/dependencies/ODBC-Driver-LICENSE.rtf"
 )
 foreach ($Relative in $RequiredTracked) {
     & git -C $Root ls-files --error-unmatch -- $Relative 2>$null | Out-Null
@@ -124,6 +126,10 @@ try {
     foreach ($Name in @("README.md", "LICENSE", "logo.png")) {
         Copy-Item (Join-Path $Indexed $Name) $Payload -Force
     }
+    $Prerequisites = Join-Path $Payload "prerequisites"
+    New-Item -ItemType Directory -Force -Path $Prerequisites | Out-Null
+    Copy-Item (Join-Path $Dependencies "msodbcsql18-x64.msi") $Prerequisites -Force
+    Copy-Item (Join-Path $Dependencies "ODBC-Driver-LICENSE.rtf") $Prerequisites -Force
     Copy-Item (Join-Path $Dependencies "WinSW-x64.exe") (Join-Path $Payload "BBSService.exe")
     Copy-Item (Join-Path $Packaging "BBSService.xml") $Payload
     Copy-Item (Join-Path $Dependencies "WinSW-LICENSE.txt") $Payload

@@ -27,6 +27,14 @@ ADMIN_API_PREFIXES = (
 # admin actions.
 THEME_API_PREFIX = "/api/themes"
 
+# The Setup wizard creates database accounts (Part 2) and installs software
+# with system-level privileges (Part 1). Loopback-only, always -- unlike
+# every other admin path above, NO admin token can ever substitute for
+# being physically at (or remoted into) the BBS host itself. See
+# connector/routes/setup.py and test_setup_route.py's
+# test_a_non_loopback_request_is_refused_even_with_a_valid_admin_token.
+SETUP_API_PREFIX = "/api/setup"
+
 
 @dataclass(frozen=True)
 class AccessDecision:
@@ -84,6 +92,16 @@ def evaluate_http_access(
     loopback client or the corresponding opt-in token.
     """
     method = method.upper()
+    if path.startswith(SETUP_API_PREFIX):
+        if method == "OPTIONS" or is_local_client(client_host):
+            return AccessDecision(True)
+        return AccessDecision(
+            False,
+            403,
+            "The Setup wizard creates database accounts and installs software -- it is only "
+            "reachable from the BBS host itself, regardless of any admin token.",
+        )
+
     if method == "OPTIONS" or is_local_client(client_host):
         return AccessDecision(True)
 

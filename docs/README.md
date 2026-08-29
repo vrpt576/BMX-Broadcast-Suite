@@ -1,5 +1,6 @@
 # BBS Documentation
 
+- [The Setup Wizard](setup-wizard.md)
 - [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md)
 - [Windows Installation](installation-windows.md)
 - [Windows MSI Installer](wizard-installer-windows.md)

@@ -4,6 +4,21 @@ This guide changes SQL Server network and login configuration only. It does **no
 
 Perform the initial setup outside active registration or racing whenever possible.
 
+**Start with `/setup` instead, if you can.** BBS's built-in Setup wizard
+(open it from the tray, from `/diagnostics`, or go directly to
+`http://127.0.0.1:8000/setup`) automates most of this document when BBS runs
+*on* the RaceManager PC: it detects the SQL instance, installs the ODBC
+driver for you (bundled, no internet needed), creates the `bbs_connector`
+login and saves the credentials into BBS's configuration automatically --
+Section F below by hand is only needed if you prefer to run the SQL
+yourself, or the wizard can't connect. The wizard **never** enables TCP/IP,
+enables mixed-mode authentication, or touches the firewall (Sections C, D,
+E, and G below) -- it only reports whether each of those is already correct
+and tells you exactly what to fix and why, the same as this document does.
+If BBS runs on a *different* computer than RaceManager, you still need
+Sections C, D, and G below (TCP/IP, the port, and the firewall rule) before
+the wizard's connection test will succeed at all.
+
 ## A. Prerequisites and safety
 
 Before changing SQL Server settings, confirm that you have:
@@ -106,6 +121,12 @@ GO
 BBS normally uses a dedicated SQL login. If mixed mode is required, open SQL Server Management Studio (SSMS), right-click the server, choose **Properties → Security**, select **SQL Server and Windows Authentication mode**, and apply the change. Restart only **SQL Server (USABMX)**, then reopen and validate RaceManager.
 
 ## F. Create the least-privilege login
+
+**BBS's `/setup` wizard does this for you** -- generates a strong random
+password, shows you the exact SQL below before running anything, and
+verifies the login actually works before saving it. Use this section only
+if you'd rather run the SQL yourself (the wizard offers exactly this text
+with a copy button) or hand it to your own DBA.
 
 Use the dedicated login name `bbs_connector`. Start an interactive `sqlcmd` session so the password is not embedded in the PowerShell command history:
 
