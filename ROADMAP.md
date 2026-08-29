@@ -1,6 +1,6 @@
 # BMX Broadcast Suite Roadmap
 
-This roadmap reflects the project status as of v1.2.18. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
+This roadmap reflects the project status as of v1.3.0. Priorities may move as more tracks test BBS against their RaceManager installations and live production workflows.
 
 ## Shipped
 

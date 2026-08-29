@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.2.18-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.3.0-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -41,18 +41,17 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 ## First-time setup
 
-1. [Prepare the USA BMX RaceManager PC for BBS](docs/racemanager-pc-setup.md), including TCP/IP, a dedicated read-only login, and a restricted firewall rule when BBS runs on another computer.
-2. Install Microsoft ODBC Driver 18 for SQL Server and the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) on the BBS/OBS computer.
-3. Open **Configuration** and enter the SQL host, discovered TCP port, `RACE` database, and dedicated read-only credentials.
-4. Open **Diagnostics** and confirm that the driver, SQL connection, database, and current event checks pass.
-5. Open **Race Director**, select the live or historical event, and confirm the moto, round, and class.
-6. Add the [overlay URLs](docs/browser-sources.md) to OBS as Browser Sources.
+1. Install the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) on the BBS/OBS computer.
+2. Open **Setup** (`/setup`, linked from the tray) and follow its guided steps -- it installs the ODBC driver and creates a dedicated read-only RaceManager login for you, with no SQL or command-line work required. See [The Setup Wizard](docs/setup-wizard.md). Prefer to do it by hand, or run BBS and RaceManager on separate computers? See [Prepare the USA BMX RaceManager PC for BBS](docs/racemanager-pc-setup.md) for TCP/IP, the login, and a restricted firewall rule.
+3. Open **Diagnostics** and confirm that the driver, SQL connection, database, and current event checks pass.
+4. Open **Race Director**, select the live or historical event, and confirm the moto, round, and class.
+5. Add the [overlay URLs](docs/browser-sources.md) to OBS as Browser Sources.
 
 For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
 
-## Current status — v1.2.18
+## Current status — v1.3.0
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.2.18 adds optional [Sqorz live-timing integration](docs/sqorz-live-timing.md) — rider times and finish positions shown alongside the lineup, entirely additive and off by default — while retaining the Main-labeling fix from v1.2.17, the Ref.Rounds bracket-name resolution from v1.2.16, and the theme and tray fixes from v1.2.15. See the [changelog](CHANGELOG.md) for the full 1.2.18 verification status before relying on it in the field.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.3.0 adds a guided [Setup wizard](docs/setup-wizard.md) — installs the ODBC driver and creates the read-only RaceManager account with no SQL or command-line work — and optional [Sqorz live-timing integration](docs/sqorz-live-timing.md), rider times and finish positions shown alongside the lineup, entirely additive and off by default, while retaining the Main-labeling fix from v1.2.17, the Ref.Rounds bracket-name resolution from v1.2.16, and the theme and tray fixes from v1.2.15. See the [changelog](CHANGELOG.md) for the full 1.3.0 verification status before relying on it in the field.
 
 ### Rider subtitle data
 

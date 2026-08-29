@@ -2,18 +2,19 @@
 
 ## Unreleased
 
-## 1.2.18 - date TBD (not yet published -- see "Verification status" below)
+## 1.3.0 - date TBD (not yet published -- see "Verification status" below)
 
 **Verification status, plainly:** the internet-mode Sqorz backend has been
 tested extensively against real, live Sqorz data (a real 2026-08-16 USA BMX
-national event) and is considered solid. **The LAN backend has never
+national event) and is considered solid. **The LAN Sqorz backend has never
 connected to a real Sqorz installation.** Its request handling, timeout
 behavior, and fallback-when-disconnected behavior are verified against a
 local mock server with *guessed* response shapes (see "resilience, not
-verification" below) -- not against Smith Rock's or any other track's actual
-scoring computer. This release is being validated live on 2026-08-28 before
-it is published; do not treat the LAN backend as confirmed working until
-then.
+verification" below) -- not against any real track's actual scoring
+computer; treat it as experimental until it has. This release is being
+installed and verified on a real machine before it is published --
+see "Release process" in `CLAUDE.md`; do not treat anything in this
+section as confirmed working in the field until then.
 
 - Added optional Sqorz live-timing integration: the lineup overlay can show
   each rider's time for the currently selected round, read from Sqorz's
@@ -97,6 +98,34 @@ then.
   live Sqorz data before deploying on site. Also: a blank time now renders as
   an en dash instead of empty space, and rider metadata (age/home track)
   clamps to one line with an ellipsis instead of overflowing.
+- Added a guided Setup wizard (`/setup`, linked from the tray and
+  `/diagnostics`) so a non-technical track operator can get RaceManager
+  connected without installing anything by hand or writing SQL themselves.
+  Runs *inside* already-installed BBS as an ordinary page, not a bundled
+  installer chain -- see "Windows packaging / antivirus lessons" in
+  `CLAUDE.md` for why that distinction matters. Loopback-only always,
+  regardless of any remote-admin token, since it creates database accounts
+  and installs software -- see `docs/setup-wizard.md`.
+  - Detects whether a usable SQL Server ODBC driver is installed and, if
+    not, offers to install Microsoft ODBC Driver 18 either from a bundled
+    copy (works with no internet at the track) or a fresh download.
+    Redistribution of the bundled copy is confirmed by the driver's own
+    EULA and REDIST list ("The entire package may be redistributed."),
+    verified 2026-08-29 -- see `packaging/windows/dependencies/ODBC-Driver-LICENSE.rtf`.
+  - Guides creating the read-only `bbs_connector` SQL login: connects with
+    the operator's own Windows credentials, reports (never changes) any
+    blocking SQL Server configuration such as mixed-mode authentication
+    being off, generates a strong random password, shows the operator the
+    exact SQL before anything runs, then verifies the new login by
+    actually reading a row from RaceManager before saving the credentials.
+    Re-running when the login already exists offers a password reset
+    instead of failing. A ready-made cleanup script (`DROP USER`/
+    `DROP LOGIN`) is shown on the same page so a track can remove the
+    account without contacting anyone.
+- Added a one-page installation/configuration status view (`/api/setup/status`,
+  shown at the top of `/setup`): ODBC driver, database connection,
+  RaceManager readability, and Sqorz configuration, each with a link to fix
+  it when something's wrong.
 
 ## 1.2.17 - 2026-08-24
 

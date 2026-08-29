@@ -201,3 +201,46 @@ def test_untrusted_cors_origin_is_not_accepted() -> None:
 
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_setup_wizard_is_loopback_only_even_with_a_valid_admin_token() -> None:
+    """The Setup wizard (Part 1 prerequisite install, Part 2 SQL account
+    creation) runs system-level installs and creates database accounts --
+    unlike every other admin path, no token can ever substitute for being
+    on the BBS host itself."""
+    settings = Settings(
+        _env_file=None,
+        remote_admin_enabled=True,
+        admin_token="admin-secret",
+    )
+
+    remote_with_valid_token = decide(
+        settings,
+        method="POST",
+        path="/api/setup/sql/apply",
+        headers={"x-bbs-admin-token": "admin-secret"},
+    )
+    remote_read_only = decide(settings, method="GET", path="/api/setup/status")
+    remote_with_bearer_token = decide(
+        settings,
+        method="POST",
+        path="/api/setup/odbc/install",
+        headers={"authorization": "Bearer admin-secret"},
+    )
+
+    assert remote_with_valid_token.allowed is False
+    assert remote_with_valid_token.status_code == 403
+    assert remote_read_only.allowed is False
+    assert remote_with_bearer_token.allowed is False
+
+
+def test_setup_wizard_works_locally_with_no_token_at_all() -> None:
+    settings = Settings(_env_file=None)  # remote admin not even enabled
+
+    local_read = decide(settings, method="GET", path="/api/setup/status", host="127.0.0.1")
+    local_write = decide(
+        settings, method="POST", path="/api/setup/sql/apply", host="127.0.0.1"
+    )
+
+    assert local_read.allowed is True
+    assert local_write.allowed is True
