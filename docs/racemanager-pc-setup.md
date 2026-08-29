@@ -6,18 +6,29 @@ Perform the initial setup outside active registration or racing whenever possibl
 
 **Start with `/setup` instead, if you can.** BBS's built-in Setup wizard
 (open it from the tray, from `/diagnostics`, or go directly to
-`http://127.0.0.1:8000/setup`) automates most of this document when BBS runs
-*on* the RaceManager PC: it detects the SQL instance, installs the ODBC
-driver for you (bundled, no internet needed), creates the `bbs_connector`
-login and saves the credentials into BBS's configuration automatically --
-Section F below by hand is only needed if you prefer to run the SQL
-yourself, or the wizard can't connect. The wizard **never** enables TCP/IP,
-enables mixed-mode authentication, or touches the firewall (Sections C, D,
-E, and G below) -- it only reports whether each of those is already correct
-and tells you exactly what to fix and why, the same as this document does.
-If BBS runs on a *different* computer than RaceManager, you still need
-Sections C, D, and G below (TCP/IP, the port, and the firewall rule) before
-the wizard's connection test will succeed at all.
+`http://127.0.0.1:8000/setup`) automates most of this document -- see
+[The Setup Wizard](setup-wizard.md) for the full walkthrough, including its
+two setup paths, before working through this document by hand. The wizard
+**never** enables TCP/IP, enables mixed-mode authentication, or touches the
+firewall (Sections C, D, E, and G below) -- it only reports whether each of
+those is already correct and tells you exactly what to fix and why, the
+same as this document does. Which sections you still need depends on
+where BBS is installed:
+
+- **BBS on the same computer as RaceManager.** The wizard can usually
+  connect and create the login itself (Section F below is then only
+  needed if you'd rather run the SQL by hand). Sections C, D, and G
+  (TCP/IP, the port, the firewall rule) are not needed at all -- BBS talks
+  to SQL Server over the local named pipe, not the network.
+- **BBS on a separate computer than RaceManager** (a dedicated broadcast
+  PC, a laptop reached over Tailscale -- the setup these docs generally
+  recommend). The wizard's connection attempt is not expected to succeed
+  here (its service identity crosses the network without SQL Server
+  rights), so it generates the SQL for Section F directly, without trying
+  to connect first -- that's the wizard's normal path for this topology,
+  not a fallback. You still need Sections C, D, and G (TCP/IP, the port,
+  the firewall rule) so that BBS's *day-to-day* connection as
+  `bbs_connector`, once created, can actually reach the server.
 
 ## A. Prerequisites and safety
 
@@ -124,9 +135,14 @@ BBS normally uses a dedicated SQL login. If mixed mode is required, open SQL Ser
 
 **BBS's `/setup` wizard does this for you** -- generates a strong random
 password, shows you the exact SQL below before running anything, and
-verifies the login actually works before saving it. Use this section only
-if you'd rather run the SQL yourself (the wizard offers exactly this text
-with a copy button) or hand it to your own DBA.
+verifies the login actually works before saving it. When BBS is on the
+same computer as RaceManager, it can often run this SQL for you directly;
+when BBS is on a different computer, the wizard generates this exact SQL
+without attempting to connect (see [The Setup Wizard](setup-wizard.md)'s
+"Path B") -- that is its normal path for that setup, not a fallback. Use
+this section only if you'd rather run the SQL yourself (the wizard offers
+exactly this text with a copy button either way) or hand it to your own
+DBA.
 
 Use the dedicated login name `bbs_connector`. Start an interactive `sqlcmd` session so the password is not embedded in the PowerShell command history:
 

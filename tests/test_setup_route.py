@@ -254,7 +254,7 @@ def test_preflight_reports_a_connection_failure_plainly(monkeypatch: pytest.Monk
 
 
 def test_preflight_reports_mixed_mode_blocking_issue(monkeypatch: pytest.MonkeyPatch) -> None:
-    connection = FakeSqlConnection(script=[(1, "SQL Server"), None])
+    connection = FakeSqlConnection(script=[(1, "SQL Server", 0), None])
     monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
 
     response = client.post(
@@ -269,13 +269,57 @@ def test_preflight_reports_mixed_mode_blocking_issue(monkeypatch: pytest.MonkeyP
     assert connection.closed is True  # preflight always releases its connection
 
 
+def test_preflight_reports_when_the_service_account_is_sysadmin(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = FakeSqlConnection(script=[(0, "SQL Server", 1), None])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
+
+    response = client.post(
+        "/api/setup/sql/preflight",
+        json={"host": "localhost", "instance": "USABMX", "database": "RACE"},
+    )
+
+    assert response.json()["service_account_is_sysadmin"] is True
+
+
 def test_preflight_requires_a_host() -> None:
     response = client.post("/api/setup/sql/preflight", json={"instance": "USABMX"})
     assert response.status_code == 400
 
 
+def test_preflight_passes_an_integer_timeout_through_to_pyodbc(monkeypatch: pytest.MonkeyPatch) -> None:
+    """End-to-end regression test for a real bug: sql_setup.connect() and
+    the route's own _timeout() helper both used to produce a float, and
+    pyodbc.connect()'s timeout kwarg maps to a C long -- a float there
+    raises TypeError from inside pyodbc.connect() itself, turning "check
+    connection automatically" (Path A's whole automatic flow) into a raw
+    500 instead of a reported connection failure. Exercises the real
+    sql_setup.connect() and _timeout(), not a mocked-out connect()."""
+
+    class FakeError(Exception):
+        pass
+
+    class FakePyodbc:
+        Error = FakeError
+
+        @staticmethod
+        def connect(connection_string, *, timeout, autocommit):
+            if not isinstance(timeout, int) or isinstance(timeout, bool):
+                raise TypeError("'float' object cannot be interpreted as an integer")
+            raise FakeError("Login failed for user 'NT AUTHORITY\\SYSTEM'.")
+
+    monkeypatch.setattr(sql_setup, "pyodbc", FakePyodbc())
+
+    response = client.post(
+        "/api/setup/sql/preflight",
+        json={"host": "localhost", "instance": "USABMX", "database": "RACE"},
+    )
+
+    assert response.status_code == 200
+    assert "Login failed" in response.json()["connection_error"]
+
+
 def test_plan_generates_a_create_plan_when_no_existing_login(monkeypatch: pytest.MonkeyPatch) -> None:
-    connection = FakeSqlConnection(script=[(0, "SQL Server"), None])
+    connection = FakeSqlConnection(script=[(0, "SQL Server", 0), None])
     monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
 
     response = client.post(
@@ -290,7 +334,7 @@ def test_plan_generates_a_create_plan_when_no_existing_login(monkeypatch: pytest
 
 
 def test_plan_generates_a_reset_plan_when_login_already_exists(monkeypatch: pytest.MonkeyPatch) -> None:
-    connection = FakeSqlConnection(script=[(0, "SQL Server"), ("bbs_connector",)])
+    connection = FakeSqlConnection(script=[(0, "SQL Server", 0), ("bbs_connector",)])
     monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
 
     response = client.post(
@@ -298,6 +342,23 @@ def test_plan_generates_a_reset_plan_when_login_already_exists(monkeypatch: pyte
     )
 
     assert response.json()["kind"] == "reset_password"
+
+
+def test_plan_honors_a_custom_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = FakeSqlConnection(script=[(0, "SQL Server", 0), None])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
+
+    response = client.post(
+        "/api/setup/sql/plan",
+        json={
+            "host": "localhost",
+            "instance": "USABMX",
+            "database": "RACE",
+            "login_name": "bbs_connector_test",
+        },
+    )
+
+    assert "bbs_connector_test" in response.json()["sql"]
 
 
 def test_plan_refuses_when_it_cannot_connect(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -314,7 +375,7 @@ def test_plan_refuses_when_it_cannot_connect(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_plan_refuses_when_mixed_mode_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    connection = FakeSqlConnection(script=[(1, "SQL Server"), None])
+    connection = FakeSqlConnection(script=[(1, "SQL Server", 0), None])
     monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
 
     response = client.post(
@@ -323,6 +384,117 @@ def test_plan_refuses_when_mixed_mode_is_off(monkeypatch: pytest.MonkeyPatch) ->
 
     assert response.status_code == 409
     assert connection.closed is True
+
+
+# ---------------------------------------------------------------------------
+# POST /api/setup/sql/generate -- the separate-computer path: never attempts
+# a connection, always available regardless of what BBS's service identity
+# can or can't do.
+# ---------------------------------------------------------------------------
+
+
+def test_generate_never_attempts_a_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("sql/generate must never try to connect")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/generate", json={"host": "some-other-machine", "database": "RACE"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["kind"] == "create_if_missing"
+    assert "IF NOT EXISTS" in body["sql"]
+    assert "CREATE LOGIN [bbs_connector]" in body["sql"]
+
+
+def test_generate_offers_a_reset_password_variant_on_request() -> None:
+    response = client.post("/api/setup/sql/generate", json={"database": "RACE", "reset_password": True})
+
+    body = response.json()
+    assert body["kind"] == "reset_password"
+    assert body["sql"].strip().startswith("ALTER LOGIN [bbs_connector]")
+
+
+def test_generate_honors_a_custom_login_name() -> None:
+    response = client.post(
+        "/api/setup/sql/generate", json={"database": "RACE", "login_name": "bbs_connector_test"}
+    )
+
+    assert "bbs_connector_test" in response.json()["sql"]
+
+
+# ---------------------------------------------------------------------------
+# login_name validation -- a malicious login_name must be rejected with a
+# clean 400 before it ever reaches SQL text or a connection string, on
+# every endpoint that accepts it. See sql_setup_service.validate_login_name.
+# ---------------------------------------------------------------------------
+
+
+MALICIOUS_LOGIN_NAME = "bbs_connector]; DROP LOGIN [sa"
+
+
+def test_preflight_rejects_a_malicious_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("must not attempt a connection for an invalid login_name")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/preflight",
+        json={"host": "localhost", "instance": "USABMX", "login_name": MALICIOUS_LOGIN_NAME},
+    )
+
+    assert response.status_code == 400
+
+
+def test_plan_rejects_a_malicious_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("must not attempt a connection for an invalid login_name")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/plan",
+        json={"host": "localhost", "instance": "USABMX", "login_name": MALICIOUS_LOGIN_NAME},
+    )
+
+    assert response.status_code == 400
+
+
+def test_generate_rejects_a_malicious_login_name() -> None:
+    response = client.post(
+        "/api/setup/sql/generate", json={"database": "RACE", "login_name": MALICIOUS_LOGIN_NAME}
+    )
+    assert response.status_code == 400
+
+
+def test_verify_and_store_rejects_a_malicious_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("must not attempt a connection for an invalid login_name")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/verify-and-store",
+        json={
+            "host": "localhost",
+            "instance": "USABMX",
+            "password": "S3cret!Pass1234",
+            "login_name": MALICIOUS_LOGIN_NAME,
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_cleanup_rejects_a_malicious_login_name() -> None:
+    response = client.get(
+        "/api/setup/sql/cleanup", params={"database": "RACE", "login_name": MALICIOUS_LOGIN_NAME}
+    )
+    assert response.status_code == 400
 
 
 def test_apply_runs_the_cached_plan_then_verifies_and_stores(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -356,6 +528,41 @@ def test_apply_runs_the_cached_plan_then_verifies_and_stores(monkeypatch: pytest
     assert saved["sql_password"] == plan.password
     # The password must never come back in the response.
     assert plan.password not in response.text
+
+
+def test_apply_verifies_and_saves_under_the_plans_custom_login_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Confirms sql_apply reads login_name back off the cached plan rather
+    than assuming bbs_connector -- otherwise a throwaway test login (see
+    docs/setup-wizard.md's testing aids) would be created successfully but
+    then verified/saved under the wrong name."""
+    cache = PlanCache()
+    plan = sql_setup.build_create_plan(database="RACE", login_name="bbs_connector_test")
+    plan_id = cache.store(
+        plan, host="localhost", instance="USABMX", database="RACE", login_name="bbs_connector_test"
+    )
+    app.dependency_overrides[get_sql_wizard_plan_cache] = lambda: cache
+    app.dependency_overrides[get_database] = lambda: object()
+
+    apply_connection = FakeSqlConnection(script=[])
+    verify_connection = FakeSqlConnection(script=[(1, "a", "row")])
+    connections = iter([apply_connection, verify_connection])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: next(connections))
+
+    saved = {}
+    monkeypatch.setattr(
+        setup_route.ConfigurationService, "save", lambda self, values: saved.update(values)
+    )
+
+    response = client.post(
+        "/api/setup/sql/apply",
+        json={"plan_id": plan_id, "host": "localhost", "instance": "USABMX", "database": "RACE"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["proof"]["login"] == "bbs_connector_test"
+    assert saved["sql_user"] == "bbs_connector_test"
 
 
 def test_apply_rejects_an_unknown_or_reused_plan_id() -> None:
@@ -440,11 +647,42 @@ def test_verify_and_store_reports_a_bad_password_without_saving_anything(
     assert saved == {}
 
 
+def test_verify_and_store_honors_a_custom_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = FakeSqlConnection(script=[(1, "row")])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5.0: connection)
+    saved = {}
+    monkeypatch.setattr(
+        setup_route.ConfigurationService, "save", lambda self, values: saved.update(values)
+    )
+
+    response = client.post(
+        "/api/setup/sql/verify-and-store",
+        json={
+            "host": "localhost",
+            "instance": "USABMX",
+            "database": "RACE",
+            "password": "S3cret!Pass1234",
+            "login_name": "bbs_connector_test",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["proof"]["login"] == "bbs_connector_test"
+    assert saved["sql_user"] == "bbs_connector_test"
+
+
 def test_cleanup_returns_read_only_sql() -> None:
     response = client.get("/api/setup/sql/cleanup", params={"database": "RACE"})
     assert response.status_code == 200
     sql = response.json()["sql"]
     assert "DROP LOGIN [bbs_connector]" in sql
+
+
+def test_cleanup_honors_a_custom_login_name() -> None:
+    response = client.get(
+        "/api/setup/sql/cleanup", params={"database": "RACE", "login_name": "bbs_connector_test"}
+    )
+    assert "DROP LOGIN [bbs_connector_test]" in response.json()["sql"]
 
 
 # ---------------------------------------------------------------------------
@@ -467,3 +705,22 @@ def test_diagnostics_page_links_to_setup() -> None:
     response = client.get("/diagnostics")
     assert response.status_code == 200
     assert 'href="/setup"' in response.text
+
+
+def test_the_page_asks_about_topology_before_attempting_anything() -> None:
+    """The core of requirement 1: the operator is asked up front whether
+    BBS shares a computer with RaceManager, and the "different computer"
+    answer is framed as a normal setup, not a failure state to recover
+    from."""
+    response = client.get("/setup")
+    assert "same computer as RaceManager" in response.text
+    assert "a different computer" in response.text.lower()
+    assert "normal, expected setup" in response.text
+
+
+def test_the_page_reassures_rather_than_alarms_when_the_automatic_attempt_fails() -> None:
+    """When the same-computer automatic connection attempt fails, the copy
+    must explain that's expected and point at the manual route -- not read
+    as "you broke something.\""""
+    response = client.get("/setup")
+    assert "can happen even on the same computer" in response.text

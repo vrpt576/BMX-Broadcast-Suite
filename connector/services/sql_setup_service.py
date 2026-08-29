@@ -27,10 +27,35 @@ connect callable, never opens one from a hardcoded identity -- see
 connector/routes/setup.py for why (BBS's own process identity may or may
 not have SQL admin rights; the route layer decides what to do in each
 case, this module only knows how to talk to a connection it's handed).
+
+Two topologies, two plan shapes: when BBS runs on the same machine as the
+SQL Server, it can open a Windows-authenticated connection itself, so
+build_create_plan()/build_reset_password_plan() can be precise (a live
+preflight already confirmed whether the login exists). When BBS runs on a
+different machine -- the setup this project's own docs recommend, and
+the one this module's original author's own deployment uses -- BBS's
+service identity crosses the network as the *computer* account and
+essentially never has rights to connect at all, so there is nothing to
+preflight. build_offline_create_plan() is for that case: it never
+assumes an answer to "does this login already exist," guarding every
+step with IF NOT EXISTS instead, the same pattern
+docs/racemanager-pc-setup.md's manual instructions have always used.
+
+login_name defaults to LOGIN_NAME ("bbs_connector") everywhere but is
+overridable -- this exists purely so a throwaway login can be created,
+verified, and dropped for testing without touching the login BBS itself
+would actually use. See docs/setup-wizard.md's "Testing aids" section;
+it is not meant to be exposed in the wizard's normal UI. Because it flows
+straight into bracket-quoted SQL identifiers (CREATE LOGIN [name], etc.),
+every function that accepts it validates it first -- see
+validate_login_name(). Passwords go through the same generate_password()
+either way (an operator can also hand-edit a plan's SQL before running
+it, but this module only ever emits a properly escaped literal itself).
 """
 
 from __future__ import annotations
 
+import re
 import secrets
 import socket
 import string
@@ -56,7 +81,20 @@ LOGIN_NAME = "bbs_connector"
 # than the SQL Server itself, where the registry key doesn't exist).
 COMMON_RACEMANAGER_INSTANCE = "USABMX"
 PASSWORD_LENGTH = 24
+# Deliberately excludes ' " \ ; { } [ ] -- every character with special
+# meaning to a T-SQL string literal, an ODBC connection string, or a
+# bracket-quoted identifier. generate_password()'s output can therefore
+# never itself be the thing that breaks a generated script or connection
+# string; the escaping in build_create_plan() etc. and _odbc_brace()
+# below exists for a hand-edited or manually-typed password, not because
+# the generator needs it.
 PASSWORD_SYMBOLS = "!@#$%^&*-_="
+
+# SQL Server login/user names get interpolated into bracket-quoted
+# identifiers (CREATE LOGIN [name]). There is no legitimate reason
+# bbs_connector or a throwaway test login needs anything outside this --
+# see validate_login_name().
+_LOGIN_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
 
 
 class SqlSetupError(RuntimeError):
@@ -65,6 +103,41 @@ class SqlSetupError(RuntimeError):
 
 class SupportsCursor(Protocol):
     def cursor(self) -> Any: ...
+
+
+def validate_login_name(login_name: str) -> str:
+    """Every function below that builds SQL text or a connection string
+    from a login_name calls this first. Rather than escape embedded
+    brackets/semicolons (doubling a literal ']', as QUOTENAME does) and
+    trust that's exhaustive, this restricts login_name to a safe,
+    unquoted-identifier charset -- letters, digits, underscore, starting
+    with a letter or underscore. A name outside that is rejected with a
+    clear SqlSetupError rather than silently truncated, escaped, or
+    interpolated as-is. Returns the name unchanged on success, so callers
+    can write `login_name = validate_login_name(login_name)`.
+    """
+    if not _LOGIN_NAME_PATTERN.match(login_name):
+        raise SqlSetupError(
+            f"'{login_name}' is not a usable login name -- use only letters, digits, and "
+            "underscores, starting with a letter or underscore (up to 128 characters)."
+        )
+    return login_name
+
+
+def _odbc_brace(value: str) -> str:
+    """Brace-quotes an ODBC connection string value, doubling any literal
+    '}' inside it -- the connection string spec's own escaping rule for a
+    value that might contain ';', '{', '}', or other characters with
+    special meaning to the parser. Applied unconditionally (not only when
+    a special character is detected) so this doesn't depend on a
+    character denylist being exhaustive; a plain alphanumeric value
+    braces to itself with no functional difference. Used for `user` and
+    `password`, the two values here that can come from something other
+    than this module's own generate_password()/validate_login_name() --
+    a manually typed password pasted back on the verify-and-store path is
+    not restricted to any particular charset.
+    """
+    return "{" + value.replace("}", "}}") + "}"
 
 
 def windows_auth_connection_string(
@@ -86,10 +159,11 @@ def sql_auth_connection_string(
     password: str,
     driver: str = "ODBC Driver 18 for SQL Server",
 ) -> str:
+    validate_login_name(user)
     server = f"{host}\\{instance}" if instance else host
     return (
         f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};"
-        f"UID={user};PWD={password};Encrypt=yes;TrustServerCertificate=yes;"
+        f"UID={_odbc_brace(user)};PWD={_odbc_brace(password)};Encrypt=yes;TrustServerCertificate=yes;"
     )
 
 
@@ -141,13 +215,21 @@ def detect_local_sql_instances() -> list[str]:
         return []
 
 
-def connect(connection_string: str, *, timeout: float = 5.0) -> Any:
+def connect(connection_string: str, *, timeout: int = 5) -> Any:
     """The one real pyodbc.connect() call in this module -- isolated here,
     like database/racemanager.py's _connect(), so every other function
     stays testable with a fake connection. Raises SqlSetupError with the
     real driver error message rather than letting a raw pyodbc.Error
     surface; never used to report anything other than "connection failed",
     never guessed at.
+
+    timeout must be an int, not a float -- pyodbc.connect()'s timeout
+    kwarg maps straight to the ODBC SQL_ATTR_LOGIN_TIMEOUT attribute,
+    which is a C long. Passing a float raises TypeError from inside
+    pyodbc.connect() itself before any connection attempt happens, which
+    surfaced as a raw 500 from every route in this module until this was
+    caught (see database/racemanager.py's _connect(), which has always
+    taken this as `connect_timeout: int`).
     """
     if pyodbc is None:
         raise SqlSetupError("pyodbc is not installed.")
@@ -173,6 +255,7 @@ class PreflightReport:
     integrated_security_only: bool | None  # None = could not determine
     tcp_reachable: bool | None  # None = not checked (no port given)
     existing_login_present: bool
+    service_account_is_sysadmin: bool | None  # None = could not determine
     blocking_issues: list[str]
 
 
@@ -182,11 +265,13 @@ def run_preflight(
     connection_error: str | None = None,
     tcp_host: str | None = None,
     tcp_port: int | None = None,
+    login_name: str = LOGIN_NAME,
 ) -> PreflightReport:
     """Reports what it finds; changes nothing. If `connection` is None (the
     caller couldn't open one), pass `connection_error` and this still
     returns a usable report with everything it can determine externally
     (currently just the TCP probe)."""
+    validate_login_name(login_name)
     blocking: list[str] = []
     tcp_reachable = _probe_tcp(tcp_host, tcp_port) if (tcp_host and tcp_port) else None
     if tcp_reachable is False:
@@ -206,16 +291,21 @@ def run_preflight(
             integrated_security_only=None,
             tcp_reachable=tcp_reachable,
             existing_login_present=False,
+            service_account_is_sysadmin=None,
             blocking_issues=blocking,
         )
 
     cursor = connection.cursor()
-    cursor.execute("SELECT SERVERPROPERTY('IsIntegratedSecurityOnly') AS v, @@VERSION AS ver")
+    cursor.execute(
+        "SELECT SERVERPROPERTY('IsIntegratedSecurityOnly') AS v, @@VERSION AS ver, "
+        "IS_SRVROLEMEMBER('sysadmin') AS is_sysadmin"
+    )
     row = cursor.fetchone()
     integrated_only = bool(row[0]) if row is not None and row[0] is not None else None
     version = str(row[1]) if row is not None and row[1] is not None else None
+    sysadmin = bool(row[2]) if row is not None and row[2] is not None else None
 
-    cursor.execute("SELECT name FROM sys.sql_logins WHERE name = ?", (LOGIN_NAME,))
+    cursor.execute("SELECT name FROM sys.sql_logins WHERE name = ?", (login_name,))
     existing_login_present = cursor.fetchone() is not None
 
     if integrated_only:
@@ -236,6 +326,7 @@ def run_preflight(
         integrated_security_only=integrated_only,
         tcp_reachable=tcp_reachable,
         existing_login_present=existing_login_present,
+        service_account_is_sysadmin=sysadmin,
         blocking_issues=blocking,
     )
 
@@ -252,34 +343,75 @@ class Plan:
     database: str
 
 
-def build_create_plan(*, database: str) -> Plan:
+def build_create_plan(*, database: str, login_name: str = LOGIN_NAME) -> Plan:
+    """For use only after a live preflight has already confirmed the login
+    does not exist yet (see run_preflight's existing_login_present) -- an
+    unconditional CREATE LOGIN, matching what was just verified. For the
+    "BBS can't connect to check first" case, see build_offline_create_plan.
+    """
+    validate_login_name(login_name)
     password = generate_password()
     escaped = password.replace("'", "''")
     sql = (
-        f"CREATE LOGIN [{LOGIN_NAME}] WITH PASSWORD = N'{escaped}', "
+        f"CREATE LOGIN [{login_name}] WITH PASSWORD = N'{escaped}', "
         "CHECK_POLICY = ON, CHECK_EXPIRATION = OFF;\n"
         f"USE [{database}];\n"
-        f"CREATE USER [{LOGIN_NAME}] FOR LOGIN [{LOGIN_NAME}];\n"
-        f"ALTER ROLE db_datareader ADD MEMBER [{LOGIN_NAME}];"
+        f"CREATE USER [{login_name}] FOR LOGIN [{login_name}];\n"
+        f"ALTER ROLE db_datareader ADD MEMBER [{login_name}];"
     )
     return Plan(kind="create", sql=sql, password=password, database=database)
 
 
-def build_reset_password_plan(*, database: str) -> Plan:
+def build_offline_create_plan(*, database: str, login_name: str = LOGIN_NAME) -> Plan:
+    """For the "BBS is on a different computer and can't check first" path
+    (see docs/setup-wizard.md's two topologies): BBS has no live connection
+    to ask "does this login already exist?", so this guards every step with
+    IF NOT EXISTS instead of assuming an answer -- the same pattern
+    docs/racemanager-pc-setup.md's manual instructions have always used.
+    Running this against a login that already exists creates nothing new
+    and leaves its existing password untouched; it does not double as a
+    password reset (see build_reset_password_plan for that, offered
+    separately once the operator confirms the login is already there)."""
+    validate_login_name(login_name)
     password = generate_password()
     escaped = password.replace("'", "''")
-    sql = f"ALTER LOGIN [{LOGIN_NAME}] WITH PASSWORD = N'{escaped}';"
+    sql = (
+        "USE [master];\n"
+        f"IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{login_name}')\n"
+        "BEGIN\n"
+        f"    CREATE LOGIN [{login_name}] WITH PASSWORD = N'{escaped}', "
+        "CHECK_POLICY = ON, CHECK_EXPIRATION = OFF;\n"
+        "END;\n"
+        f"USE [{database}];\n"
+        f"IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'{login_name}')\n"
+        "BEGIN\n"
+        f"    CREATE USER [{login_name}] FOR LOGIN [{login_name}];\n"
+        "END;\n"
+        f"IF IS_ROLEMEMBER(N'db_datareader', N'{login_name}') <> 1\n"
+        "BEGIN\n"
+        f"    ALTER ROLE db_datareader ADD MEMBER [{login_name}];\n"
+        "END;"
+    )
+    return Plan(kind="create_if_missing", sql=sql, password=password, database=database)
+
+
+def build_reset_password_plan(*, database: str, login_name: str = LOGIN_NAME) -> Plan:
+    validate_login_name(login_name)
+    password = generate_password()
+    escaped = password.replace("'", "''")
+    sql = f"ALTER LOGIN [{login_name}] WITH PASSWORD = N'{escaped}';"
     return Plan(kind="reset_password", sql=sql, password=password, database=database)
 
 
-def build_cleanup_sql(*, database: str) -> str:
+def build_cleanup_sql(*, database: str, login_name: str = LOGIN_NAME) -> str:
     """Read-only informational text -- offered to the operator so a track
     can undo this without calling anyone. Never executed by this module."""
+    validate_login_name(login_name)
     return (
         f"USE [{database}];\n"
-        f"DROP USER IF EXISTS [{LOGIN_NAME}];\n"
+        f"DROP USER IF EXISTS [{login_name}];\n"
         "USE [master];\n"
-        f"DROP LOGIN [{LOGIN_NAME}];"
+        f"DROP LOGIN [{login_name}];"
     )
 
 
@@ -288,7 +420,19 @@ def apply_plan(connection: SupportsCursor, plan: Plan) -> None:
     on ';' + newline since pyodbc's default driver does not support
     multi-statement batches with a USE in the middle reliably across all
     ODBC driver versions; each statement is executed in order on the same
-    connection so USE takes effect for the statements that follow it."""
+    connection so USE takes effect for the statements that follow it.
+
+    That naive split would tear a BEGIN...END block (as used by
+    build_offline_create_plan's IF NOT EXISTS guards) apart into invalid
+    fragments, so plans of kind "create_if_missing" are refused here --
+    they're copy/paste-only, meant to be run as a single batch by the
+    operator's own tool (SSMS, sqlcmd), never through this function. There
+    is currently no route that would ever pass one to apply_plan(); this
+    is a second, structural guardrail in case that ever changes."""
+    if plan.kind == "create_if_missing":
+        raise SqlSetupError(
+            "This plan is generated for manual/offline use and cannot be run automatically."
+        )
     cursor = connection.cursor()
     for statement in _split_statements(plan.sql):
         cursor.execute(statement)
@@ -306,6 +450,7 @@ class CachedPlan:
     host: str
     instance: str
     database: str
+    login_name: str
     created_at: float
 
 
@@ -322,11 +467,18 @@ class PlanCache:
         self._ttl_seconds = ttl_seconds
         self._clock = clock
 
-    def store(self, plan: Plan, *, host: str, instance: str, database: str) -> str:
+    def store(
+        self, plan: Plan, *, host: str, instance: str, database: str, login_name: str = LOGIN_NAME
+    ) -> str:
         self._prune()
         plan_id = secrets.token_urlsafe(24)
         self._plans[plan_id] = CachedPlan(
-            plan=plan, host=host, instance=instance, database=database, created_at=self._clock()
+            plan=plan,
+            host=host,
+            instance=instance,
+            database=database,
+            login_name=login_name,
+            created_at=self._clock(),
         )
         return plan_id
 
@@ -345,7 +497,7 @@ class PlanCache:
             self._plans.pop(pid, None)
 
 
-def verify_login(connection: SupportsCursor) -> dict[str, Any]:
+def verify_login(connection: SupportsCursor, *, login_name: str = LOGIN_NAME) -> dict[str, Any]:
     """Reconnect as the new login (the caller opens `connection` using
     sql_auth_connection_string with the new credentials) and read one real
     row from Evt.Races -- proof the login works AND can actually read
@@ -359,9 +511,9 @@ def verify_login(connection: SupportsCursor) -> dict[str, Any]:
         cursor.execute("SELECT TOP 1 * FROM Evt.Races")
         row = cursor.fetchone()
     except Exception as exc:  # noqa: BLE001 - surfaced to the operator, not fatal to BBS
-        raise SqlSetupError(f"Connected as {LOGIN_NAME}, but reading Evt.Races failed: {exc}") from exc
+        raise SqlSetupError(f"Connected as {login_name}, but reading Evt.Races failed: {exc}") from exc
     return {
-        "login": LOGIN_NAME,
+        "login": login_name,
         "read_a_row_from": "Evt.Races",
         "row_found": row is not None,
     }
