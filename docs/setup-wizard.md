@@ -59,13 +59,30 @@ plainly and collapses this whole section to "already set up, nothing to
 do here," with a **Change this** link if you need to redo it. It doesn't
 walk you through creating an account you already have.
 
-Otherwise, there are three ways to finish. Pick whichever fits your
-situation -- they aren't ranked by difficulty for you, just by how much
-they ask BBS to do on its own.
+Otherwise, there are four ways to finish, in the order the page tries
+them -- least typing first. BBS detects what it can and only asks you for
+something once it actually needs it from you; it doesn't ask a question
+up front to decide which path to use.
 
-### Set it up automatically (the usual choice)
+### Set it up automatically (try this first)
 
-Enter:
+One button, no fields. Click **Set it up automatically** and BBS tries
+using its own Windows identity to connect to a SQL Server on this same
+computer. On a single-PC track -- one computer running RaceManager and
+everything else, the most common small-track setup -- this often just
+works, because the local SQL Server installation frequently already
+trusts that identity as an administrator. If it works, you're done and
+never typed anything.
+
+**If it doesn't work, that's normal, not an error.** The page says so
+calmly and reveals the next option below -- it commonly just means BBS is
+on a different computer than RaceManager's SQL Server, or this computer's
+identity isn't a SQL Server administrator here. Nothing is wrong, and
+nothing you need to fix before continuing.
+
+### Enter administrator credentials
+
+Shown once "Set it up automatically" doesn't pan out. Enter:
 
 - **Which computer runs RaceManager's database** -- leave this as
   `localhost` if BBS is installed on the same computer as RaceManager;
@@ -77,30 +94,34 @@ Enter:
   RaceManager likely does.
 
 Click **Set it up**. BBS connects as that administrator account over the
-network, checks it's actually able to create or manage logins (if not, it
-says so in plain language -- see "Set it up automatically" fails below,
-rather than surfacing a raw SQL Server error), creates `bbs_connector` (or
-resets its password if it's already there), verifies the result by
-reading a real row of race data, and saves it. **The administrator
-username and password are used once, for this one action, and then
-forgotten** -- never saved to disk, never written to a log, never shown
-back to you or anyone else.
+network -- this works whether BBS and RaceManager's SQL Server share a
+computer or not, since signing in with a username and password doesn't
+care where the two computers are, only that it can reach the server over
+the network. It checks the account is actually able to create or manage
+logins (if not, it says so in plain language rather than surfacing a raw
+SQL Server error), creates `bbs_connector` (or resets its password if
+it's already there), verifies the result by reading a real row of race
+data, and saves it. **The administrator username and password are used
+once, for this one action, and then forgotten** -- never saved to disk,
+never written to a log, never shown back to you or anyone else.
 
-This works the same way whether BBS and RaceManager's SQL Server are on
-the same computer or not -- unlike an earlier version of this wizard,
-there's no separate "different computer" question to answer here. Signing
-in with a username and password doesn't care where the two computers are;
-it only needs to be able to reach the server over the network.
-
-**If "Set it up automatically" fails:**
+**If "Enter administrator credentials" fails:**
 
 - *Couldn't connect* -- the address, username, or password was wrong.
   Double-check them (the exact technical error is shown underneath, in
   case you need to relay it to whoever manages the SQL Server).
+- *This SQL Server only accepts Windows logins* -- some SQL Servers are
+  configured to refuse a username-and-password sign-in entirely, no
+  matter what's typed in. BBS checks for this specifically (a real check
+  against the server, not a guess) and says so plainly if that's the
+  case, pointing at what does work instead: installing BBS on the same
+  computer as RaceManager's SQL Server (so "Set it up automatically" can
+  sign in with Windows instead), or "Prefer to have someone else run
+  this?" below, run by a Windows-authenticated administrator.
 - *Connected, but doesn't have permission* -- the account you used isn't
   a SQL Server administrator. Ask whoever administers it to grant that
   account "ALTER ANY LOGIN" (or make it a full administrator/"sysadmin"),
-  or use one of the other two options below instead.
+  or use one of the other options instead.
 
 ### Already have a working login for BBS to use?
 
@@ -143,15 +164,16 @@ Web protection or telling someone to pass `-ExecutionPolicy Bypass` --
 reintroducing exactly the kind of thing that got an earlier BBS release
 flagged as malware (see "Why this runs after install," below).
 
-### If BBS's own connection turns out to be a SQL Server administrator
+### BBS's day-to-day connection is always the read-only login
 
-Independent of all three options above: if `/api/setup/status` or
+Independent of all four options above: if `/api/setup/status` or
 `/diagnostics` shows BBS's *current* database connection succeeding, that
 connection is always `bbs_connector` -- read-only, by design, regardless
-of which of the three paths set it up. There's no ongoing administrator
-connection to worry about; the administrator credentials from "Set it up
-automatically" are only ever used for the single request that creates or
-resets the login.
+of which option set it up. There's no ongoing administrator connection to
+worry about either way: "Set it up automatically"'s one-time use of BBS's
+own Windows identity, and "Enter administrator credentials"'s one-time
+use of whatever account was typed in, both end the moment the login is
+created or reset and verified.
 
 ### Undoing this
 
@@ -192,8 +214,9 @@ operator, and neither appears in the wizard's normal UI:**
   service (WinSW re-reads its config on every start/restart; no reboot
   needed).
 - **A custom `login_name`** -- every SQL wizard endpoint
-  (`/api/setup/sql/admin-setup`, `/api/setup/sql/generate`,
-  `/api/setup/sql/verify-and-store`, `/api/setup/sql/cleanup`) accepts an
+  (`/api/setup/sql/auto-setup`, `/api/setup/sql/admin-setup`,
+  `/api/setup/sql/generate`, `/api/setup/sql/verify-and-store`,
+  `/api/setup/sql/cleanup`) accepts an
   optional `login_name` field, defaulting to `bbs_connector`. Passing a
   different name (for example, `bbs_connector_test`) lets you exercise
   the "create a login that doesn't exist yet" path and the cleanup path

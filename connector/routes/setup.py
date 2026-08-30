@@ -139,6 +139,13 @@ def _timeout(settings) -> int:
     return int(settings.sql_connect_timeout)
 
 
+def _parse_port(payload: dict[str, Any]) -> int | None:
+    try:
+        return int(payload["port"]) if payload.get("port") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _require_login_name(raw: str) -> str:
     """Validated immediately after extraction from the request, before any
     connection is attempted -- both so a bad login_name (the testing aid;
@@ -158,18 +165,120 @@ def sql_instances() -> dict[str, Any]:
     return {"detected": detected, "default": default}
 
 
+def _create_or_reset_login(
+    connection: Any, *, database: str, login_name: str
+) -> sql_setup.Plan | None:
+    """Shared by the automatic and admin-credentials paths once a
+    connection is open: checks the connected account can manage logins,
+    returning None rather than raising if not (each caller reports that
+    differently), then detects whether login_name already exists, builds
+    the matching plan, and runs it."""
+    if not sql_setup.check_login_management_rights(connection):
+        return None
+    existing = sql_setup.login_exists(connection, login_name)
+    plan = (
+        sql_setup.build_reset_password_plan(database=database, login_name=login_name)
+        if existing
+        else sql_setup.build_create_plan(database=database, login_name=login_name)
+    )
+    sql_setup.apply_plan(connection, plan)
+    return plan
+
+
+@router.post("/setup/sql/auto-setup")
+def sql_auto_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Option 1, tried first: free, and needs nothing typed. Tries BBS's
+    own Windows service identity against `localhost` -- on a single-PC
+    track (one computer running RaceManager and everything else, the most
+    common small-track setup), the SQL Server is local and that identity
+    is frequently already a sysadmin there, so this alone is often enough
+    to finish with one click and nothing typed.
+
+    If it can't connect, or connects but the account can't manage logins,
+    that is reported here as a normal outcome (never a 4xx/5xx) for the
+    page to fall through from calmly into asking for administrator
+    credentials instead (see sql_admin_setup) -- it does NOT mean
+    anything is wrong; it commonly just means BBS is on a different
+    computer than RaceManager's SQL Server, or that this computer's own
+    identity isn't a SQL Server administrator here.
+    """
+    host = str(payload.get("host") or "localhost").strip()
+    instance = str(payload.get("instance") or "").strip()
+    database = str(payload.get("database") or "RACE").strip()
+    port = _parse_port(payload)
+    login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
+
+    settings = get_settings()
+    connection_string = sql_setup.windows_auth_connection_string(
+        host=host, instance=instance, database=database, port=port
+    )
+    try:
+        connection = sql_setup.connect(connection_string, timeout=_timeout(settings))
+    except sql_setup.SqlSetupError:
+        return {"automatic": False, "reason": "could_not_connect"}
+
+    try:
+        plan = _create_or_reset_login(connection, database=database, login_name=login_name)
+        if plan is None:
+            return {"automatic": False, "reason": "insufficient_rights"}
+    except Exception:  # noqa: BLE001 - a normal, expected outcome to fall through from
+        return {"automatic": False, "reason": "setup_failed"}
+    finally:
+        connection.close()
+
+    result = _verify_and_store(
+        host=host,
+        instance=instance,
+        database_name=database,
+        password=plan.password,
+        login_name=login_name,
+        port=port,
+        settings=settings,
+    )
+    result["automatic"] = True
+    result["created"] = plan.kind == "create"
+    return result
+
+
+def _probe_mixed_mode_disabled(*, host: str, instance: str, database: str, port: int | None, settings) -> bool:
+    """Best-effort diagnostic, run only after a SQL-auth admin connection
+    attempt has already failed: tries a lightweight Windows-auth
+    connection (BBS's own service identity) solely to check whether
+    mixed-mode authentication is off, which would explain that failure
+    regardless of which SQL credentials were typed in -- retrying with
+    different admin credentials there would never work. Never used to
+    perform any setup work. If even this can't connect, or the property
+    can't be read, returns False (couldn't confirm -- the generic
+    connection-failure message is the honest one) rather than guessing
+    from the SQL-auth attempt's error text, which does not reliably
+    reveal the reason a login was refused."""
+    try:
+        diagnostic_connection = sql_setup.connect(
+            sql_setup.windows_auth_connection_string(
+                host=host, instance=instance, database=database, port=port
+            ),
+            timeout=_timeout(settings),
+        )
+    except sql_setup.SqlSetupError:
+        return False
+    try:
+        return sql_setup.integrated_security_only(diagnostic_connection) is True
+    except Exception:  # noqa: BLE001 - diagnostic only, never fatal
+        return False
+    finally:
+        diagnostic_connection.close()
+
+
 @router.post("/setup/sql/admin-setup")
 def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
-    """The primary path: the operator supplies a SQL Server
-    *administrator* login's username and password. BBS connects as that
-    account -- SQL authentication only; there is no way for pyodbc to
-    authenticate as an arbitrary Windows account from typed credentials,
-    so this is not offered as an option. This works identically whether
-    BBS and RaceManager's SQL Server share a computer or not, since SQL
-    authentication doesn't depend on machine identity the way Windows
-    authentication does -- unlike the old same-computer-only automatic
-    path this replaces, there is exactly one automatic path now, and it
-    works for both.
+    """Option 2, offered when option 1 (sql_auto_setup) didn't pan out:
+    the operator supplies a SQL Server *administrator* login's username
+    and password. BBS connects as that account -- SQL authentication
+    only; there is no way for pyodbc to authenticate as an arbitrary
+    Windows account from typed credentials, so this is not offered as an
+    option. Unlike option 1, this works whether BBS and RaceManager's SQL
+    Server share a computer or not, since SQL authentication doesn't
+    depend on machine identity the way Windows authentication does.
 
     The admin credentials are used only for this one request, held only
     in memory, and never appear in a log, a diagnostic, or a response --
@@ -181,6 +290,7 @@ def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     host = str(payload.get("host") or "").strip()
     instance = str(payload.get("instance") or "").strip()
     database = str(payload.get("database") or "RACE").strip()
+    port = _parse_port(payload)
     admin_user = str(payload.get("admin_user") or "").strip()
     admin_password = str(payload.get("admin_password") or "")
     login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
@@ -189,11 +299,23 @@ def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
 
     settings = get_settings()
     admin_connection_string = sql_setup.sql_auth_connection_string(
-        host=host, instance=instance, database=database, user=admin_user, password=admin_password
+        host=host, instance=instance, database=database, user=admin_user, password=admin_password, port=port
     )
     try:
         admin_connection = sql_setup.connect(admin_connection_string, timeout=_timeout(settings))
     except sql_setup.SqlSetupError as exc:
+        if _probe_mixed_mode_disabled(host=host, instance=instance, database=database, port=port, settings=settings):
+            raise HTTPException(
+                409,
+                {
+                    "message": "This SQL Server only accepts Windows logins, so BBS cannot "
+                    "create the account this way -- no username and password will work here. "
+                    "Either install BBS on the same computer as RaceManager's SQL Server (so "
+                    "the automatic option above can sign in with Windows instead), or use "
+                    "\"Prefer to have someone else run this?\" below and have your DBA run it "
+                    "as a Windows-authenticated administrator.",
+                },
+            ) from exc
         raise HTTPException(
             409,
             {
@@ -204,7 +326,8 @@ def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         ) from exc
 
     try:
-        if not sql_setup.check_login_management_rights(admin_connection):
+        plan = _create_or_reset_login(admin_connection, database=database, login_name=login_name)
+        if plan is None:
             raise HTTPException(
                 409,
                 {
@@ -214,13 +337,6 @@ def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
                     "sysadmin), or use one of the other options on this page instead.",
                 },
             )
-        existing = sql_setup.login_exists(admin_connection, login_name)
-        plan = (
-            sql_setup.build_reset_password_plan(database=database, login_name=login_name)
-            if existing
-            else sql_setup.build_create_plan(database=database, login_name=login_name)
-        )
-        sql_setup.apply_plan(admin_connection, plan)
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001 - surfaced to the operator, never fatal to BBS
@@ -236,9 +352,10 @@ def sql_admin_setup(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         database_name=database,
         password=plan.password,
         login_name=login_name,
+        port=port,
         settings=settings,
     )
-    result["created"] = not existing
+    result["created"] = plan.kind == "create"
     return result
 
 
@@ -287,6 +404,7 @@ def sql_verify_and_store(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     host = str(payload.get("host") or "").strip()
     instance = str(payload.get("instance") or "").strip()
     database_name = str(payload.get("database") or "RACE").strip()
+    port = _parse_port(payload)
     login_name = _require_login_name(str(payload.get("login_name") or sql_setup.LOGIN_NAME).strip())
     password = str(payload.get("password") or "")
     if not host or not password:
@@ -297,12 +415,14 @@ def sql_verify_and_store(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         database_name=database_name,
         password=password,
         login_name=login_name,
+        port=port,
         settings=get_settings(),
     )
 
 
 def _verify_and_store(
-    *, host: str, instance: str, database_name: str, password: str, login_name: str, settings
+    *, host: str, instance: str, database_name: str, password: str, login_name: str,
+    port: int | None = None, settings,
 ) -> dict[str, Any]:
     connection_string = sql_setup.sql_auth_connection_string(
         host=host,
@@ -310,6 +430,7 @@ def _verify_and_store(
         database=database_name,
         user=login_name,
         password=password,
+        port=port,
     )
     try:
         connection = sql_setup.connect(connection_string, timeout=_timeout(settings))
@@ -420,11 +541,20 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
   </div>
 
   <div id="sql-full-section">
-    <p class="muted">BBS needs its own way to read race data from RaceManager -- separate from your own login, and unable to change anything. Pick one:</p>
+    <p class="muted">BBS needs its own way to read race data from RaceManager -- separate from your own login, and unable to change anything. BBS will try the easiest option first and only ask for more if it needs to.</p>
 
-    <div class="option" id="admin-setup-option">
+    <div class="option" id="auto-setup-option">
       <h3>Set it up automatically</h3>
-      <p class="muted">Enter the username and password for a SQL Server <b>administrator</b> account -- not <code>bbs_connector</code>, and not your own Windows login. BBS uses it once to set everything up.</p>
+      <p class="muted">If BBS is installed on the same computer as RaceManager, this often works with nothing else needed.</p>
+      <div class="row" style="margin-top:10px">
+        <button id="auto-setup-btn">Set it up automatically</button>
+        <span id="auto-setup-msg" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="option" id="admin-setup-option" style="display:none">
+      <h3>Enter administrator credentials</h3>
+      <p class="muted" id="admin-setup-intro">Enter the username and password for a SQL Server <b>administrator</b> account -- not <code>bbs_connector</code>, and not your own Windows login. BBS uses it once to set everything up.</p>
       <label class="field">Which computer runs RaceManager's database?</label>
       <input id="admin-host" value="localhost">
       <p class="fieldhelp">If BBS is installed on the same computer as RaceManager, leave this as <code>localhost</code>. Otherwise, enter that computer's name or address.</p>
@@ -437,6 +567,8 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
         <label class="field">Database instance name</label>
         <input id="admin-instance" list="admin-instance-list">
         <datalist id="admin-instance-list"></datalist>
+        <label class="field">TCP port (leave blank unless you were given one -- an instance name above takes priority over this)</label>
+        <input id="admin-port" type="number">
         <label class="field">Database name</label>
         <input id="admin-database" value="RACE">
       </details>
@@ -455,6 +587,8 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
         <details style="margin-top:8px"><summary class="muted">Advanced</summary>
           <label class="field">Database instance name</label>
           <input id="verify-instance">
+          <label class="field">TCP port (leave blank unless you were given one -- an instance name above takes priority over this)</label>
+          <input id="verify-port" type="number">
           <label class="field">Database name</label>
           <input id="verify-database" value="RACE">
         </details>
@@ -587,12 +721,27 @@ async function loadInstances(){
   document.querySelector('#admin-instance-list').innerHTML=d.detected.map(i=>'<option value="'+esc(i)+'">').join('');
 }
 
+document.querySelector('#auto-setup-btn').addEventListener('click', async ()=>{
+  const msg=document.querySelector('#auto-setup-msg');
+  msg.textContent='Trying...'; msg.className='muted';
+  const r=await fetch('/api/setup/sql/auto-setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+  const d=await r.json();
+  if(r.ok && d.automatic){
+    msg.textContent=(d.created?'Done. Created a new login and BBS is now reading RaceManager as it.':'Done. Reset the existing login and BBS is now reading RaceManager as it.');
+    loadStatus();
+    return;
+  }
+  msg.textContent="Couldn't set this up automatically -- that's normal, and doesn't mean anything is wrong. Enter administrator credentials below instead.";
+  document.querySelector('#admin-setup-option').style.display='block';
+});
+
 document.querySelector('#admin-setup-btn').addEventListener('click', async ()=>{
   const msg=document.querySelector('#admin-setup-msg');
   msg.textContent='Working...'; msg.className='muted';
   const body={
     host: document.querySelector('#admin-host').value.trim(),
     instance: document.querySelector('#admin-instance').value.trim(),
+    port: document.querySelector('#admin-port').value.trim(),
     database: document.querySelector('#admin-database').value.trim()||'RACE',
     admin_user: document.querySelector('#admin-user').value.trim(),
     admin_password: document.querySelector('#admin-password').value,
@@ -612,6 +761,7 @@ document.querySelector('#verify-btn').addEventListener('click', async ()=>{
   const body={
     host: document.querySelector('#verify-host').value.trim(),
     instance: document.querySelector('#verify-instance').value.trim(),
+    port: document.querySelector('#verify-port').value.trim(),
     database: document.querySelector('#verify-database').value.trim()||'RACE',
     password: document.querySelector('#verify-password').value,
   };

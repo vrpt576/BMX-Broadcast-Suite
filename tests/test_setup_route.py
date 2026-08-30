@@ -216,7 +216,7 @@ def test_instances_prefers_a_detected_instance(monkeypatch: pytest.MonkeyPatch) 
 
 
 # ---------------------------------------------------------------------------
-# POST /api/setup/sql/admin-setup -- the primary path
+# POST /api/setup/sql/auto-setup -- option 1, tried first: free, no fields
 # ---------------------------------------------------------------------------
 
 
@@ -240,6 +240,129 @@ class FakeSqlConnection:
 
     def commit(self):
         pass
+
+
+def test_auto_setup_succeeds_with_no_fields_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The whole point: nothing typed, one call, done."""
+    windows_connection = FakeSqlConnection(script=[(1,), None])
+    verify_connection = FakeSqlConnection(script=[(1, "a", "row")])
+    connections = iter([windows_connection, verify_connection])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5: next(connections))
+    saved = {}
+    monkeypatch.setattr(
+        setup_route.ConfigurationService, "save", lambda self, values: saved.update(values)
+    )
+
+    response = client.post("/api/setup/sql/auto-setup", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["automatic"] is True
+    assert body["created"] is True
+    assert body["verified"] is True
+    assert "CREATE LOGIN" in " ".join(windows_connection.executed)
+    assert saved["sql_user"] == "bbs_connector"
+    assert saved["sql_host"] == "localhost"  # the zero-typing default
+
+
+def test_auto_setup_defaults_to_localhost_but_accepts_an_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_connection_strings = []
+
+    def fake_connect(cs, timeout=5):
+        seen_connection_strings.append(cs)
+        raise sql_setup.SqlSetupError("no such host")
+
+    monkeypatch.setattr(sql_setup, "connect", fake_connect)
+
+    client.post("/api/setup/sql/auto-setup", json={"host": "some-other-host"})
+
+    assert "SERVER=some-other-host" in seen_connection_strings[0]
+
+
+def test_auto_setup_reports_could_not_connect_as_a_normal_200_not_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Falling through from option 1 is an expected, common outcome (a
+    different-computer topology, or a Windows identity without rights) --
+    never a 4xx/5xx that the page would have to treat as an error."""
+
+    def boom(cs, timeout=5):
+        raise sql_setup.SqlSetupError("no route to host")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post("/api/setup/sql/auto-setup", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["automatic"] is False
+    assert body["reason"] == "could_not_connect"
+
+
+def test_auto_setup_reports_insufficient_rights_as_a_normal_200(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connection = FakeSqlConnection(script=[(0,)])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5: connection)
+
+    response = client.post("/api/setup/sql/auto-setup", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["automatic"] is False
+    assert body["reason"] == "insufficient_rights"
+    assert connection.closed is True
+
+
+def test_auto_setup_resets_the_password_when_the_login_already_exists(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    windows_connection = FakeSqlConnection(script=[(1,), ("bbs_connector",)])
+    verify_connection = FakeSqlConnection(script=[(1, "a", "row")])
+    connections = iter([windows_connection, verify_connection])
+    monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5: next(connections))
+    monkeypatch.setattr(setup_route.ConfigurationService, "save", lambda self, values: None)
+
+    response = client.post("/api/setup/sql/auto-setup", json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created"] is False
+    assert "ALTER LOGIN" in " ".join(windows_connection.executed)
+
+
+def test_auto_setup_honors_a_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_connection_strings = []
+
+    def fake_connect(cs, timeout=5):
+        seen_connection_strings.append(cs)
+        raise sql_setup.SqlSetupError("no such host")
+
+    monkeypatch.setattr(sql_setup, "connect", fake_connect)
+
+    client.post("/api/setup/sql/auto-setup", json={"host": "100.69.100.33", "port": 49947})
+
+    assert "SERVER=100.69.100.33,49947" in seen_connection_strings[0]
+
+
+def test_auto_setup_rejects_a_malicious_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(*args, **kwargs):
+        raise AssertionError("must not attempt a connection for an invalid login_name")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/auto-setup", json={"login_name": "bbs_connector]; DROP LOGIN [sa"}
+    )
+
+    assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# POST /api/setup/sql/admin-setup -- option 2, offered when option 1 fails
+# ---------------------------------------------------------------------------
 
 
 def test_admin_setup_requires_all_fields() -> None:
@@ -313,6 +436,75 @@ def test_admin_setup_reports_a_bad_admin_login_plainly_without_a_raw_500(
     detail = response.json()["detail"]
     assert "sa" in detail["message"]
     assert "Login failed" in detail["technical_detail"]
+
+
+def test_admin_setup_detects_mixed_mode_disabled_via_a_diagnostic_windows_auth_reconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The failure text from a rejected SQL-auth attempt does not reliably
+    say *why* -- confirm the plain "this server only accepts Windows
+    logins" message is backed by an actual diagnostic query, not a guess
+    from the SQL-auth error string."""
+    windows_probe_connection = FakeSqlConnection(script=[(1,)])
+
+    def fake_connect(cs, timeout=5):
+        if "Trusted_Connection=yes" in cs:
+            return windows_probe_connection
+        raise sql_setup.SqlSetupError("Login failed for user 'sa'.")
+
+    monkeypatch.setattr(sql_setup, "connect", fake_connect)
+
+    response = client.post(
+        "/api/setup/sql/admin-setup",
+        json={"host": "localhost", "admin_user": "sa", "admin_password": "x"},
+    )
+
+    assert response.status_code == 409
+    message = response.json()["detail"]["message"]
+    assert "only accepts Windows logins" in message
+    # Points at the two things that do work instead.
+    assert "same computer" in message
+    assert "DBA" in message
+    assert windows_probe_connection.closed is True
+
+
+def test_admin_setup_falls_back_to_the_generic_message_when_the_diagnostic_also_cannot_connect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If even the Windows-auth diagnostic can't reach the server, nothing
+    can be confirmed -- the generic message is the honest one, not a
+    guess either way."""
+
+    def boom(cs, timeout=5):
+        raise sql_setup.SqlSetupError("no route to host")
+
+    monkeypatch.setattr(sql_setup, "connect", boom)
+
+    response = client.post(
+        "/api/setup/sql/admin-setup",
+        json={"host": "localhost", "admin_user": "sa", "admin_password": "x"},
+    )
+
+    detail = response.json()["detail"]
+    assert "only accepts Windows logins" not in detail["message"]
+    assert "technical_detail" in detail
+
+
+def test_admin_setup_honors_a_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_connection_strings = []
+
+    def fake_connect(cs, timeout=5):
+        seen_connection_strings.append(cs)
+        raise sql_setup.SqlSetupError("no route to host")
+
+    monkeypatch.setattr(sql_setup, "connect", fake_connect)
+
+    client.post(
+        "/api/setup/sql/admin-setup",
+        json={"host": "100.69.100.33", "port": 49947, "admin_user": "sa", "admin_password": "x"},
+    )
+
+    assert "SERVER=100.69.100.33,49947" in seen_connection_strings[0]
 
 
 def test_admin_setup_refuses_plainly_when_the_admin_account_cannot_manage_logins(
@@ -498,6 +690,23 @@ def test_verify_and_store_reports_a_bad_password_without_saving_anything(
     assert "Login failed" in response.json()["detail"]["technical_detail"]
 
 
+def test_verify_and_store_honors_a_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen_connection_strings = []
+
+    def fake_connect(cs, timeout=5):
+        seen_connection_strings.append(cs)
+        raise sql_setup.SqlSetupError("no route to host")
+
+    monkeypatch.setattr(sql_setup, "connect", fake_connect)
+
+    client.post(
+        "/api/setup/sql/verify-and-store",
+        json={"host": "100.69.100.33", "port": 49947, "password": "x"},
+    )
+
+    assert "SERVER=100.69.100.33,49947" in seen_connection_strings[0]
+
+
 def test_verify_and_store_honors_a_custom_login_name(monkeypatch: pytest.MonkeyPatch) -> None:
     connection = FakeSqlConnection(script=[(1, "row")])
     monkeypatch.setattr(sql_setup, "connect", lambda cs, timeout=5: connection)
@@ -585,12 +794,31 @@ def test_the_page_never_echoes_a_password_placeholder_in_a_way_thats_pre_filled(
         assert "value=" not in section
 
 
-def test_the_page_offers_all_three_paths() -> None:
+def test_the_page_offers_all_four_paths_least_typing_first() -> None:
     response = client.get("/setup")
     body = response.text
-    assert "Set it up automatically" in body
-    assert "Already have a working login for BBS to use?" in body
-    assert "Prefer to have someone else run this?" in body
+    auto_at = body.index("Set it up automatically")
+    admin_at = body.index("Enter administrator credentials")
+    verify_at = body.index("Already have a working login for BBS to use?")
+    dba_at = body.index("Prefer to have someone else run this?")
+    assert auto_at < admin_at < verify_at < dba_at
+
+
+def test_the_automatic_option_has_no_input_fields() -> None:
+    """"No fields, one button" -- confirm there's genuinely nothing to
+    type for the free, first-tried option."""
+    response = client.get("/setup")
+    section = response.text.split('id="auto-setup-option"')[1].split('id="admin-setup-option"')[0]
+    assert "<input" not in section
+
+
+def test_the_page_hides_the_admin_credentials_form_until_the_automatic_attempt_is_tried() -> None:
+    """Item 1's whole point: no fields, one button, shown first -- the
+    credentialed form only appears after that one is tried and doesn't
+    pan out, never as the default state."""
+    response = client.get("/setup")
+    section = response.text.split('id="admin-setup-option"')[1].split(">")[0]
+    assert 'style="display:none"' in section
 
 
 def test_the_page_never_generates_a_powershell_script() -> None:
