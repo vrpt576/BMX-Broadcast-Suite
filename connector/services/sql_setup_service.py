@@ -19,25 +19,38 @@ connect callable, never opens one from a hardcoded identity -- see
 connector/routes/setup.py, which decides which credentials to connect
 with in each case.
 
-Three ways an operator gets `bbs_connector` set up (see
-connector/routes/setup.py and docs/setup-wizard.md for the full picture):
+Four ways an operator gets `bbs_connector` set up, tried in this order --
+least typing first, and each one only asks for something the previous
+one couldn't get for free (see connector/routes/setup.py and
+docs/setup-wizard.md for the full picture):
 
-1. Guided, with admin credentials (the primary path, works regardless of
-   whether BBS and RaceManager's SQL Server share a computer): the
-   operator types a SQL Server *administrator* login's username and
-   password into the Setup page. BBS connects as that account over SQL
-   authentication -- the only kind pyodbc can do with typed credentials;
-   there is no way to hand it a Windows account and a password and have
-   it authenticate as that arbitrary user -- checks it can actually
-   manage logins (check_login_management_rights()), creates or resets
-   bbs_connector, verifies it, saves it, and never persists, logs, or
-   echoes the admin credentials anywhere. See connector/routes/setup.py's
-   sql_admin_setup().
-2. "I already have the password": the operator already has a working
+1. Automatically, with no fields at all (sql_auto_setup() in
+   connector/routes/setup.py): tries BBS's own Windows service identity
+   against `localhost` -- free, and on a single-PC track (the most
+   common small-track setup, where the SQL Server is local and
+   LocalSystem is often already a sysadmin there) it just works with one
+   click and nothing typed. If it can't connect, or connects but can't
+   manage logins, that's reported as a normal outcome to fall through
+   from, not an error -- see run_windows_auth_attempt().
+2. Guided, with admin credentials (works regardless of whether BBS and
+   RaceManager's SQL Server share a computer): the operator types a SQL
+   Server *administrator* login's username and password. BBS connects as
+   that account over SQL authentication -- the only kind pyodbc can do
+   with typed credentials; there is no way to hand it a Windows account
+   and a password and have it authenticate as that arbitrary user --
+   checks it can actually manage logins (check_login_management_rights()),
+   creates or resets bbs_connector, verifies it, saves it, and never
+   persists, logs, or echoes the admin credentials anywhere. See
+   sql_admin_setup(). If even *this* connection fails, and a lightweight
+   diagnostic reconnect with BBS's own Windows identity confirms mixed-
+   mode authentication is off, that's reported plainly too (see
+   integrated_security_only()) -- retrying with different SQL credentials
+   there would never work no matter what's typed in.
+3. "I already have the password": the operator already has a working
    bbs_connector (or equivalent) login and just wants BBS to use it. No
    SQL runs at all -- see verify_login() and connector/routes/setup.py's
    sql_verify_and_store().
-3. Copy the SQL for someone else to run (build_create_plan()/
+4. Copy the SQL for someone else to run (build_create_plan()/
    build_offline_create_plan()/build_reset_password_plan()/
    build_cleanup_sql()): the last-resort path for a track with its own
    DBA. Nothing here ever assumes the person running it is anyone in
@@ -144,6 +157,20 @@ def _odbc_brace(value: str) -> str:
     return "{" + value.replace("}", "}}") + "}"
 
 
+def _server_address(*, host: str, instance: str = "", port: int | None = None) -> str:
+    """A named instance takes precedence over an explicit port, which
+    takes precedence over a bare host -- matches connector/config.py's
+    own Settings.sql_server, so a track whose RaceManager SQL Server has
+    no named instance and listens on a non-default port (this project's
+    own reference deployment does) can be reached the same way here as
+    BBS's day-to-day connection already reaches it."""
+    if instance:
+        return f"{host}\\{instance}"
+    if port:
+        return f"{host},{port}"
+    return host
+
+
 def sql_auth_connection_string(
     *,
     host: str,
@@ -151,12 +178,28 @@ def sql_auth_connection_string(
     database: str,
     user: str,
     password: str,
+    port: int | None = None,
     driver: str = "ODBC Driver 18 for SQL Server",
 ) -> str:
-    server = f"{host}\\{instance}" if instance else host
+    server = _server_address(host=host, instance=instance, port=port)
     return (
         f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};"
         f"UID={_odbc_brace(user)};PWD={_odbc_brace(password)};Encrypt=yes;TrustServerCertificate=yes;"
+    )
+
+
+def windows_auth_connection_string(
+    *, host: str, instance: str, database: str, port: int | None = None, driver: str = "ODBC Driver 18 for SQL Server"
+) -> str:
+    """For the free, zero-typing automatic attempt (BBS's own Windows
+    service identity) and for the mixed-mode diagnostic reconnect in
+    connector/routes/setup.py -- never for anything that needs a
+    specific, arbitrary identity, since this only ever connects as
+    whoever BBS's own process is running as."""
+    server = _server_address(host=host, instance=instance, port=port)
+    return (
+        f"DRIVER={{{driver}}};SERVER={server};DATABASE={database};"
+        "Trusted_Connection=yes;Encrypt=yes;TrustServerCertificate=yes;"
     )
 
 
@@ -257,6 +300,23 @@ def check_login_management_rights(connection: SupportsCursor) -> bool:
     )
     row = cursor.fetchone()
     return bool(row[0]) if row is not None and row[0] is not None else False
+
+
+def integrated_security_only(connection: SupportsCursor) -> bool | None:
+    """Whether this SQL Server accepts Windows logins only -- SQL
+    authentication (a username and password, the only kind pyodbc can
+    connect with from typed credentials) is refused outright regardless
+    of which account is used. Used as a diagnostic after a SQL-auth admin
+    connection attempt has already failed, over a separate Windows-auth
+    connection (see connector/routes/setup.py), to tell that apart from a
+    simply wrong username or password -- retrying with different SQL
+    credentials would never work here no matter what's typed in. Returns
+    None if the property can't be read, which the caller should treat as
+    "can't tell," not as a negative answer."""
+    cursor = connection.cursor()
+    cursor.execute("SELECT SERVERPROPERTY('IsIntegratedSecurityOnly') AS v")
+    row = cursor.fetchone()
+    return bool(row[0]) if row is not None and row[0] is not None else None
 
 
 @dataclass(frozen=True)

@@ -150,6 +150,31 @@ def test_sql_auth_connection_string_without_an_instance() -> None:
     assert "SERVER=sql.example;" in cs
 
 
+def test_sql_auth_connection_string_uses_a_port_when_no_instance_is_given() -> None:
+    """This project's own reference RaceManager deployment has no named
+    instance and listens on a non-default port -- the same shape
+    connector/config.py's Settings.sql_server already handles for BBS's
+    day-to-day connection."""
+    cs = svc.sql_auth_connection_string(
+        host="100.69.100.33", instance="", database="RACE", user="bbs_connector", password="x", port=49947
+    )
+    assert "SERVER=100.69.100.33,49947;" in cs
+
+
+def test_sql_auth_connection_string_instance_takes_priority_over_port() -> None:
+    cs = svc.sql_auth_connection_string(
+        host="sql.example", instance="USABMX", database="RACE", user="bbs_connector", password="x", port=1433
+    )
+    assert "SERVER=sql.example\\USABMX;" in cs
+
+
+def test_windows_auth_connection_string_uses_a_port_when_no_instance_is_given() -> None:
+    cs = svc.windows_auth_connection_string(host="100.69.100.33", instance="", database="RACE", port=49947)
+    assert "SERVER=100.69.100.33,49947;" in cs
+    assert "Trusted_Connection=yes" in cs
+    assert "PWD=" not in cs
+
+
 def test_sql_auth_connection_string_accepts_an_unusual_but_legitimate_admin_username() -> None:
     """The `user` parameter is also used for a SQL Server administrator
     account -- someone else's DBA may have named it anything, and it must
@@ -370,6 +395,26 @@ def test_check_login_management_rights_never_touches_anything() -> None:
     svc.check_login_management_rights(connection)
     for sql, _params in connection.executed:
         assert sql.strip().upper().startswith("SELECT")
+
+
+# ---------------------------------------------------------------------------
+# integrated_security_only -- the mixed-mode-off diagnostic
+# ---------------------------------------------------------------------------
+
+
+def test_integrated_security_only_true_when_mixed_mode_is_off() -> None:
+    connection = FakeConnection(script=[(1,)])
+    assert svc.integrated_security_only(connection) is True
+
+
+def test_integrated_security_only_false_when_mixed_mode_is_on() -> None:
+    connection = FakeConnection(script=[(0,)])
+    assert svc.integrated_security_only(connection) is False
+
+
+def test_integrated_security_only_none_when_it_cannot_be_determined() -> None:
+    connection = FakeConnection(script=[None])
+    assert svc.integrated_security_only(connection) is None
 
 
 # ---------------------------------------------------------------------------

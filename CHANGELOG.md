@@ -125,27 +125,39 @@ new tracks setting up BBS for the first time will do anyway.
     to hand someone whose job is running a BMX track. If BBS is already
     connected and reading RaceManager, the page says so plainly and
     collapses to "nothing to do here" instead of walking through account
-    creation regardless. Otherwise there are three ways to finish, most
-    automated first:
-    1. **Set it up automatically** -- the operator types a SQL Server
-       *administrator* account's username and password (SQL
-       authentication only; there's no way for pyodbc to authenticate as
-       an arbitrary Windows account from typed credentials). BBS connects
-       as that account over the network and does the rest itself: checks
-       it can actually manage logins (a plain-language refusal if not,
-       never a raw SQL Server permission error), creates the login or
-       resets its password if one already exists, verifies it by reading
-       a real row from RaceManager, saves it, and forgets the admin
-       credentials -- never persisted, logged, or echoed back. Works
-       identically whether BBS and RaceManager's SQL Server share a
-       computer or not, since SQL authentication doesn't depend on
-       machine identity the way the Windows-authentication automatic
-       path in the previous iteration of this wizard did -- that path is
-       gone, replaced by this one as the primary route for both.
-    2. **Already have a working login** -- for when the login already
+    creation regardless. Otherwise there are four ways to finish, tried
+    in this order -- least typing first, and each one only asks for
+    something the previous one couldn't get for free:
+    1. **Set it up automatically** -- one click, no fields. Tries BBS's
+       own Windows service identity against `localhost`; on a single-PC
+       track (one computer running RaceManager and everything else, the
+       most common small-track setup) the local SQL Server frequently
+       already trusts that identity as an administrator, so this alone
+       finishes the job with nothing typed. If it can't connect, or
+       connects but can't manage logins, the page says so calmly and
+       falls through to the next option -- that's a normal, expected
+       outcome for many setups (most trackside broadcast PCs are a
+       separate computer from RaceManager), not an error.
+    2. **Enter administrator credentials** -- shown once option 1 doesn't
+       pan out. The operator types a SQL Server *administrator* account's
+       username and password (SQL authentication only; there's no way
+       for pyodbc to authenticate as an arbitrary Windows account from
+       typed credentials). BBS connects as that account over the network
+       and does the rest itself: checks it can actually manage logins (a
+       plain-language refusal if not, never a raw SQL Server permission
+       error), creates the login or resets its password if one already
+       exists, verifies it by reading a real row from RaceManager, saves
+       it, and forgets the admin credentials -- never persisted, logged,
+       or echoed back. Works whether BBS and RaceManager's SQL Server
+       share a computer or not. If even this connection fails, a
+       lightweight diagnostic reconnect using BBS's own Windows identity
+       checks whether the SQL Server accepts SQL logins at all, and says
+       so plainly if not -- retyping different credentials there would
+       never work no matter what.
+    3. **Already have a working login** -- for when the login already
        exists and works and nothing needs to change; verifies it by
        reading a real row and saves it, with no SQL run at all.
-    3. **Hand it to someone else** -- generates a reviewable,
+    4. **Hand it to someone else** -- generates a reviewable,
        `IF NOT EXISTS`-guarded script for a track's own DBA or IT
        support, with the required permission stated up front (a SQL
        Server administrator; signing in as `bbs_connector` itself will
