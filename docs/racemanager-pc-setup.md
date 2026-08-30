@@ -4,6 +4,12 @@ This guide changes SQL Server network and login configuration only. It does **no
 
 Perform the initial setup outside active registration or racing whenever possible.
 
+**Installing BBS itself for the first time?** Running its installer shows
+Windows' "Windows protected your PC" screen first -- this build isn't
+signed with a paid code-signing certificate, so SmartScreen doesn't
+recognize the publisher yet. Click **More info**, then **Run anyway** to
+continue; it isn't a sign anything is wrong with the file.
+
 **Start with `/setup` instead, if you can.** BBS's built-in Setup wizard
 (open it from the tray, from `/diagnostics`, or go directly to
 `http://127.0.0.1:8000/setup`) automates most of this document -- see
