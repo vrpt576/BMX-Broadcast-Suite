@@ -11,7 +11,6 @@ from connector.services.motoboard_service import MotoboardService
 from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
-from connector.services.sql_setup_service import PlanCache
 from connector.services.sqorz_class_alias_service import SqorzClassAliasStore
 from connector.services.sqorz_service import SqorzService
 
@@ -82,11 +81,6 @@ def get_sqorz_service() -> SqorzService:
 @lru_cache
 def get_sqorz_class_alias_store() -> SqorzClassAliasStore:
     return SqorzClassAliasStore(get_settings().sqorz_class_alias_file)
-
-
-@lru_cache
-def get_sql_wizard_plan_cache() -> PlanCache:
-    return PlanCache()
 
 
 def get_current_lineup_service() -> CurrentLineupService:

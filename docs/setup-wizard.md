@@ -1,19 +1,18 @@
 # The Setup Wizard
 
+`/setup` is the page BBS wants you to land on right after installing it.
+It exists so a track that has never used BBS before can get RaceManager
+connected without anyone needing to know what SQL Server is, let alone
+write any of it.
+
+Open it from the Windows tray ("Open Setup"), from a link on
+`/diagnostics`, or directly at `http://127.0.0.1:8000/setup`.
+
 **Before you get here:** running the BBS installer shows Windows'
 "Windows protected your PC" screen first. This build isn't signed with a
 paid code-signing certificate, so SmartScreen doesn't recognize the
 publisher yet -- click **More info**, then **Run anyway** to continue. It
 isn't a sign anything is wrong with the file.
-
-`/setup` is the page BBS wants you to land on right after installing it.
-It exists so a track that has never used BBS before can get RaceManager
-connected without installing anything by hand or writing any SQL
-themselves -- and so a track that prefers to do those things by hand still
-can, with BBS showing exactly what it would have run.
-
-Open it from the Windows tray ("Open Setup"), from a link on
-`/diagnostics`, or directly at `http://127.0.0.1:8000/setup`.
 
 **It only ever works from the BBS computer itself** -- not from another
 computer on your network, even with a remote-admin token configured. It
@@ -25,14 +24,14 @@ something a token can authorize remotely. See
 
 One page, four things, each with a way to fix it if something's wrong:
 
-- **ODBC driver** -- the piece of software that lets BBS talk to SQL
-  Server at all.
+- **SQL Server driver** -- the piece of software that lets BBS talk to
+  RaceManager's database at all.
 - **Database connection** -- can BBS actually log in.
 - **RaceManager data** -- once connected, can BBS read a real event.
 - **Sqorz live timing** -- optional; see
   [Sqorz Live Timing](sqorz-live-timing.md) if your track uses it.
 
-## Step 1: the ODBC driver
+## Step 1: the SQL Server driver
 
 If BBS reports the driver missing, the page offers two ways to install it,
 both requiring you to check a box confirming you've reviewed
@@ -49,129 +48,110 @@ directly from the page) first:
 Either way, BBS runs the real Microsoft installer silently in the
 background and re-checks itself afterward.
 
-## Step 2: the read-only RaceManager account
+## Step 2: connect BBS to RaceManager
 
-This creates a SQL Server login named `bbs_connector` with exactly one
-permission -- read-only access to the `RACE` database (`db_datareader`).
-It can never write to RaceManager, and BBS never asks for more than that.
+This creates a login named `bbs_connector` that can only *read*
+RaceManager's data -- it can never change anything. Once it's set up, BBS
+uses it, not an administrator account, for everything it does day to day.
 
-**The first thing the page asks is whether BBS is installed on the same
-computer as RaceManager's SQL Server.** That answer decides which of two
-different setup paths you'll use -- it isn't a formality:
+**If BBS is already connected and reading RaceManager**, the page says so
+plainly and collapses this whole section to "already set up, nothing to
+do here," with a **Change this** link if you need to redo it. It doesn't
+walk you through creating an account you already have.
 
-- BBS's Windows Service runs as `LocalSystem` by default, not as whichever
-  operator is logged in. When BBS and RaceManager share a computer, that's
-  usually still enough to connect with your own administrator rights
-  behind the scenes. When BBS reaches RaceManager's SQL Server over a
-  network -- a dedicated broadcast PC, a laptop on Tailscale, anything not
-  physically the RaceManager machine -- the connection authenticates as
-  the *computer account* instead, which essentially never has SQL Server
-  admin rights.
-- A dedicated broadcast PC is the setup these docs themselves recommend
-  (see [Prepare the RaceManager PC](racemanager-pc-setup.md)), so **the
-  "different computer" path below is not an edge case** -- for many
-  tracks it's the normal one.
+Otherwise, there are three ways to finish. Pick whichever fits your
+situation -- they aren't ranked by difficulty for you, just by how much
+they ask BBS to do on its own.
 
-### Path A: BBS is on the same computer as RaceManager
+### Set it up automatically (the usual choice)
 
-1. Choose **"Yes, same computer"** on the Setup page.
-2. **Enter the SQL Server host and instance.** Leave the host as
-   `localhost` -- BBS looks up the real instance name for you (usually
-   `USABMX`) and pre-fills it.
-3. **Click "Check connection automatically."** BBS attempts to connect
-   using its own Windows identity. If it works, it reports, in plain
-   language, anything that would still block creating the account:
-   - **Mixed-mode authentication is off.** A SQL login can't be created
-     until this is turned on, which needs a SQL Server restart -- BBS
-     will tell you this and will not do it for you, because restarting
-     SQL Server while racing is happening is exactly the kind of thing
-     that shouldn't happen automatically. Fix it (SSMS: right-click the
-     server -> Properties -> Security -> "SQL Server and Windows
-     Authentication mode"), restart SQL Server during a break in racing,
-     then come back.
-   - **BBS can't reach it over the network.** Also reported, also not
-     fixed automatically -- see
-     [Prepare the RaceManager PC](racemanager-pc-setup.md) for enabling
-     TCP/IP and opening a firewall rule.
-4. **If it can't connect automatically, that's not a failure to recover
-   from.** It just means BBS's service identity doesn't have SQL Server
-   admin rights on this machine either -- the page falls through to the
-   same "Generate the SQL" flow as Path B, described below.
-5. **If it does connect**, review the exact SQL BBS is about to run --
-   `CREATE LOGIN`, `CREATE USER`, `ALTER ROLE db_datareader` -- with a
-   real, randomly generated password already filled in. Nothing has run
-   yet. Then either:
-   - **"Run it for me"** -- BBS runs exactly the SQL you just reviewed,
-     then reconnects *as the new account* and reads a real row from
-     RaceManager to prove the account actually works (not just that the
-     `CREATE` statements didn't error), then saves the credentials into
-     BBS's own configuration.
-   - **Copy it and run it yourself** in SSMS or `sqlcmd`, then paste the
-     password back (see "Verifying and saving," below).
+Enter:
 
-### Path B: BBS is on a different computer than RaceManager
+- **Which computer runs RaceManager's database** -- leave this as
+  `localhost` if BBS is installed on the same computer as RaceManager;
+  otherwise enter that computer's name or address.
+- **A SQL Server administrator's username and password.** This is not
+  `bbs_connector`, and it is not your own Windows login -- it's whichever
+  account your RaceManager software (or whoever set it up) uses to
+  administer the database itself. If you don't know it, whoever installed
+  RaceManager likely does.
 
-1. Choose **"No, a different computer"** on the Setup page.
-2. **Enter the SQL Server's hostname or IP** -- the RaceManager machine's
-   address, not BBS's own (the page clears the `localhost` default and
-   prompts for this once you pick this path, since `localhost` here would
-   point BBS at itself).
-3. **Click "Generate the SQL."** BBS does not attempt to connect -- there
-   is nothing to check, since it doesn't expect to have rights here. It
-   produces a script that safely creates `bbs_connector` only if it
-   doesn't already exist (guarded with `IF NOT EXISTS`, so running it
-   against an account that's already there changes nothing). If you
-   already know the login exists and want to rotate its password instead,
-   check **"This login already exists -- generate a password reset
-   instead"** first.
-4. **Copy the SQL** and hand it to whoever administers that SQL Server --
-   yourself in SSMS or `sqlcmd`, or your track's own DBA. There is no
-   "Run it for me" for this path; BBS genuinely cannot reach that server
-   with enough privilege to run it, so review-and-copy is the only option,
-   not a lesser one.
-5. Once it's been run, paste the password back (see "Verifying and
-   saving," below).
+Click **Set it up**. BBS connects as that administrator account over the
+network, checks it's actually able to create or manage logins (if not, it
+says so in plain language -- see "Set it up automatically" fails below,
+rather than surfacing a raw SQL Server error), creates `bbs_connector` (or
+resets its password if it's already there), verifies the result by
+reading a real row of race data, and saves it. **The administrator
+username and password are used once, for this one action, and then
+forgotten** -- never saved to disk, never written to a log, never shown
+back to you or anyone else.
 
-### Verifying and saving (both paths)
+This works the same way whether BBS and RaceManager's SQL Server are on
+the same computer or not -- unlike an earlier version of this wizard,
+there's no separate "different computer" question to answer here. Signing
+in with a username and password doesn't care where the two computers are;
+it only needs to be able to reach the server over the network.
 
-Whether the SQL ran automatically or you pasted the password back
-yourself, BBS handles it identically:
+**If "Set it up automatically" fails:**
 
-- It reconnects **as `bbs_connector`** and reads a real row from
-  RaceManager before ever saving anything -- it never just trusts "the
-  SQL didn't error" or "I ran it."
-- The password is never logged, never echoed back to the page in any
-  response, and never shown in Diagnostics. BBS's request logging records
-  only the method, path, status code, and timing of each request -- never
-  a request body -- so a pasted password never ends up in a log file
-  either way.
-- On success, it's written into BBS's own configuration (the same `.env`
-  file every other BBS secret -- the control token, the admin token --
-  already lives in, protected the same way: by filesystem permissions on
-  that file, not by encryption).
-- **BBS then switches to using `bbs_connector` for all normal operation.**
-  Saving new credentials clears BBS's cached database connection, so the
-  very next time BBS needs to talk to RaceManager, it does so as the
-  read-only login the wizard just created or verified -- not as
-  `LocalSystem`, and not with whatever rights your own Windows account
-  happened to have during setup.
+- *Couldn't connect* -- the address, username, or password was wrong.
+  Double-check them (the exact technical error is shown underneath, in
+  case you need to relay it to whoever manages the SQL Server).
+- *Connected, but doesn't have permission* -- the account you used isn't
+  a SQL Server administrator. Ask whoever administers it to grant that
+  account "ALTER ANY LOGIN" (or make it a full administrator/"sysadmin"),
+  or use one of the other two options below instead.
 
-If `bbs_connector` already exists (re-running the wizard, a previous
-setup, or Path B's guarded script finding it already there), BBS detects
-that and offers a password reset instead of failing or creating a
-duplicate account.
+### Already have a working login for BBS to use?
 
-### If BBS's own connection turns out to be a SQL Server admin
+If `bbs_connector` already exists and you know its password, there's
+nothing to create -- enter the SQL Server address and that password, and
+BBS verifies it by reading a real row of race data and starts using it.
+No SQL runs at all.
 
-When Path A's automatic connection succeeds, the page also reports
-whether the account BBS connected as has `sysadmin` rights on that SQL
-Server. This is purely informational -- it's your SQL Server's own
-configuration, not a BBS setting, and BBS doesn't change it. But it's
-worth knowing: it means that SQL Server currently trusts BBS's service
-account more broadly than it needs to, at least until this wizard
-finishes and switches BBS over to the read-only `bbs_connector` login (see
-above). If your SQL Server administrator wants to tighten that, it's a
-change made outside BBS entirely.
+### Prefer to have someone else run this?
+
+Some tracks have a database administrator (DBA) or IT support who'd
+rather do this themselves. This generates the exact script to hand them
+-- click **Generate the script**, then **Copy**.
+
+**Whoever runs this needs to be a SQL Server administrator** (a
+"sysadmin", or a login with "ALTER ANY LOGIN" permission). Signing in as
+`bbs_connector` itself will not work -- it can only read race data, not
+create or change logins. This is stated on the page itself, next to the
+script, because it's the single most common way this goes wrong: someone
+runs it while connected as `bbs_connector`, not as an administrator.
+
+If it fails, the page includes troubleshooting for the errors that
+actually happen:
+
+| What you'll see | What it means |
+|---|---|
+| `Msg 15151 ... Cannot alter the login ... you do not have permission` | The account that ran this isn't a SQL Server administrator. Reconnect as an administrator account (not `bbs_connector`) and try again. |
+| `Msg 15025 ... The server principal already exists` | This login already exists. Generate a password-reset script instead (the checkbox above "Generate the script"), or use "Set it up automatically" -- it handles this by itself. |
+| `Login failed for user '...'` | The username or password used to connect was wrong. |
+| `A network-related or instance-specific error has occurred` / `Cannot connect to server` | Couldn't reach the SQL Server at all. Double-check the server name and instance, and that it accepts remote connections if it's on a different computer. |
+
+Once it's been run, come back to "Already have a working login for BBS to
+use?" above to finish.
+
+This is deliberately just a T-SQL script, not a downloadable program.
+BBS does not generate a PowerShell (`.ps1`) script for this: a downloaded
+`.ps1` opens in Notepad instead of running for most people, and getting
+it to actually execute would mean either fighting Windows' Mark-of-the-
+Web protection or telling someone to pass `-ExecutionPolicy Bypass` --
+reintroducing exactly the kind of thing that got an earlier BBS release
+flagged as malware (see "Why this runs after install," below).
+
+### If BBS's own connection turns out to be a SQL Server administrator
+
+Independent of all three options above: if `/api/setup/status` or
+`/diagnostics` shows BBS's *current* database connection succeeding, that
+connection is always `bbs_connector` -- read-only, by design, regardless
+of which of the three paths set it up. There's no ongoing administrator
+connection to worry about; the administrator credentials from "Set it up
+automatically" are only ever used for the single request that creates or
+resets the login.
 
 ### Undoing this
 
@@ -200,25 +180,25 @@ operator, and neither appears in the wizard's normal UI:**
   (to anything truthy) before starting BBS and Step 1 reports the driver
   as not acceptable regardless of what's actually installed, so the
   "driver missing" screen (the license checkbox, the install buttons) can
-  be seen and exercised on a machine that already has Driver 18. The
+  be seen and exercised on a machine that already has the driver. The
   *installed drivers* list shown is still the real one; only whether it's
   treated as acceptable is forced. If you go on to click an install
   button, it still runs the real installer for real -- against a machine
   that already has the driver, that's a harmless repair/reinstall, not a
-  no-op fake.
+  no-op fake. On a Windows Service specifically (not a dev shell): this
+  has to be set as an environment variable on the *service process*, not
+  a terminal -- add an `<env name="BBS_SETUP_FORCE_ODBC_MISSING"
+  value="1" />` line to the installed `BBSService.xml`, then restart the
+  service (WinSW re-reads its config on every start/restart; no reboot
+  needed).
 - **A custom `login_name`** -- every SQL wizard endpoint
-  (`/api/setup/sql/plan`, `/api/setup/sql/generate`,
-  `/api/setup/sql/apply`, `/api/setup/sql/verify-and-store`,
-  `/api/setup/sql/cleanup`) accepts an optional `login_name` field,
-  defaulting to `bbs_connector`. Passing a different name (for example,
-  `bbs_connector_test`) lets you exercise the actual "create a login that
-  doesn't exist yet" path and the cleanup path -- both untestable against
-  a real track's SQL Server, where `bbs_connector` typically already
-  exists once the wizard has been run once. This is an API-level option
-  (there is no field for it on the page itself) so it's easy to reach for
-  a manual test but hard to stumble into by accident. Since it flows
-  directly into bracket-quoted SQL identifiers (`CREATE LOGIN [name]`,
-  etc.), every endpoint validates it against a strict allowlist -- letters,
-  digits, and underscores only, up to 128 characters -- and rejects
-  anything else with a 400 before it ever reaches a generated script or
-  connection string.
+  (`/api/setup/sql/admin-setup`, `/api/setup/sql/generate`,
+  `/api/setup/sql/verify-and-store`, `/api/setup/sql/cleanup`) accepts an
+  optional `login_name` field, defaulting to `bbs_connector`. Passing a
+  different name (for example, `bbs_connector_test`) lets you exercise
+  the "create a login that doesn't exist yet" path and the cleanup path
+  -- both untestable against a real track's SQL Server, where
+  `bbs_connector` typically already exists once the wizard has been run
+  once. This is an API-level option (there is no field for it on the
+  page itself) so it's easy to reach for a manual test but hard to
+  stumble into by accident.
