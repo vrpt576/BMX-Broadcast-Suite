@@ -13,28 +13,30 @@ continue; it isn't a sign anything is wrong with the file.
 **Start with `/setup` instead, if you can.** BBS's built-in Setup wizard
 (open it from the tray, from `/diagnostics`, or go directly to
 `http://127.0.0.1:8000/setup`) automates most of this document -- see
-[The Setup Wizard](setup-wizard.md) for the full walkthrough, including its
-two setup paths, before working through this document by hand. The wizard
-**never** enables TCP/IP, enables mixed-mode authentication, or touches the
-firewall (Sections C, D, E, and G below) -- it only reports whether each of
-those is already correct and tells you exactly what to fix and why, the
-same as this document does. Which sections you still need depends on
-where BBS is installed:
+[The Setup Wizard](setup-wizard.md) for the full walkthrough. Its primary
+path asks for a SQL Server *administrator's* username and password and
+does the rest itself: connects, checks that account can actually manage
+logins, creates or resets `bbs_connector`, verifies it, and saves it,
+forgetting the administrator credentials immediately afterward. That
+works the same way whether BBS is on the same computer as RaceManager or
+not -- Section F below (the manual SQL) is then only needed if you'd
+rather run it yourself, hand it to a DBA, or don't have administrator
+credentials handy. The wizard **never** enables TCP/IP, enables
+mixed-mode authentication, or touches the firewall (Sections C, D, E, and
+G below) -- it only reports whether each of those is already correct and
+tells you exactly what to fix and why, the same as this document does.
 
-- **BBS on the same computer as RaceManager.** The wizard can usually
-  connect and create the login itself (Section F below is then only
-  needed if you'd rather run the SQL by hand). Sections C, D, and G
-  (TCP/IP, the port, the firewall rule) are not needed at all -- BBS talks
-  to SQL Server over the local named pipe, not the network.
+Which sections you still need depends on where BBS is installed:
+
+- **BBS on the same computer as RaceManager.** Sections C, D, and G
+  (TCP/IP, the port, the firewall rule) are not needed -- a local
+  connection doesn't need them.
 - **BBS on a separate computer than RaceManager** (a dedicated broadcast
   PC, a laptop reached over Tailscale -- the setup these docs generally
-  recommend). The wizard's connection attempt is not expected to succeed
-  here (its service identity crosses the network without SQL Server
-  rights), so it generates the SQL for Section F directly, without trying
-  to connect first -- that's the wizard's normal path for this topology,
-  not a fallback. You still need Sections C, D, and G (TCP/IP, the port,
-  the firewall rule) so that BBS's *day-to-day* connection as
-  `bbs_connector`, once created, can actually reach the server.
+  recommend). You need Sections C, D, and G (TCP/IP, the port, the
+  firewall rule) first, so that a connection -- whether the wizard's
+  one-time administrator connection, or `bbs_connector`'s ongoing one --
+  can reach the server over the network at all.
 
 ## A. Prerequisites and safety
 
@@ -139,16 +141,14 @@ BBS normally uses a dedicated SQL login. If mixed mode is required, open SQL Ser
 
 ## F. Create the least-privilege login
 
-**BBS's `/setup` wizard does this for you** -- generates a strong random
-password, shows you the exact SQL below before running anything, and
-verifies the login actually works before saving it. When BBS is on the
-same computer as RaceManager, it can often run this SQL for you directly;
-when BBS is on a different computer, the wizard generates this exact SQL
-without attempting to connect (see [The Setup Wizard](setup-wizard.md)'s
-"Path B") -- that is its normal path for that setup, not a fallback. Use
-this section only if you'd rather run the SQL yourself (the wizard offers
-exactly this text with a copy button either way) or hand it to your own
-DBA.
+**BBS's `/setup` wizard does this for you** -- its primary path asks for
+a SQL Server administrator's username and password and does this whole
+section itself, over the network, whether BBS and RaceManager share a
+computer or not (see [The Setup Wizard](setup-wizard.md)). Use this
+section only if you don't have administrator credentials handy and would
+rather generate the SQL and hand it to your own DBA or IT support instead
+-- the wizard's "Prefer to have someone else run this?" option generates
+exactly this text with a copy button.
 
 Use the dedicated login name `bbs_connector`. Start an interactive `sqlcmd` session so the password is not embedded in the PowerShell command history:
 

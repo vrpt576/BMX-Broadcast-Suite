@@ -1,9 +1,11 @@
-"""The read-only bbs_connector SQL account wizard: plan, review, apply, verify.
+"""The read-only bbs_connector SQL account setup: plan, verify, apply.
 
 Every "run SQL" path here is exercised against fake connections/cursors --
 no real pyodbc or SQL Server needed. What's actually under test is the
 logic: what gets reported, what gets generated, and -- most importantly --
-that apply_plan() only ever runs what this module itself produced.
+that apply_plan() only ever runs what this module itself produced, and
+that a login name or admin username can never break out of the SQL text
+or connection string it gets interpolated into.
 """
 
 from __future__ import annotations
@@ -45,17 +47,9 @@ class FakeConnection:
         return self._cursor.executed
 
 
-class ExplodingCursor:
-    def execute(self, sql: str, params: tuple = ()) -> None:
-        raise RuntimeError("permission denied")
-
-    def fetchone(self):
-        raise AssertionError("should not be reached")
-
-
 class ExplodingConnection:
     def cursor(self):
-        return ExplodingCursor()
+        raise RuntimeError("permission denied")
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +89,13 @@ def test_password_charset_cannot_produce_a_character_that_would_break_generated_
 
 # ---------------------------------------------------------------------------
 # validate_login_name -- login_name flows straight into bracket-quoted SQL
-# identifiers (CREATE LOGIN [name], etc.); this is the one thing standing
-# between a malicious login_name and SQL injection into a generated script.
+# identifiers (CREATE LOGIN [name], etc.) in every function BBS itself
+# uses to create/manage bbs_connector. This is the one thing standing
+# between a malicious login_name and SQL injection into a generated
+# script. NOT applied to administrator usernames (see
+# sql_auth_connection_string tests below) -- those are never interpolated
+# into SQL text, only into a connection string, where bracing is the
+# correct defense instead.
 # ---------------------------------------------------------------------------
 
 
@@ -126,47 +125,9 @@ def test_validate_login_name_rejects_anything_outside_the_safe_charset(name: str
         svc.validate_login_name(name)
 
 
-def test_create_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.build_create_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
-
-
-def test_offline_create_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.build_offline_create_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
-
-
-def test_reset_password_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.build_reset_password_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
-
-
-def test_cleanup_sql_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.build_cleanup_sql(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
-
-
-def test_preflight_rejects_a_malicious_login_name() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.run_preflight(None, connection_error="n/a", login_name="bbs_connector]; --")
-
-
 # ---------------------------------------------------------------------------
 # Connection string building
 # ---------------------------------------------------------------------------
-
-
-def test_windows_auth_connection_string_uses_trusted_connection() -> None:
-    cs = svc.windows_auth_connection_string(host="localhost", instance="USABMX", database="RACE")
-    assert "Trusted_Connection=yes" in cs
-    assert "SERVER=localhost\\USABMX" in cs
-    assert "DATABASE=RACE" in cs
-    assert "PWD=" not in cs
-
-
-def test_windows_auth_connection_string_without_an_instance() -> None:
-    cs = svc.windows_auth_connection_string(host="sql.example", instance="", database="RACE")
-    assert "SERVER=sql.example;" in cs
 
 
 def test_sql_auth_connection_string_carries_the_credentials() -> None:
@@ -178,25 +139,33 @@ def test_sql_auth_connection_string_carries_the_credentials() -> None:
     assert "UID={bbs_connector}" in cs
     assert "PWD={p@ss}" in cs
     assert "Trusted_Connection" not in cs
+    assert "SERVER=localhost\\USABMX" in cs
+    assert "DATABASE=RACE" in cs
 
 
-def test_sql_auth_connection_string_rejects_an_invalid_login_name() -> None:
-    with pytest.raises(svc.SqlSetupError):
-        svc.sql_auth_connection_string(
-            host="localhost",
-            instance="USABMX",
-            database="RACE",
-            user="bbs_connector]; DROP LOGIN [sa",
-            password="whatever",
-        )
+def test_sql_auth_connection_string_without_an_instance() -> None:
+    cs = svc.sql_auth_connection_string(
+        host="sql.example", instance="", database="RACE", user="bbs_connector", password="x"
+    )
+    assert "SERVER=sql.example;" in cs
+
+
+def test_sql_auth_connection_string_accepts_an_unusual_but_legitimate_admin_username() -> None:
+    """The `user` parameter is also used for a SQL Server administrator
+    account -- someone else's DBA may have named it anything, and it must
+    not be forced through bbs_connector's restrictive naming rules."""
+    cs = svc.sql_auth_connection_string(
+        host="localhost", instance="", database="RACE", user="bmx-admin.sql", password="x"
+    )
+    assert "UID={bmx-admin.sql}" in cs
 
 
 def test_sql_auth_connection_string_braces_a_password_that_would_otherwise_break_the_connection_string() -> (
     None
 ):
-    """A manually pasted password (the verify-and-store path) is not
-    restricted to any charset -- confirm a ';' or '}' in it can't inject
-    or terminate connection string attributes early."""
+    """A manually typed password (an admin's, or a pasted-back existing
+    one) is not restricted to any charset -- confirm a ';' or '}' in it
+    can't inject or terminate connection string attributes early."""
     cs = svc.sql_auth_connection_string(
         host="localhost",
         instance="USABMX",
@@ -208,6 +177,23 @@ def test_sql_auth_connection_string_braces_a_password_that_would_otherwise_break
     # value with its own literal '}' doubled -- not split into separate
     # connection string attributes.
     assert "PWD={weird;UID=sa;PWD=known}}pass};" in cs
+
+
+def test_sql_auth_connection_string_braces_a_malicious_admin_username_rather_than_rejecting_it() -> (
+    None
+):
+    """An admin username is never validated against the login_name
+    charset (see module docstring) -- it's connected-as, never
+    interpolated into SQL text, so bracing alone is the correct and
+    sufficient defense, not a name-format rejection."""
+    cs = svc.sql_auth_connection_string(
+        host="localhost",
+        instance="",
+        database="RACE",
+        user="sa;DROP LOGIN [bbs_connector]",
+        password="x",
+    )
+    assert "UID={sa;DROP LOGIN [bbs_connector]};" in cs
 
 
 # ---------------------------------------------------------------------------
@@ -284,14 +270,12 @@ def test_connect_passes_an_integer_timeout_to_pyodbc(monkeypatch: pytest.MonkeyP
 # ---------------------------------------------------------------------------
 
 
-def test_detect_local_sql_instances_returns_empty_list_without_winreg(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_detect_local_sql_instances_returns_empty_without_winreg(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(svc, "winreg", None)
     assert svc.detect_local_sql_instances() == []
 
 
-def test_detect_local_sql_instances_returns_empty_list_when_key_is_absent(
+def test_detect_local_sql_instances_returns_empty_when_the_key_is_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeWinreg:
@@ -299,15 +283,13 @@ def test_detect_local_sql_instances_returns_empty_list_when_key_is_absent(
 
         @staticmethod
         def OpenKey(*_args, **_kwargs):
-            raise OSError("key not found")
+            raise OSError("not found")
 
     monkeypatch.setattr(svc, "winreg", FakeWinreg())
     assert svc.detect_local_sql_instances() == []
 
 
-def test_detect_local_sql_instances_enumerates_real_values(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_detect_local_sql_instances_enumerates_real_values(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeKey:
         def __enter__(self):
             return self
@@ -335,96 +317,59 @@ def test_detect_local_sql_instances_enumerates_real_values(
 
 
 # ---------------------------------------------------------------------------
-# Preflight -- reports, never fixes
+# login_exists -- decides create vs reset
 # ---------------------------------------------------------------------------
 
 
-def test_preflight_reports_mixed_mode_off_as_blocking_and_explains_why() -> None:
-    connection = FakeConnection(script=[(1, "Microsoft SQL Server 2019", 0), None])
-    report = svc.run_preflight(connection)
-
-    assert report.integrated_security_only is True
-    assert report.existing_login_present is False
-    assert len(report.blocking_issues) == 1
-    assert "restart" in report.blocking_issues[0].lower()
-    assert "racing" in report.blocking_issues[0].lower()
+def test_login_exists_true_when_found() -> None:
+    connection = FakeConnection(script=[("bbs_connector",)])
+    assert svc.login_exists(connection, "bbs_connector") is True
 
 
-def test_preflight_reports_mixed_mode_on_as_not_blocking() -> None:
-    connection = FakeConnection(script=[(0, "Microsoft SQL Server 2019", 0), None])
-    report = svc.run_preflight(connection)
-
-    assert report.integrated_security_only is False
-    assert report.blocking_issues == []
+def test_login_exists_false_when_not_found() -> None:
+    connection = FakeConnection(script=[None])
+    assert svc.login_exists(connection, "bbs_connector") is False
 
 
-def test_preflight_detects_an_existing_login() -> None:
-    connection = FakeConnection(script=[(0, "Microsoft SQL Server 2019", 0), ("bbs_connector",)])
-    report = svc.run_preflight(connection)
-    assert report.existing_login_present is True
+def test_login_exists_uses_a_parameterized_query() -> None:
+    connection = FakeConnection(script=[None])
+    svc.login_exists(connection, "bbs_connector_test")
+    sql, params = connection.executed[0]
+    assert "sys.sql_logins" in sql
+    assert params == ("bbs_connector_test",)
 
 
-def test_preflight_detects_an_existing_login_under_a_custom_login_name() -> None:
-    """login_name is a testing aid (see docs/setup-wizard.md) so a
-    throwaway login can be exercised without touching bbs_connector --
-    prove it's actually used, not just accepted and ignored."""
-    connection = FakeConnection(script=[(0, "Microsoft SQL Server 2019", 0), ("bbs_connector_test",)])
-    report = svc.run_preflight(connection, login_name="bbs_connector_test")
-    assert report.existing_login_present is True
-    lookup_sql, lookup_params = connection.executed[-1]
-    assert "sys.sql_logins" in lookup_sql
-    assert lookup_params == ("bbs_connector_test",)
+def test_login_exists_rejects_a_malicious_login_name() -> None:
+    connection = FakeConnection(script=[])
+    with pytest.raises(svc.SqlSetupError):
+        svc.login_exists(connection, "bbs_connector]; DROP LOGIN [sa")
+    assert connection.executed == []
 
 
-def test_preflight_reports_when_the_service_account_is_sysadmin() -> None:
-    connection = FakeConnection(script=[(0, "Microsoft SQL Server 2019", 1), None])
-    report = svc.run_preflight(connection)
-    assert report.service_account_is_sysadmin is True
+# ---------------------------------------------------------------------------
+# check_login_management_rights -- gates the admin-credentials path
+# before it ever attempts CREATE/ALTER LOGIN
+# ---------------------------------------------------------------------------
 
 
-def test_preflight_reports_when_the_service_account_is_not_sysadmin() -> None:
-    connection = FakeConnection(script=[(0, "Microsoft SQL Server 2019", 0), None])
-    report = svc.run_preflight(connection)
-    assert report.service_account_is_sysadmin is False
+def test_check_login_management_rights_true_when_the_account_can_manage_logins() -> None:
+    """Covers both sysadmin and the narrower ALTER ANY LOGIN permission --
+    the query combines them into one yes/no via CASE WHEN, so from the
+    caller's side (and this test's) both look identical: a bare 1."""
+    connection = FakeConnection(script=[(1,)])
+    assert svc.check_login_management_rights(connection) is True
 
 
-def test_preflight_sysadmin_is_none_without_a_connection() -> None:
-    report = svc.run_preflight(None, connection_error="login failed")
-    assert report.service_account_is_sysadmin is None
+def test_check_login_management_rights_false_for_a_read_only_account() -> None:
+    connection = FakeConnection(script=[(0,)])
+    assert svc.check_login_management_rights(connection) is False
 
 
-def test_preflight_never_touches_anything_it_reports_on() -> None:
-    """The whole point: preflight must only ever SELECT, never ALTER/CREATE
-    anything -- confirmed by checking every statement it actually ran."""
-    connection = FakeConnection(script=[(1, "v", 0), None])
-    svc.run_preflight(connection)
+def test_check_login_management_rights_never_touches_anything() -> None:
+    connection = FakeConnection(script=[(0,)])
+    svc.check_login_management_rights(connection)
     for sql, _params in connection.executed:
-        normalized = sql.strip().upper()
-        assert normalized.startswith("SELECT"), f"preflight ran a non-SELECT statement: {sql}"
-
-
-def test_preflight_with_no_connection_still_reports_the_tcp_probe(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(svc, "_probe_tcp", lambda host, port, timeout=2.0: False)
-    report = svc.run_preflight(None, connection_error="login failed", tcp_host="10.0.0.5", tcp_port=1433)
-
-    assert report.connected is False
-    assert report.connection_error == "login failed"
-    assert report.tcp_reachable is False
-    assert any("TCP" in issue for issue in report.blocking_issues)
-
-
-def test_preflight_tcp_probe_skipped_without_a_known_port() -> None:
-    connection = FakeConnection(script=[(0, "v", 0), None])
-    report = svc.run_preflight(connection, tcp_host="localhost", tcp_port=None)
-    assert report.tcp_reachable is None
-
-
-def test_preflight_tcp_reachable_is_not_treated_as_blocking() -> None:
-    connection = FakeConnection(script=[(0, "v", 0), None])
-    report = svc.run_preflight(connection, tcp_host="127.0.0.1", tcp_port=1)
-    # Port 1 is essentially never open -- this just proves an unreachable
-    # probe doesn't crash preflight and is reported, not silently dropped.
-    assert report.tcp_reachable in (True, False)
+        assert sql.strip().upper().startswith("SELECT")
 
 
 # ---------------------------------------------------------------------------
@@ -489,9 +434,24 @@ def test_create_plan_reset_plan_and_cleanup_sql_all_honor_a_custom_login_name() 
     assert "DROP LOGIN [bbs_connector_test]" in cleanup
 
 
+def test_create_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
+    with pytest.raises(svc.SqlSetupError):
+        svc.build_create_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
+
+
+def test_reset_password_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
+    with pytest.raises(svc.SqlSetupError):
+        svc.build_reset_password_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
+
+
+def test_cleanup_sql_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
+    with pytest.raises(svc.SqlSetupError):
+        svc.build_cleanup_sql(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
+
+
 # ---------------------------------------------------------------------------
-# build_offline_create_plan -- the "BBS can't connect to check first" path
-# (a different computer than RaceManager; see the module docstring)
+# build_offline_create_plan -- the "hand it to a DBA" path: never assumes
+# an answer to "does this login already exist"
 # ---------------------------------------------------------------------------
 
 
@@ -520,6 +480,11 @@ def test_offline_create_plan_escapes_a_password_containing_a_single_quote(
     plan = svc.build_offline_create_plan(database="RACE")
     assert "O''Ab" in plan.sql
     assert plan.password == "Ab1!Ab1!Ab1!Ab1!Ab1!O'Ab"
+
+
+def test_offline_create_plan_rejects_a_malicious_login_name_instead_of_interpolating_it() -> None:
+    with pytest.raises(svc.SqlSetupError):
+        svc.build_offline_create_plan(database="RACE", login_name="bbs_connector]; DROP LOGIN [sa")
 
 
 # ---------------------------------------------------------------------------
@@ -571,86 +536,6 @@ def test_apply_plan_refuses_an_offline_create_if_missing_plan() -> None:
         svc.apply_plan(connection, plan)
 
     assert connection.executed == []
-
-
-# ---------------------------------------------------------------------------
-# PlanCache -- the mechanism that keeps apply_plan() from ever running
-# client-supplied SQL
-# ---------------------------------------------------------------------------
-
-
-class Clock:
-    def __init__(self, start: float = 1000.0) -> None:
-        self.now = start
-
-    def __call__(self) -> float:
-        return self.now
-
-    def advance(self, seconds: float) -> None:
-        self.now += seconds
-
-
-def test_plan_cache_round_trips_a_stored_plan() -> None:
-    cache = svc.PlanCache()
-    plan = svc.build_create_plan(database="RACE")
-
-    plan_id = cache.store(plan, host="localhost", instance="USABMX", database="RACE")
-    cached = cache.take(plan_id)
-
-    assert cached is not None
-    assert cached.plan is plan
-    assert cached.host == "localhost"
-    assert cached.instance == "USABMX"
-    assert cached.login_name == "bbs_connector"
-
-
-def test_plan_cache_remembers_a_custom_login_name() -> None:
-    cache = svc.PlanCache()
-    plan = svc.build_create_plan(database="RACE", login_name="bbs_connector_test")
-
-    plan_id = cache.store(
-        plan, host="localhost", instance="USABMX", database="RACE", login_name="bbs_connector_test"
-    )
-    cached = cache.take(plan_id)
-
-    assert cached is not None
-    assert cached.login_name == "bbs_connector_test"
-
-
-def test_plan_cache_is_single_use() -> None:
-    cache = svc.PlanCache()
-    plan_id = cache.store(svc.build_create_plan(database="RACE"), host="h", instance="i", database="RACE")
-
-    first = cache.take(plan_id)
-    second = cache.take(plan_id)
-
-    assert first is not None
-    assert second is None
-
-
-def test_plan_cache_unknown_id_returns_none() -> None:
-    cache = svc.PlanCache()
-    assert cache.take("not-a-real-id") is None
-
-
-def test_plan_cache_expires_old_plans() -> None:
-    clock = Clock()
-    cache = svc.PlanCache(ttl_seconds=300.0, clock=clock)
-    plan_id = cache.store(svc.build_create_plan(database="RACE"), host="h", instance="i", database="RACE")
-
-    clock.advance(301.0)
-
-    assert cache.take(plan_id) is None
-
-
-def test_plan_cache_ids_are_not_guessable_or_repeated() -> None:
-    cache = svc.PlanCache()
-    ids = {
-        cache.store(svc.build_create_plan(database="RACE"), host="h", instance="i", database="RACE")
-        for _ in range(20)
-    }
-    assert len(ids) == 20
-    assert all(len(pid) >= 24 for pid in ids)
 
 
 # ---------------------------------------------------------------------------

@@ -217,7 +217,7 @@ def test_setup_wizard_is_loopback_only_even_with_a_valid_admin_token() -> None:
     remote_with_valid_token = decide(
         settings,
         method="POST",
-        path="/api/setup/sql/apply",
+        path="/api/setup/sql/admin-setup",
         headers={"x-bbs-admin-token": "admin-secret"},
     )
     remote_read_only = decide(settings, method="GET", path="/api/setup/status")
@@ -239,7 +239,7 @@ def test_setup_wizard_works_locally_with_no_token_at_all() -> None:
 
     local_read = decide(settings, method="GET", path="/api/setup/status", host="127.0.0.1")
     local_write = decide(
-        settings, method="POST", path="/api/setup/sql/apply", host="127.0.0.1"
+        settings, method="POST", path="/api/setup/sql/admin-setup", host="127.0.0.1"
     )
 
     assert local_read.allowed is True

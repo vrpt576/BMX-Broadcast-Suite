@@ -120,31 +120,43 @@ new tracks setting up BBS for the first time will do anyway.
     Redistribution of the bundled copy is confirmed by the driver's own
     EULA and REDIST list ("The entire package may be redistributed."),
     verified 2026-08-29 -- see `packaging/windows/dependencies/ODBC-Driver-LICENSE.rtf`.
-  - Guides creating the read-only `bbs_connector` SQL login, and asks up
-    front whether BBS shares a computer with RaceManager rather than
-    assuming it: on the same computer, BBS can usually connect with its
-    own Windows identity and offer to run the SQL itself; on a different
-    computer (a dedicated broadcast PC, a network link like Tailscale --
-    a setup these docs themselves recommend, not an edge case), BBS's
-    service identity essentially never has SQL Server rights, so the
-    wizard generates a reviewable, `IF NOT EXISTS`-guarded script directly
-    without ever attempting that connection, as its normal path for that
-    setup rather than a failed-then-recovered one. Either path reports
-    (never changes) blocking SQL Server configuration such as mixed-mode
-    authentication being off, and -- when it can connect -- reports as an
-    informational note if BBS's own service account happens to have
-    `sysadmin` rights on that server. A strong random password is
-    generated either way, the exact SQL is shown before anything runs,
-    and the new login is verified by actually reading a row from
-    RaceManager -- never just trusted -- before its credentials are
-    saved into BBS's configuration, at which point BBS switches to using
-    it, not an admin identity, for all normal operation. A pasted
-    password (the manual/DBA path) gets identical handling: never
-    logged, never echoed back, never shown in Diagnostics. Re-running
-    when the login already exists offers a password reset instead of
-    failing. A ready-made cleanup script (`DROP USER`/`DROP LOGIN`) is
-    shown on the same page so a track can remove the account without
-    contacting anyone.
+  - Guides creating the read-only `bbs_connector` SQL login. Written for
+    a track operator, not a DBA: a T-SQL script is not a reasonable thing
+    to hand someone whose job is running a BMX track. If BBS is already
+    connected and reading RaceManager, the page says so plainly and
+    collapses to "nothing to do here" instead of walking through account
+    creation regardless. Otherwise there are three ways to finish, most
+    automated first:
+    1. **Set it up automatically** -- the operator types a SQL Server
+       *administrator* account's username and password (SQL
+       authentication only; there's no way for pyodbc to authenticate as
+       an arbitrary Windows account from typed credentials). BBS connects
+       as that account over the network and does the rest itself: checks
+       it can actually manage logins (a plain-language refusal if not,
+       never a raw SQL Server permission error), creates the login or
+       resets its password if one already exists, verifies it by reading
+       a real row from RaceManager, saves it, and forgets the admin
+       credentials -- never persisted, logged, or echoed back. Works
+       identically whether BBS and RaceManager's SQL Server share a
+       computer or not, since SQL authentication doesn't depend on
+       machine identity the way the Windows-authentication automatic
+       path in the previous iteration of this wizard did -- that path is
+       gone, replaced by this one as the primary route for both.
+    2. **Already have a working login** -- for when the login already
+       exists and works and nothing needs to change; verifies it by
+       reading a real row and saves it, with no SQL run at all.
+    3. **Hand it to someone else** -- generates a reviewable,
+       `IF NOT EXISTS`-guarded script for a track's own DBA or IT
+       support, with the required permission stated up front (a SQL
+       Server administrator; signing in as `bbs_connector` itself will
+       not work) and plain-language troubleshooting for the errors that
+       actually happen running it as the wrong account or against an
+       already-existing login.
+    A pasted password gets identical handling to a generated one either
+    way: never logged, never echoed back, never shown in Diagnostics. A
+    ready-made cleanup script (`DROP USER`/`DROP LOGIN`) is shown on the
+    same page so a track can remove the account without contacting
+    anyone.
 - Added a one-page installation/configuration status view (`/api/setup/status`,
   shown at the top of `/setup`): ODBC driver, database connection,
   RaceManager readability, and Sqorz configuration, each with a link to fix
