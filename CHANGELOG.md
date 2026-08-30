@@ -16,6 +16,14 @@ installed and verified on a real machine before it is published --
 see "Release process" in `CLAUDE.md`; do not treat anything in this
 section as confirmed working in the field until then.
 
+**Install path tested:** 1.3.0 was validated as a clean install -- no
+prior BBS version present on the machine. **The in-place upgrade path
+from 1.2.17 was not exercised for this release.** If you're upgrading an
+existing 1.2.17 install rather than installing fresh, that specific path
+has not been verified for 1.3.0; a clean install (remove the old
+version, then install 1.3.0) is the tested path and is also what most
+new tracks setting up BBS for the first time will do anyway.
+
 - Added optional Sqorz live-timing integration: the lineup overlay can show
   each rider's time for the currently selected round, read from Sqorz's
   public internet API, its LAN scoring API, or a saved file replay. Off by
