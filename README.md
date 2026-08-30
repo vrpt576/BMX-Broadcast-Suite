@@ -41,7 +41,7 @@ The Windows tray menu shows service, database, moto, and class status and provid
 
 ## First-time setup
 
-1. Install the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) on the BBS/OBS computer.
+1. Install the [latest BBS Windows MSI](https://github.com/vrpt576/BMX-Broadcast-Suite/releases/latest) on the BBS/OBS computer. **Windows will show a blue "Windows protected your PC" screen first** -- this build isn't signed with a paid code-signing certificate, so SmartScreen doesn't recognize the publisher yet. It isn't a sign anything is wrong with the file. Click **More info**, then **Run anyway** to continue.
 2. Open **Setup** (`/setup`, linked from the tray) and follow its guided steps -- it installs the ODBC driver and creates a dedicated read-only RaceManager login for you, with no SQL or command-line work required. See [The Setup Wizard](docs/setup-wizard.md). Prefer to do it by hand, or run BBS and RaceManager on separate computers? See [Prepare the USA BMX RaceManager PC for BBS](docs/racemanager-pc-setup.md) for TCP/IP, the login, and a restricted firewall rule.
 3. Open **Diagnostics** and confirm that the driver, SQL connection, database, and current event checks pass.
 4. Open **Race Director**, select the live or historical event, and confirm the moto, round, and class.

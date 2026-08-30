@@ -1,5 +1,11 @@
 # Windows Installation Guide
 
+**When you run the installer, Windows will show a blue "Windows protected
+your PC" screen first.** This build isn't signed with a paid code-signing
+certificate, so SmartScreen doesn't recognize the publisher yet -- it
+isn't a sign anything is wrong with the file. Click **More info**, then
+**Run anyway** to continue.
+
 Before installing BBS, follow [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md). That guide enables the SQL network connection, creates a dedicated `db_datareader` login, and restricts the Windows Firewall rule to the BBS computer. It does not modify RaceManager tables or race data.
 
 Install Microsoft ODBC Driver 18 for SQL Server (64-bit), then install `BMX-Broadcast-Suite-Setup-v1.2.15.msi`. Python and all Python packages are included; setup performs no downloads.

@@ -1,5 +1,11 @@
 # The Setup Wizard
 
+**Before you get here:** running the BBS installer shows Windows'
+"Windows protected your PC" screen first. This build isn't signed with a
+paid code-signing certificate, so SmartScreen doesn't recognize the
+publisher yet -- click **More info**, then **Run anyway** to continue. It
+isn't a sign anything is wrong with the file.
+
 `/setup` is the page BBS wants you to land on right after installing it.
 It exists so a track that has never used BBS before can get RaceManager
 connected without installing anything by hand or writing any SQL

@@ -6,6 +6,12 @@ The MSI contains an offline Python 3.12.10 runtime and hash-locked wheels. It do
 
 ## Install
 
+**Running the MSI shows Windows' "Windows protected your PC" screen
+first.** This build isn't signed with a paid code-signing certificate, so
+SmartScreen doesn't recognize the publisher yet -- it isn't a sign
+anything is wrong with the file. Click **More info**, then **Run anyway**
+to continue.
+
 Install the 64-bit Microsoft ODBC Driver 18 for SQL Server from Microsoft, then run the MSI as administrator. Legacy v1.2.9/v1.2.10 upgrades stop and delete only the exact old BBS task and preserve `%ProgramData%\BMX Broadcast Suite\UserData`.
 
 The MSI never owns or replaces the protected `.env`. On first service start,
