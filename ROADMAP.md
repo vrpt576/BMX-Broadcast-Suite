@@ -31,6 +31,18 @@ This roadmap reflects the project status as of v1.3.0. Priorities may move as mo
 
 ## Near term
 
+### Code-signed Windows installer (next release's headline item)
+- Obtain a code-signing certificate for BBS's Windows releases, currently
+  unsigned -- see `docs/windows-installer-security.md` for the current
+  signing status and what operators see and do about it (Windows
+  SmartScreen) in the meantime
+- Sign the MSI and bundled service wrapper as part of the standard
+  release process
+- Retire the SmartScreen "unknown publisher" warning operators
+  currently see on first run
+- Update `docs/wizard-installer-windows.md` and
+  `docs/windows-installer-security.md` once signing is in place
+
 ### Elimination-round validation
 - Capture a historical class large enough to contain real quarterfinals and/or semifinals
 - Identify the exact RaceManager tables, round types, group identities, gates, and finishes for those stages
@@ -64,7 +76,8 @@ This roadmap reflects the project status as of v1.3.0. Priorities may move as mo
 
 ## Later / platform expansion
 
-- Code-signed Windows installer and guided in-place upgrades
+- Guided in-place upgrades (see "Code-signed Windows installer" above for
+  signing, which is nearer-term)
 - Additional race-management platforms where documented integrations are possible
 - Public plugin/API contracts for third-party overlays and controllers
 

@@ -36,18 +36,41 @@ untracked caches. Unrelated Python processes are never searched for or stopped.
 The protected ProgramData user-data directory remains unless
 `PURGEUSERDATA=1` is explicitly supplied.
 
+## Signing status
+
+Releases are currently unsigned -- BBS doesn't yet hold a code-signing
+certificate. That's why running the installer shows the SmartScreen
+warning described above, and why there's no Authenticode signature to
+check in the file's Properties dialog. Verify the file instead: compare
+its SHA-256 against the value published alongside it on the
+[GitHub release page](https://github.com/vrpt576/BMX-Broadcast-Suite/releases)
+before installing --
+
+```powershell
+Get-FileHash -Algorithm SHA256 .\BMX-Broadcast-Suite-Setup-v1.3.0.msi
+```
+
+-- and confirm it matches exactly. See
+[Windows installer security and antivirus policy](windows-installer-security.md)
+for the full picture. Signing is planned for a future release; see
+`ROADMAP.md`.
+
 ## Build and release gate
 
-The build is offline and validates every pinned artifact:
+The build is offline and validates every pinned artifact. With a
+code-signing certificate:
 
 ```powershell
 .\scripts\build-windows-installer.ps1 -CertificateThumbprint YOUR_SHA1_THUMBPRINT
 ```
 
-For local testing only, use `-Unsigned`. Before publication, sign the MSI and scan the exact final file with current Defender definitions:
+Without one -- the current situation, see "Signing status" above -- use
+`-Unsigned` instead; that's what current releases are actually built
+and published with, not a local-testing-only mode. Either way, scan the
+exact final file with current Defender definitions before publishing:
 
 ```powershell
-.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.3.0.msi
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.3.0.msi -AllowUnsigned
 ```
 
-If Defender detects it, do not upload it; submit that exact artifact to Microsoft Security Intelligence. Outputs include the MSI, SHA-256 file, manifest, and CycloneDX SBOM.
+(Drop `-AllowUnsigned` once builds are signed.) If Defender detects it, do not upload it; submit that exact artifact to Microsoft Security Intelligence. Outputs include the MSI, SHA-256 file, manifest, and CycloneDX SBOM.
