@@ -10,7 +10,7 @@ actually changed, not the version number alone.
 
 ## Unreleased
 
-## 1.3.2 - date TBD (not yet published)
+## 1.3.2 - 2026-08-31
 
 **Verification status, plainly:** internet and file mode are tested against
 real captured Sqorz data throughout (`tests/fixtures/sqorz/`), including a
@@ -74,7 +74,11 @@ until a real LAN payload is captured on site.
     pinned by a dedicated test loading configuration shaped exactly like a
     real pre-1.3.2 install (mentioning none of the new settings at all).
 
-## 1.3.1 - date TBD (not yet published)
+## 1.3.1 - 2026-08-31
+
+*Shipped as part of the 1.3.2 release above, not tagged separately -- 1.3.2 was
+gate-tested and published before 1.3.1 reached its own release, so both sets
+of changes went out together under the v1.3.2 tag.*
 
 - Added an in-app manual (`/manual`, linked from the tray) so BBS's own
   documentation lives inside the product -- anyone who reaches BBS
