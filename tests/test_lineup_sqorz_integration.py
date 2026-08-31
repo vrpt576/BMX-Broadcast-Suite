@@ -6,12 +6,20 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from connector.dependencies import get_current_lineup_service
+from connector.dependencies import (
+    get_current_lineup_service,
+    get_operating_mode,
+    get_sqorz_current_race_service,
+    get_sqorz_service,
+)
 from connector.main import app
 from connector.models import CurrentLineup, CurrentMotoUpdate, LineupRider, RacePhase
 from connector.services.current_lineup_service import CurrentLineupService
 from connector.services.current_moto_service import CurrentMotoService
+from connector.services.operating_mode_service import ModeDecision, OperatingMode
 from connector.services.sqorz_class_alias_service import SqorzClassAliasStore
+from connector.services.sqorz_current_race_service import SqorzCurrentRaceService
+from connector.services.sqorz_navigation_service import SqorzRaceSlot
 from connector.services.sqorz_service import SqorzRiderTime, SqorzService
 
 
@@ -355,6 +363,68 @@ def test_the_served_page_renders_a_blank_time_as_an_en_dash_and_finish_as_live()
     assert "'LIVE'" in LINEUP_OVERLAY_HTML
     assert ">Plate<" in LINEUP_OVERLAY_HTML
     assert ">Plate Number<" not in LINEUP_OVERLAY_HTML
+
+
+def test_sqorz_only_mode_serves_a_sqorz_lineup_over_the_real_route(tmp_path: Path) -> None:
+    """End-to-end proof through the actual HTTP route, not just the
+    dispatcher function directly: with mode=SQORZ_ONLY, /api/lineup/current
+    returns a Sqorz-built lineup even though get_current_lineup_service is
+    still wired to a RaceManager service that would raise if it were ever
+    actually called."""
+
+    class BoomEvents:
+        def current(self):
+            raise AssertionError("Sqorz-only mode must never query RaceManager")
+
+    class BoomMotos:
+        def get_moto(self, *_args, **_kwargs):
+            raise AssertionError("Sqorz-only mode must never query RaceManager")
+
+    racemanager_service = CurrentLineupService(
+        CurrentMotoService(tmp_path / "current.json"),
+        BoomEvents(),
+        BoomMotos(),
+        tmp_path / "cache.json",
+    )
+    sqorz_current_race = SqorzCurrentRaceService(tmp_path / "sqorz_current.json")
+    sqorz_current_race.select(
+        SqorzRaceSlot(
+            class_code="308", class_name="12 Expert", phase_code="M1", phase_name="Moto 1", has_recorded_time=True
+        )
+    )
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="e")
+    sqorz._get_json = lambda url: {
+        "classRanks": [
+            {
+                "classCode": "308",
+                "className": "12 Expert",
+                "competitorRankSummaries": [
+                    {
+                        "plate": "1",
+                        "firstName": "A",
+                        "lastName": "RIDER",
+                        "competitorRankDetails": [{"phaseCode": "M1", "phaseName": "Moto 1", "time": "40.0"}],
+                    }
+                ],
+            }
+        ]
+    }
+
+    app.dependency_overrides[get_current_lineup_service] = lambda: racemanager_service
+    app.dependency_overrides[get_operating_mode] = lambda: ModeDecision(
+        OperatingMode.SQORZ_ONLY, "Sqorz-only mode is explicitly enabled in Configuration."
+    )
+    app.dependency_overrides[get_sqorz_current_race_service] = lambda: sqorz_current_race
+    app.dependency_overrides[get_sqorz_service] = lambda: sqorz
+
+    response = TestClient(app).get("/api/lineup/current")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "sqorz"
+    assert body["phase_label"] == "Moto 1"
+    assert body["riders"][0]["last_name"] == "RIDER"
+    app.dependency_overrides.clear()
 
 
 def test_an_alias_saved_between_two_polls_takes_effect_immediately(tmp_path: Path) -> None:
