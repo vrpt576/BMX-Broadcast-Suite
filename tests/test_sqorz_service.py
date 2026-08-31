@@ -12,6 +12,7 @@ from connector.services.sqorz_service import (
     parse_lan_by_searching_the_tree,
     parse_lan_phase_rank_detail,
     parse_lan_phase_summaries_order,
+    parse_org_events_payload,
     plausible_finish,
 )
 
@@ -20,6 +21,10 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "sqorz"
 
 def load_event_fixture() -> dict:
     return json.loads((FIXTURES / "hoosier_day3_event.json").read_text(encoding="utf-8"))
+
+
+def load_org_fixture() -> dict:
+    return json.loads((FIXTURES / "usabmx_org.json").read_text(encoding="utf-8"))
 
 
 class Clock:
@@ -600,6 +605,74 @@ def test_fetch_lan_ordering_failure_does_not_break_rider_time_fetching(tmp_path)
     assert result.reachable is True
     assert len(result.riders) == 1
     assert service.last_phase_summaries_order == []
+
+
+# ---------------------------------------------------------------------------
+# parse_org_events_payload / fetch_org_events -- the internet-mode event
+# picker (Sqorz-only mode, Change 3). Tested against a real captured
+# /json/org/{orgCode} response, not a guess.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_org_events_reads_every_real_event() -> None:
+    summaries = parse_org_events_payload(load_org_fixture())
+    assert len(summaries) == 5
+    names = {s.event_name for s in summaries}
+    assert "Hoosier - Day 3" in names
+    assert "Great Salt Lake National Day 2" in names
+
+
+def test_parse_org_events_carries_the_real_event_id_and_date() -> None:
+    summaries = parse_org_events_payload(load_org_fixture())
+    day3 = next(s for s in summaries if s.event_name == "Hoosier - Day 3")
+    assert day3.event_id == "6a8198e2d91badc23cb0c54f"
+    assert day3.event_date == "2026-08-16"
+
+
+def test_parse_org_events_skips_an_entry_missing_required_fields() -> None:
+    payload = {"events": [{"eventName": "No ID"}, {"eventId": "e2", "eventName": "Has Both"}]}
+    summaries = parse_org_events_payload(payload)
+    assert [s.event_name for s in summaries] == ["Has Both"]
+
+
+def test_parse_org_events_returns_empty_for_a_payload_with_no_events_key() -> None:
+    assert parse_org_events_payload({}) == []
+
+
+def test_fetch_org_events_without_an_org_code_returns_empty_not_an_error() -> None:
+    service = SqorzService(enabled=True, mode="internet", org_code="")
+    assert service.fetch_org_events() == []
+
+
+def test_fetch_org_events_returns_real_parsed_events() -> None:
+    service = SqorzService(enabled=True, mode="internet", org_code="usabmx")
+    service._get_json = lambda url: load_org_fixture()
+    events = service.fetch_org_events()
+    assert len(events) == 5
+    assert events[0].event_name == "Hoosier - Day 3"
+
+
+def test_fetch_org_events_never_raises_on_a_network_failure() -> None:
+    service = SqorzService(enabled=True, mode="internet", org_code="usabmx")
+
+    def boom(url: str) -> dict:
+        raise OSError("no route to host")
+
+    service._get_json = boom
+    assert service.fetch_org_events() == []
+
+
+def test_fetch_org_events_calls_the_documented_org_url() -> None:
+    service = SqorzService(enabled=True, mode="internet", org_code="usabmx")
+    captured = {}
+
+    def capture(url: str) -> dict:
+        captured["url"] = url
+        return load_org_fixture()
+
+    service._get_json = capture
+    service.fetch_org_events()
+    assert captured["url"] == "https://our.sqorz.com/json/org/usabmx"
 
 
 # ---------------------------------------------------------------------------

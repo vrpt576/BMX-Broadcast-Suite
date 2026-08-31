@@ -78,6 +78,18 @@ class SqorzFetchResult:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class SqorzEventSummary:
+    """One event from /json/org/{orgCode} -- verified real shape (see
+    tests/fixtures/sqorz/usabmx_org.json), used only for the internet-mode
+    event picker (Sqorz-only mode, Change 3). Deliberately just the three
+    fields a picker needs, not every field that payload carries."""
+
+    event_id: str
+    event_name: str
+    event_date: str | None
+
+
 def _parse_time(value: Any) -> float | None:
     if value is None or value == "":
         return None
@@ -161,6 +173,31 @@ def parse_event_payload(payload: dict[str, Any]) -> list[SqorzRiderTime]:
                     )
                 )
     return rows
+
+
+def parse_org_events_payload(payload: dict[str, Any]) -> list[SqorzEventSummary]:
+    """Verified shape: payload["events"] is a list of dicts carrying
+    eventId/eventName/eventDate, confirmed against a real captured
+    /json/org/{orgCode} response (tests/fixtures/sqorz/usabmx_org.json).
+    Skips any entry missing an eventId or eventName rather than raising --
+    same tolerance as parse_event_payload()."""
+    summaries: list[SqorzEventSummary] = []
+    for entry in payload.get("events") or []:
+        if not isinstance(entry, dict):
+            continue
+        event_id = entry.get("eventId")
+        event_name = entry.get("eventName")
+        if not event_id or not event_name:
+            continue
+        event_date = entry.get("eventDate")
+        summaries.append(
+            SqorzEventSummary(
+                event_id=event_id,
+                event_name=event_name,
+                event_date=event_date if isinstance(event_date, str) else None,
+            )
+        )
+    return summaries
 
 
 def _first_list(payload: Any, *keys: str) -> list[Any]:
@@ -590,6 +627,23 @@ class SqorzService:
             age_seconds=age,
             error=self._last_error,
         )
+
+    def fetch_org_events(self) -> list[SqorzEventSummary]:
+        """The internet-mode event picker's data source (Sqorz-only mode,
+        Change 3) -- a real, on-demand call, not part of the polled
+        get_riders() cache cycle, since an operator picking a different
+        event is a rare, deliberate action, not something to re-fetch every
+        few seconds. Requires self.org_code (BBS_SQORZ_ORG_CODE); returns
+        [] rather than raising when unconfigured, unreachable, or the
+        response doesn't parse -- same never-fatal contract as everything
+        else in this class."""
+        if not self.org_code:
+            return []
+        try:
+            payload = self._get_json(f"https://our.sqorz.com/json/org/{self.org_code}")
+            return parse_org_events_payload(payload)
+        except Exception:  # noqa: BLE001 - an event list is optional, never fatal
+            return []
 
     def _fetch(self) -> list[SqorzRiderTime]:
         if self.mode == "lan":

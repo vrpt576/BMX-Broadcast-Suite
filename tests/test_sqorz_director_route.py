@@ -24,6 +24,10 @@ def load_real_payload() -> dict:
     return json.loads((FIXTURES / "hoosier_day3_event.json").read_text(encoding="utf-8"))
 
 
+def load_real_org_payload() -> dict:
+    return json.loads((FIXTURES / "usabmx_org.json").read_text(encoding="utf-8"))
+
+
 def internet_sqorz() -> SqorzService:
     service = SqorzService(enabled=True, mode="internet", event_id="e")
     service._get_json = lambda url: load_real_payload()
@@ -80,6 +84,46 @@ def test_state_in_lan_mode_never_exposes_a_class_picker(tmp_path: Path) -> None:
 
     assert "classes" not in body
     assert body["mode"] == "lan"
+    clear()
+
+
+# ---------------------------------------------------------------------------
+# GET /events -- internet mode's event picker (Change 3)
+# ---------------------------------------------------------------------------
+
+
+def test_events_lists_the_real_org_events_when_configured(tmp_path: Path) -> None:
+    sqorz = SqorzService(enabled=True, mode="internet", event_id="e", org_code="usabmx")
+    sqorz._get_json = lambda url: load_real_org_payload()
+    override(tmp_path, sqorz)
+
+    response = TestClient(app).get("/api/sqorz-director/events")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 5
+    assert body[0]["event_name"] == "Hoosier - Day 3"
+    assert body[0]["event_id"] == "6a8198e2d91badc23cb0c54f"
+    clear()
+
+
+def test_events_is_empty_without_an_org_code_configured(tmp_path: Path) -> None:
+    override(tmp_path, internet_sqorz())  # no org_code set
+
+    response = TestClient(app).get("/api/sqorz-director/events")
+
+    assert response.status_code == 200
+    assert response.json() == []
+    clear()
+
+
+def test_events_is_empty_in_lan_mode_not_an_error(tmp_path: Path) -> None:
+    override(tmp_path, lan_sqorz())
+
+    response = TestClient(app).get("/api/sqorz-director/events")
+
+    assert response.status_code == 200
+    assert response.json() == []
     clear()
 
 
