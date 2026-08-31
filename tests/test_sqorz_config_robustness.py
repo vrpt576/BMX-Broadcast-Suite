@@ -48,6 +48,7 @@ HARDENED_NON_SQORZ_KEYS = (
     "BBS_REMOTE_CONTROL_ENABLED",
     "BBS_REMOTE_ADMIN_ENABLED",
     "BBS_CURRENT_MOTO_DEFAULT",
+    "BBS_FORCE_SQORZ_ONLY_MODE",
 )
 
 
@@ -140,6 +141,8 @@ def test_every_hardened_setting_survives_blank_absent_and_garbage(
         ("remote_control_enabled", False),
         ("remote_admin_enabled", False),
         ("current_moto_default", 1),
+        ("force_sqorz_only_mode", False),
+        ("sqorz_current_race_state_file", Path("data/sqorz_current_race.json")),
     ],
 )
 def test_blank_falls_back_to_the_declared_default(field: str, default: object) -> None:
@@ -163,6 +166,7 @@ def test_blank_falls_back_to_the_declared_default(field: str, default: object) -
         ("remote_control_enabled", False),
         ("remote_admin_enabled", False),
         ("current_moto_default", 1),
+        ("force_sqorz_only_mode", False),
     ],
 )
 def test_garbage_falls_back_to_the_default_and_warns_by_name(

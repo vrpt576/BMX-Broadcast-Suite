@@ -131,6 +131,13 @@ class Settings(BaseSettings):
     # into any usable rider data -- see SqorzService._fetch_lan().
     sqorz_lan_raw_response_file: Path = Path("data/sqorz_lan_last_response.json")
 
+    # Sqorz-only mode: an explicit override for a track that has both
+    # RaceManager and Sqorz configured but wants Sqorz-only anyway. Every
+    # other case (RaceManager present, or absent with Sqorz configured) is
+    # detected automatically -- see operating_mode_service.py.
+    force_sqorz_only_mode: bool = False
+    sqorz_current_race_state_file: Path = Path("data/sqorz_current_race.json")
+
     # A bare `NAME=` in .env (exactly what .env.example ships for several of
     # these, and what ConfigurationService.save() writes when a field is
     # cleared) is read by pydantic-settings as the literal string "". For
@@ -162,6 +169,8 @@ class Settings(BaseSettings):
         "sqorz_timeout_seconds",
         "sqorz_class_alias_file",
         "sqorz_lan_raw_response_file",
+        "force_sqorz_only_mode",
+        "sqorz_current_race_state_file",
         "sql_port",
         "sql_connect_timeout",
         "sql_query_timeout",
@@ -265,6 +274,7 @@ def get_settings() -> Settings:
         "theme_dir",
         "sqorz_class_alias_file",
         "sqorz_lan_raw_response_file",
+        "sqorz_current_race_state_file",
     ):
         value = Path(getattr(settings, field))
         if not value.is_absolute():
