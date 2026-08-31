@@ -65,12 +65,26 @@ DIRECTOR_HTML = r'''<!doctype html>
     @media(max-width:900px){ .statusbar{grid-template-columns:repeat(3,1fr)} }
     @media(max-width:800px){ .grid{grid-template-columns:1fr}.moto-number{font-size:6rem} }
     @media(max-width:540px){ .statusbar,.two,.event-picker,.boundary-grid{grid-template-columns:1fr} }
+    .mode-hidden { display:none !important; }
+    .mode-banner { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#151d27; border:1px solid #2c3947; border-radius:12px; padding:10px 14px; margin-bottom:16px; }
+    .mode-banner .mode-value { font-weight:900; text-transform:uppercase; letter-spacing:.04em; color:#f3b61f; }
+    .mode-banner .mode-reason { color:#9eabb8; font-size:.88rem; flex:1; min-width:200px; }
+    .mode-banner button { width:auto; padding:8px 14px; }
+    .mode-banner .mode-recheck-detail { flex-basis:100%; color:#9eabb8; font-size:.82rem; }
+    .sqorz-panel { margin-bottom:14px; padding:12px; border:1px solid #2c3947; border-radius:10px; background:#151d27; }
+    .sqorz-panel label { margin-top:0; }
   </style>
 </head>
 <body>
 <main>
   <h1>BBS Race Director</h1>
   <p class="sub">One control surface for race position, event selection, and on-air graphics.</p>
+  <section id="mode-banner" class="mode-banner">
+    <span>Mode: <span id="mode-value" class="mode-value">—</span></span>
+    <span id="mode-reason" class="mode-reason">Checking…</span>
+    <button id="mode-recheck" class="secondary">Re-check</button>
+    <span id="mode-recheck-detail" class="mode-recheck-detail"></span>
+  </section>
   <section class="statusbar">
     <div class="stat"><small>Event</small><strong id="event-stat">Latest / Live</strong></div>
     <div class="stat"><small>Round</small><strong id="round-stat">Round 1</strong></div>
@@ -81,14 +95,23 @@ DIRECTOR_HTML = r'''<!doctype html>
   <div class="grid">
     <section class="panel">
       <h2>Race Position</h2>
-      <div class="event-picker">
+      <div class="event-picker racemanager-only">
         <label>RaceManager event / race
           <select id="event-select"><option value="">Latest / Live (automatic)</option></select>
         </label>
         <button id="refresh-events" class="secondary">Refresh Events</button>
       </div>
-      <div id="event-detail" class="event-detail">Uses the newest RaceManager motoboard automatically.</div>
-      <div class="boundary-control">
+      <div id="event-detail" class="event-detail racemanager-only">Uses the newest RaceManager motoboard automatically.</div>
+      <div id="sqorz-nav-panel" class="sqorz-panel mode-hidden">
+        <label id="sqorz-event-label" class="mode-hidden">Sqorz event
+          <select id="sqorz-event-select"><option value="">(no events found)</option></select>
+        </label>
+        <label>Sqorz class
+          <select id="sqorz-class-select"><option value="">— select a class —</option></select>
+        </label>
+        <button id="sqorz-jump-recent" class="secondary" style="margin-top:10px">Jump to Most Recent Activity</button>
+      </div>
+      <div class="boundary-control racemanager-only">
         <div class="boundary-grid">
           <label>Main program starts at moto
             <input id="main-program-start" type="number" min="1" placeholder="Optional">
@@ -108,27 +131,27 @@ DIRECTOR_HTML = r'''<!doctype html>
         <button id="previous">◀ Previous Moto</button>
         <button id="next">Next Moto ▶</button>
       </div>
-      <div class="two" style="margin-top:10px">
+      <div class="two racemanager-only" style="margin-top:10px">
         <button id="previous-round">◀ Previous Round</button>
         <button id="next-round">Next Round ▶</button>
       </div>
-      <div class="two" style="margin-top:10px">
+      <div class="two racemanager-only" style="margin-top:10px">
         <button id="first-moto" class="secondary">First Moto in Round</button>
         <button id="last-moto" class="secondary">Last Moto in Round</button>
       </div>
-      <label>Race round
+      <label class="racemanager-only">Race round
         <select id="race-phase">
           <option value="round_1">Round 1</option><option value="round_2">Round 2</option>
           <option value="round_3">Moto 3</option><option value="quarterfinal">Quarterfinals</option>
           <option value="semifinal">Semifinals</option><option value="main">Mains</option>
         </select>
       </label>
-      <label>Class name<input id="class-name" maxlength="100" placeholder="17-20 Expert"></label>
-      <div class="two">
+      <label class="racemanager-only">Class name<input id="class-name" maxlength="100" placeholder="17-20 Expert"></label>
+      <div class="two racemanager-only">
         <label>Jump to moto<input id="jump" type="number" min="1"></label>
         <label>Last moto (optional)<input id="maximum" type="number" min="1"></label>
       </div>
-      <button id="apply" style="margin-top:12px">Apply Race Position</button>
+      <button id="apply" class="racemanager-only" style="margin-top:12px">Apply Race Position</button>
       <button id="reset-navigation-confirmation" class="secondary" style="margin-top:10px">Reset navigation confirmation preference</button>
     </section>
     <section class="panel">
@@ -146,7 +169,7 @@ DIRECTOR_HTML = r'''<!doctype html>
         <div><kbd>L</kbd> Lineup</div><div><kbd>M</kbd> Current moto</div>
         <div><kbd>R</kbd> Results</div><div><kbd>H</kbd> Hide graphics</div><div><kbd>[</kbd> <kbd>]</kbd> Change round</div>
       </div>
-      <div class="results-controls">
+      <div class="results-controls racemanager-only">
         <h2>Results Roll</h2>
         <div class="results-grid">
           <label>Start from
@@ -194,6 +217,8 @@ const graphicLabels={hidden:'Hidden',current_moto:'Current Moto',lineup:'Rider L
 let state=null;
 let events=[];
 let program=null;
+let mode='racemanager';
+let sqorzState=null;
 let mutationVersion=0;
 let pendingNavigation=null;
 let jumpDraft=null;
@@ -212,7 +237,158 @@ function authorizedOptions(options={}){
 }
 
 function navigationEventId(){
-  return state?.motoboard_id||state?.resolved_motoboard_id||null;
+  return mode==='sqorz_only'?'sqorz-only':(state?.motoboard_id||state?.resolved_motoboard_id||null);
+}
+
+const modeLabels={racemanager:'RaceManager',sqorz_only:'Sqorz-only',unavailable:'Unavailable'};
+
+function applyModeVisibility(){
+  const sqorzOnly=mode==='sqorz_only';
+  document.querySelectorAll('.racemanager-only').forEach(el=>el.classList.toggle('mode-hidden',sqorzOnly));
+  document.querySelectorAll('#sqorz-nav-panel').forEach(el=>el.classList.toggle('mode-hidden',!sqorzOnly));
+  const resultsButton=$('#show-current-results');
+  resultsButton.disabled=sqorzOnly;
+  resultsButton.title=sqorzOnly?'Results require RaceManager -- not available in Sqorz-only mode.':'';
+}
+
+function renderModeBanner(decision){
+  $('#mode-value').textContent=modeLabels[decision.mode]||decision.mode;
+  $('#mode-reason').textContent=decision.reason;
+}
+
+async function loadMode(){
+  try{
+    const response=await fetch('/api/mode',{cache:'no-store'});
+    if(!response.ok)throw new Error();
+    const decision=await response.json();
+    mode=decision.mode;
+    renderModeBanner(decision);
+    applyModeVisibility();
+    if(mode==='sqorz_only'){await refreshSqorzState();await loadSqorzEvents()}
+  }catch(_){
+    $('#mode-reason').textContent='Mode unavailable -- assuming RaceManager.';
+  }
+}
+
+async function recheckMode(){
+  const button=$('#mode-recheck');
+  button.disabled=true;
+  try{
+    const response=await fetchWithTimeout('/api/mode/recheck',authorizedOptions({method:'POST'}));
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    const result=await response.json();
+    mode=result.after.mode;
+    renderModeBanner(result.after);
+    $('#mode-recheck-detail').textContent=`Before: ${modeLabels[result.before.mode]||result.before.mode} (${result.before.reason}) -- After: ${modeLabels[result.after.mode]||result.after.mode} (${result.after.reason})`;
+    applyModeVisibility();
+    if(mode==='sqorz_only'){await refreshSqorzState();await loadSqorzEvents()}
+  }catch(error){
+    $('#mode-recheck-detail').textContent=error.message;
+  }finally{
+    button.disabled=false;
+  }
+}
+
+function sqorzPhaseNumber(phaseCode){
+  const match=/\d+/.exec(phaseCode||'');
+  return match?match[0]:'1';
+}
+
+function renderSqorzState(data){
+  sqorzState=data;
+  const selected=data.selected;
+  $('#round-stat').textContent=selected?selected.phase_name:'No race selected';
+  $('#class-stat').textContent=selected?selected.class_name:'Class not set';
+  $('#moto-stat').textContent=selected?sqorzPhaseNumber(selected.phase_code):'None yet';
+  $('#moto-number').textContent=selected?sqorzPhaseNumber(selected.phase_code):'';
+  $('#event-stat').textContent=data.mode==='lan'?'Sqorz LAN':'Sqorz';
+  const classSelect=$('#sqorz-class-select');
+  const panel=$('#sqorz-nav-panel');
+  if(Array.isArray(data.classes)){
+    // Internet/file mode: a class picker and jump-to-recent, no cross-class
+    // ordering exists to step through automatically (see
+    // sqorz_navigation_service.py's module docstring for why).
+    panel.classList.remove('mode-hidden');
+    classSelect.parentElement.classList.remove('mode-hidden');
+    $('#sqorz-jump-recent').classList.remove('mode-hidden');
+    const currentValue=classSelect.value;
+    classSelect.replaceChildren(new Option('— select a class —',''));
+    for(const item of data.classes){
+      const option=new Option(item.class_name||item.class_code,item.class_code);
+      classSelect.append(option);
+    }
+    classSelect.value=selected?selected.class_code:currentValue;
+  }else{
+    // LAN mode: no class/event picker at all -- Previous/Next alone walk
+    // the full cross-class catalog, so this panel has nothing to show.
+    panel.classList.add('mode-hidden');
+    classSelect.parentElement.classList.add('mode-hidden');
+    $('#sqorz-jump-recent').classList.add('mode-hidden');
+  }
+}
+
+async function refreshSqorzState(){
+  try{
+    const response=await fetchWithTimeout('/api/sqorz-director/state',{cache:'no-store'});
+    if(!response.ok)throw new Error();
+    renderSqorzState(await response.json());
+  }catch(_){
+    $('#round-stat').textContent='Sqorz unavailable';
+  }
+  await refreshLineup();
+}
+
+async function loadSqorzEvents(){
+  const label=$('#sqorz-event-label');
+  const select=$('#sqorz-event-select');
+  try{
+    const response=await fetchWithTimeout('/api/sqorz-director/events',{cache:'no-store'});
+    if(!response.ok)throw new Error();
+    const events=await response.json();
+    if(!events.length){label.classList.add('mode-hidden');return}
+    label.classList.remove('mode-hidden');
+    select.replaceChildren();
+    for(const event of events){
+      select.append(new Option(`${event.event_date||''} ${event.event_name}`.trim(),event.event_id));
+    }
+  }catch(_){
+    label.classList.add('mode-hidden');
+  }
+}
+
+async function sqorzStep(direction){
+  try{
+    const response=await fetchWithTimeout(`/api/sqorz-director/${direction}`,authorizedOptions({method:'POST'}));
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    renderSqorzState(await response.json());
+  }catch(error){$('#message').textContent=error.message}
+}
+
+async function sqorzSelectClass(classCode){
+  if(!classCode)return;
+  try{
+    const response=await fetchWithTimeout(`/api/sqorz-director/select-class/${encodeURIComponent(classCode)}`,authorizedOptions({method:'POST'}));
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    renderSqorzState(await response.json());
+  }catch(error){$('#message').textContent=error.message}
+}
+
+async function sqorzJumpToRecent(){
+  try{
+    const response=await fetchWithTimeout('/api/sqorz-director/jump-to-recent',authorizedOptions({method:'POST'}));
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    renderSqorzState(await response.json());
+  }catch(error){$('#message').textContent=error.message}
+}
+
+async function sqorzSelectEvent(eventId){
+  if(!eventId)return;
+  try{
+    const response=await fetch('/api/configuration',authorizedOptions({method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({sqorz_event_id:eventId})}));
+    if(!response.ok)throw new Error(`Request failed: ${response.status}`);
+    $('#message').textContent='Sqorz event changed.';
+    await refreshSqorzState();
+  }catch(error){$('#message').textContent=error.message}
 }
 
 function navigationPreferenceKey(eventId=navigationEventId()){
@@ -484,6 +660,10 @@ async function performStep(direction){
   catch(error){$('#message').textContent=error.message}
 }
 function step(direction){
+  if(mode==='sqorz_only'){
+    if(direction==='previous')return confirmRaceNavigation('Move backward one race?',()=>sqorzStep(direction));
+    return sqorzStep(direction);
+  }
   if(direction==='previous'){
     return confirmRaceNavigation('Move backward one moto?',()=>performStep(direction));
   }
@@ -646,15 +826,28 @@ window.addEventListener('keydown',event=>{
   else if(event.key==='Backspace'||event.key==='ArrowLeft'){event.preventDefault();step('previous')}
   else if(event.key.toLowerCase()==='l')graphic('lineup');
   else if(event.key.toLowerCase()==='m')graphic('current_moto');
-  else if(event.key.toLowerCase()==='r')resultsAction('show-current');
+  else if(event.key.toLowerCase()==='r'){
+    if(mode==='sqorz_only')$('#message').textContent='Results are unavailable in Sqorz-only mode.';
+    else resultsAction('show-current');
+  }
   else if(event.key.toLowerCase()==='h')graphic('hidden');
-  else if(event.key===']')round('next');
-  else if(event.key==='[')round('previous');
+  else if(event.key===']'){
+    if(mode!=='sqorz_only')round('next');
+  }
+  else if(event.key==='['){
+    if(mode!=='sqorz_only')round('previous');
+  }
 });
+$('#mode-recheck').addEventListener('click',recheckMode);
+$('#sqorz-class-select').addEventListener('change',()=>sqorzSelectClass($('#sqorz-class-select').value));
+$('#sqorz-event-select').addEventListener('change',()=>sqorzSelectEvent($('#sqorz-event-select').value));
+$('#sqorz-jump-recent').addEventListener('click',sqorzJumpToRecent);
+loadMode();
 request('/api/current').catch(error=>$('#message').textContent=error.message);
 loadEvents();
 loadResultsStatus();
 setInterval(()=>{
+  if(mode==='sqorz_only'){refreshSqorzState();return}
   const requestVersion=mutationVersion;
   fetch('/api/current',{cache:'no-store'})
     .then(response=>response.json())
