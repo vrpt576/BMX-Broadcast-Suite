@@ -26,6 +26,7 @@ FIELDS = {
     'sqorz_event_id':'BBS_SQORZ_EVENT_ID','sqorz_org_code':'BBS_SQORZ_ORG_CODE',
     'sqorz_host':'BBS_SQORZ_HOST','sqorz_port':'BBS_SQORZ_PORT','sqorz_file_path':'BBS_SQORZ_FILE_PATH',
     'sqorz_poll_seconds':'BBS_SQORZ_POLL_SECONDS','sqorz_timeout_seconds':'BBS_SQORZ_TIMEOUT_SECONDS',
+    'force_sqorz_only_mode':'BBS_FORCE_SQORZ_ONLY_MODE',
 }
 
 class ConfigurationService:
@@ -78,6 +79,7 @@ class ConfigurationService:
             elif field in {
                 'sql_encrypt','sql_trust_server_certificate',
                 'remote_control_enabled','remote_admin_enabled','sqorz_enabled',
+                'force_sqorz_only_mode',
             }:
                 value = 'true' if bool(value) else 'false'
             else:
@@ -85,9 +87,10 @@ class ConfigurationService:
             existing[env_name] = value
         self._write_env(existing)
         reload_settings()
-        from connector.dependencies import get_database, get_sqorz_service
+        from connector.dependencies import get_database, get_operating_mode, get_sqorz_service
         get_database.cache_clear()
         get_sqorz_service.cache_clear()
+        get_operating_mode.cache_clear()
         return get_settings()
 
     @staticmethod

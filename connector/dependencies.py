@@ -8,6 +8,11 @@ from connector.services.current_moto_service import CurrentMotoService
 from connector.services.current_results_service import CurrentResultsService
 from connector.services.event_service import EventService
 from connector.services.motoboard_service import MotoboardService
+from connector.services.operating_mode_service import (
+    ModeDecision,
+    check_racemanager_reachable,
+    resolve_operating_mode,
+)
 from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
@@ -75,6 +80,22 @@ def get_sqorz_service() -> SqorzService:
         poll_seconds=settings.sqorz_effective_poll_seconds,
         timeout_seconds=settings.sqorz_timeout_seconds,
         raw_response_file=settings.sqorz_lan_raw_response_file,
+    )
+
+
+@lru_cache
+def get_operating_mode() -> ModeDecision:
+    """Cached like get_database()/get_sqorz_service() -- see
+    operating_mode_service's module docstring for why this must not be
+    re-evaluated per-request. Cleared by ConfigurationService.save() and
+    by the explicit "Re-check" action (connector/routes/mode.py), and by
+    nothing else."""
+    settings = get_settings()
+    reachable = check_racemanager_reachable(get_database())
+    return resolve_operating_mode(
+        racemanager_reachable=reachable,
+        sqorz_enabled=settings.sqorz_enabled,
+        force_sqorz_only=settings.force_sqorz_only_mode,
     )
 
 

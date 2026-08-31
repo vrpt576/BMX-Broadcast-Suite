@@ -78,6 +78,30 @@ def test_setting_poll_seconds_explicitly_always_wins(isolated_env_file: Path) ->
     assert 'BBS_SQORZ_POLL_SECONDS=7' in isolated_env_file.read_text(encoding='utf-8')
 
 
+def test_save_clears_the_cached_operating_mode(isolated_env_file: Path) -> None:
+    """get_operating_mode() is cached the same way get_database() and
+    get_sqorz_service() are (a transient RaceManager blip must not swap the
+    operator's navigation model mid-event) -- but a saved configuration
+    change (e.g. flipping force_sqorz_only_mode) must not wait for a reboot
+    or the explicit Re-check action to take effect. Mirrors the existing
+    get_database()/get_sqorz_service() cache-clear on save(), which this
+    test also incidentally exercises for the first time."""
+    from connector.dependencies import get_operating_mode
+
+    get_operating_mode()  # populate the cache
+    assert get_operating_mode.cache_info().currsize == 1
+
+    ConfigurationService().save({'sqorz_enabled': True})
+
+    assert get_operating_mode.cache_info().currsize == 0
+
+
+def test_force_sqorz_only_mode_round_trips_through_save(isolated_env_file: Path) -> None:
+    settings = ConfigurationService().save({'force_sqorz_only_mode': True})
+    assert settings.force_sqorz_only_mode is True
+    assert 'BBS_FORCE_SQORZ_ONLY_MODE=true' in isolated_env_file.read_text(encoding='utf-8')
+
+
 def test_public_config_hides_password():
     s=Settings(
         _env_file=None,
