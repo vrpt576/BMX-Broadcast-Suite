@@ -1,6 +1,6 @@
 # BMX Broadcast Suite
 
-[![Build Status](https://img.shields.io/badge/build-v1.3.0-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
+[![Build Status](https://img.shields.io/badge/build-v1.3.1-informational)](https://github.com/vrpt576/BMX-Broadcast-Suite)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen)](CONTRIBUTING.md)
 
@@ -47,11 +47,11 @@ The Windows tray menu shows service, database, moto, and class status and provid
 4. Open **Race Director**, select the live or historical event, and confirm the moto, round, and class.
 5. Add the [overlay URLs](docs/browser-sources.md) to OBS as Browser Sources.
 
-For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md).
+For a detailed Windows walkthrough, continue with [Windows Installation](docs/installation-windows.md), [First Run](docs/first-run.md), and [OBS Setup](docs/obs-setup.md) -- or open the **Manual** (`/manual`, linked from the tray) for all of BBS's documentation from inside the app itself, with no need to find the GitHub repository.
 
-## Current status — v1.3.0
+## Current status — v1.3.1
 
-BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.3.0 adds a guided [Setup wizard](docs/setup-wizard.md) — installs the ODBC driver and creates the read-only RaceManager account with no SQL or command-line work — and optional [Sqorz live-timing integration](docs/sqorz-live-timing.md), rider times and finish positions shown alongside the lineup, entirely additive and off by default, while retaining the Main-labeling fix from v1.2.17, the Ref.Rounds bracket-name resolution from v1.2.16, and the theme and tray fixes from v1.2.15. See the [changelog](CHANGELOG.md) for the full 1.3.0 verification status before relying on it in the field.
+BBS can select live or historical RaceManager events, resolve exact qualifier and final stages, and display current-moto, lineup, official results, and break graphics in OBS. Version 1.3.1 adds an in-app [Manual](docs/wizard-installer-windows.md) (`/manual`) and SQL Server instance/port discovery ("Find it for me" in the Setup wizard, via the SQL Server Browser service rather than a port scan). 1.3.0 added a guided [Setup wizard](docs/setup-wizard.md) — installs the ODBC driver and creates the read-only RaceManager account with no SQL or command-line work — and optional [Sqorz live-timing integration](docs/sqorz-live-timing.md), rider times and finish positions shown alongside the lineup, entirely additive and off by default. Earlier fixes retained: the Main-labeling fix from v1.2.17, the Ref.Rounds bracket-name resolution from v1.2.16, and the theme and tray fixes from v1.2.15. See the [changelog](CHANGELOG.md) for full verification status before relying on any of this in the field.
 
 ### Rider subtitle data
 

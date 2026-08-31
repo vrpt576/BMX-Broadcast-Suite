@@ -86,7 +86,14 @@ Shown once "Set it up automatically" doesn't pan out. Enter:
 
 - **Which computer runs RaceManager's database** -- leave this as
   `localhost` if BBS is installed on the same computer as RaceManager;
-  otherwise enter that computer's name or address.
+  otherwise enter that computer's name or address. If you don't know the
+  exact instance name or port, click **Find it for me** next to the
+  field once you've entered the address -- it asks that computer's SQL
+  Server Browser service (the same thing SQL Server Management Studio
+  uses to list instances) rather than making you go find it yourself,
+  and fills in the "Advanced" instance/port fields on success. If the
+  Browser service is turned off there (common), it says so plainly and
+  checks the one standard SQL Server port instead of guessing.
 - **A SQL Server administrator's username and password.** This is not
   `bbs_connector`, and it is not your own Windows login -- it's whichever
   account your RaceManager software (or whoever set it up) uses to

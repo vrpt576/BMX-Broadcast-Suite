@@ -1,6 +1,47 @@
 # Changelog
 
+**Versioning note:** starting with 1.3.0, the 1.3.x line carries both new
+features and fixes -- unlike 1.2.x, which was fixes and hardening only
+after 1.2.0 shipped its own features. This project isn't following
+strict semver's "features only bump the minor version" convention;
+minor-version bumps here track *releases*, not a promise about what
+kind of change is inside one. Check each release's own notes for what
+actually changed, not the version number alone.
+
 ## Unreleased
+
+## 1.3.1 - date TBD (not yet published)
+
+- Added an in-app manual (`/manual`, linked from the tray) so BBS's own
+  documentation lives inside the product -- anyone who reaches BBS
+  through a link, not a GitHub clone, never sees `docs/` otherwise.
+  Browsable with a sidebar index across eight sections (Quick start,
+  Installation, Setting up RaceManager access, Sqorz live timing, User
+  guide, System administration, Troubleshooting/FAQ, Best practices for
+  race day) and a cheap client-side search. Mirrors this project's
+  existing docs/*.md content -- structure and an index, not a rewrite --
+  with one new page filling a real gap (race-day best practices) that
+  didn't already exist as a doc. Rendered by a small, purpose-built
+  Markdown-to-HTML converter scoped to what these docs actually use
+  (headers, tables, fenced code, lists, links), rather than adding a new
+  dependency to the offline, hash-locked wheel pipeline for something
+  this project's own docs corpus doesn't need. Fully offline like the
+  overlays -- no CDN, no external fonts. `docs/` is now copied into the
+  MSI payload (it wasn't before) so this content actually ships.
+- Added SQL Server instance/port discovery via the SQL Server Browser
+  service (UDP 1434, the same protocol SSMS and RaceManager's own
+  installer use) -- a "Find it for me" button beside the Setup wizard's
+  host fields fills in the instance name and port automatically.
+  Deliberately not a port scan: a single UDP query to the one port that
+  exists specifically to answer this question, which doesn't get slower
+  the more instances or ports there might be and doesn't look like
+  reconnaissance to a firewall or IDS watching someone else's track
+  network. Verified live against this project's own reference
+  deployment (correctly discovered instance `USABMX` on its real,
+  non-default port). Falls back to checking the one universally
+  standard SQL Server port (1433, still not a scan) when the Browser
+  service doesn't answer -- it's frequently disabled -- and says so
+  plainly either way rather than silently guessing.
 
 ## 1.3.0 - 2026-08-30
 

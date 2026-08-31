@@ -48,7 +48,7 @@ class BBSWindowsTray:
         return pystray.Menu(
             pystray.MenuItem(
                 lambda _item: (
-                    f"BMX Broadcast Suite {self.status.version or '1.3.0'}"
+                    f"BMX Broadcast Suite {self.status.version or '1.3.1'}"
                 ),
                 None,
                 enabled=False,
@@ -67,6 +67,10 @@ class BBSWindowsTray:
             pystray.MenuItem(
                 "Open Setup",
                 lambda _icon, _item: self._open("/setup"),
+            ),
+            pystray.MenuItem(
+                "Open Manual",
+                lambda _icon, _item: self._open("/manual"),
             ),
             pystray.MenuItem(
                 "Open Configuration",

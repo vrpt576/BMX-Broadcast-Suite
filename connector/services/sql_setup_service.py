@@ -75,6 +75,7 @@ from __future__ import annotations
 
 import re
 import secrets
+import socket
 import string
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -272,6 +273,68 @@ def connect(connection_string: str, *, timeout: int = 5) -> Any:
         return pyodbc.connect(connection_string, timeout=timeout, autocommit=True)
     except pyodbc.Error as exc:
         raise SqlSetupError(str(exc)) from exc
+
+
+def discover_via_browser_service(host: str, *, timeout: float = 2.0) -> list[dict[str, Any]]:
+    """Queries the SQL Server Browser service (UDP 1434, the SSRP
+    protocol) for every instance on `host` -- the officially documented
+    way a SQL Server client discovers instance names and their dynamic
+    TCP ports, not a guess. A single UDP datagram to a single, well-known
+    port that exists specifically to answer this question -- unlike
+    probing a range of TCP ports, this doesn't take longer the more ports
+    are tried, doesn't trip a host firewall's port-scan detection, and
+    doesn't look like reconnaissance to whoever administers a track's
+    network. Returns [] (not an error) if nothing answers within
+    `timeout` -- the Browser service is frequently disabled -- so the
+    caller can report that plainly rather than treating "no instances
+    found" as a server error. Never raises for a bad or unreachable
+    host."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(b"\x03", (host, 1434))  # CLNT_UCAST_EX: "list every instance here"
+            data, _addr = sock.recvfrom(4096)
+    except OSError:
+        return []
+    return _parse_browser_response(data)
+
+
+def _parse_browser_response(data: bytes) -> list[dict[str, Any]]:
+    """SVR_RESP: 1 byte (0x05), 2-byte little-endian length, then an
+    ASCII ';'-delimited key/value blob, one block per instance separated
+    by ';;'. Never raises on malformed input -- an unexpected response
+    (a firewall/NAT rewriting the packet, a non-SQL-Server UDP listener
+    that happens to answer on 1434) is reported as "found nothing", not
+    a crash."""
+    if len(data) < 3 or data[0] != 0x05:
+        return []
+    text = data[3:].decode("ascii", errors="ignore")
+    instances: list[dict[str, Any]] = []
+    for block in text.split(";;"):
+        if not block.strip():
+            continue
+        fields = block.split(";")
+        pairs = dict(zip(fields[::2], fields[1::2]))
+        instance_name = pairs.get("InstanceName")
+        if not instance_name:
+            continue
+        port_text = pairs.get("tcp")
+        port = int(port_text) if port_text and port_text.isdigit() else None
+        instances.append({"instance": instance_name, "port": port, "version": pairs.get("Version")})
+    return instances
+
+
+def probe_default_sql_port(host: str, *, timeout: float = 2.0) -> bool:
+    """The one, specifically justified fallback when the Browser service
+    doesn't answer: is anything listening on 1433, SQL Server's universal
+    default port. This is a single, well-known-port connectivity check,
+    not a scan across a range of ports -- see discover_via_browser_service's
+    docstring for why that distinction matters here."""
+    try:
+        with socket.create_connection((host, 1433), timeout=timeout):
+            return True
+    except OSError:
+        return False
 
 
 def login_exists(connection: SupportsCursor, login_name: str) -> bool:

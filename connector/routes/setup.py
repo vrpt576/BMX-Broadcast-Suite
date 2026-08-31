@@ -165,6 +165,52 @@ def sql_instances() -> dict[str, Any]:
     return {"detected": detected, "default": default}
 
 
+@router.post("/setup/sql/discover")
+def sql_discover(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """"Find it for me": asks the target host's SQL Server Browser
+    service (UDP 1434) which instance to use and what port it's
+    listening on, rather than making the operator go find that out
+    themselves -- see sql_setup.discover_via_browser_service for why this
+    is the right way to ask (a single UDP query, not a port scan). If the
+    Browser service doesn't answer (it's frequently disabled), falls back
+    to checking the one universally standard SQL Server port (1433) --
+    still not a scan -- and says plainly, either way, when it couldn't
+    fully confirm the answer."""
+    host = str(payload.get("host") or "").strip()
+    if not host:
+        raise HTTPException(400, "A SQL Server address is required.")
+
+    instances = sql_setup.discover_via_browser_service(host)
+    if instances:
+        selected = next(
+            (i for i in instances if i["instance"].upper() == sql_setup.COMMON_RACEMANAGER_INSTANCE),
+            instances[0],
+        )
+        return {"found": True, "via": "browser", "instances": instances, "selected": selected}
+
+    if sql_setup.probe_default_sql_port(host):
+        return {
+            "found": True,
+            "via": "fallback",
+            "instances": [],
+            "selected": {"instance": "", "port": 1433, "version": None},
+            "message": "The SQL Server Browser service didn't respond, so the instance name couldn't "
+            "be confirmed -- but something is listening on the standard SQL Server port (1433), filled "
+            "in below. If that's not right, ask whoever administers this SQL Server for the exact "
+            "instance name and port.",
+        }
+
+    return {
+        "found": False,
+        "via": "none",
+        "instances": [],
+        "selected": None,
+        "message": "The SQL Server Browser service didn't respond, and nothing answered on the "
+        "standard SQL Server port either. Enter the instance name and port yourself if you know "
+        "them, or ask whoever administers this SQL Server.",
+    }
+
+
 def _create_or_reset_login(
     connection: Any, *, database: str, login_name: str
 ) -> sql_setup.Plan | None:
@@ -556,7 +602,11 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
       <h3>Enter administrator credentials</h3>
       <p class="muted" id="admin-setup-intro">Enter the username and password for a SQL Server <b>administrator</b> account -- not <code>bbs_connector</code>, and not your own Windows login. BBS uses it once to set everything up.</p>
       <label class="field">Which computer runs RaceManager's database?</label>
-      <input id="admin-host" value="localhost">
+      <div class="row">
+        <input id="admin-host" value="localhost" style="flex:1;min-width:160px">
+        <button type="button" id="admin-discover-btn" class="secondary">Find it for me</button>
+      </div>
+      <p class="fieldhelp" id="admin-discover-msg"></p>
       <p class="fieldhelp">If BBS is installed on the same computer as RaceManager, leave this as <code>localhost</code>. Otherwise, enter that computer's name or address.</p>
       <label class="field">SQL Server administrator username</label>
       <input id="admin-user" autocomplete="off">
@@ -583,7 +633,11 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
       <div class="option">
         <p class="muted">If <code>bbs_connector</code> already exists and you know its password, BBS can just verify it works and start using it. Nothing gets created or changed.</p>
         <label class="field">Which computer runs RaceManager's database?</label>
-        <input id="verify-host" value="localhost">
+        <div class="row">
+          <input id="verify-host" value="localhost" style="flex:1;min-width:160px">
+          <button type="button" id="verify-discover-btn" class="secondary">Find it for me</button>
+        </div>
+        <p class="fieldhelp" id="verify-discover-msg"></p>
         <details style="margin-top:8px"><summary class="muted">Advanced</summary>
           <label class="field">Database instance name</label>
           <input id="verify-instance">
@@ -720,6 +774,24 @@ async function loadInstances(){
   const d=await r.json();
   document.querySelector('#admin-instance-list').innerHTML=d.detected.map(i=>'<option value="'+esc(i)+'">').join('');
 }
+
+async function discoverSql(prefix){
+  const host=document.querySelector('#'+prefix+'-host').value.trim();
+  const msg=document.querySelector('#'+prefix+'-discover-msg');
+  if(!host){msg.textContent='Enter a computer name or address first.';return}
+  msg.textContent='Looking...';
+  const r=await fetch('/api/setup/sql/discover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host})});
+  const d=await r.json();
+  if(d.selected){
+    document.querySelector('#'+prefix+'-instance').value=d.selected.instance||'';
+    document.querySelector('#'+prefix+'-port').value=d.selected.port||'';
+    const details=document.querySelector('#'+prefix+'-instance').closest('details');
+    if(details) details.open=true;
+  }
+  msg.textContent=d.message||(d.found?'Found it.':"Couldn't find it -- enter it yourself if you know it.");
+}
+document.querySelector('#admin-discover-btn').addEventListener('click',()=>discoverSql('admin'));
+document.querySelector('#verify-discover-btn').addEventListener('click',()=>discoverSql('verify'));
 
 document.querySelector('#auto-setup-btn').addEventListener('click', async ()=>{
   const msg=document.querySelector('#auto-setup-msg');
