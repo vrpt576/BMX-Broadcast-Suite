@@ -28,6 +28,23 @@ def test_msi_sources_replace_iexpress_chain():
         assert value.lower() not in (builder + product).lower()
 
 
+def test_offline_dependency_install_pins_python_3_12_not_ambient_path():
+    """The dependency lock ships cp312 wheels (matching the embedded
+    3.12.10 runtime), and pip's own wheel-compatibility check is decided
+    by whichever interpreter runs it -- so this must resolve an actual
+    Python 3.12, not just invoke bare `python` and trust it's 3.12. A
+    system with a newer Python earlier on PATH than 3.12 (a completely
+    ordinary machine state, not a misconfiguration) used to fail deep
+    inside pip on the first compiled wheel with a confusing "no matching
+    distribution", rather than a clear version error up front."""
+    builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
+    assert "function Resolve-BuildPython" in builder
+    assert "py -3.12" in builder
+    assert "$BuildPython = Resolve-BuildPython" in builder
+    assert "& $BuildPython -m pip install" in builder
+    assert "& python -m pip install" not in builder
+
+
 def test_msi_is_offline_native_and_preserves_programdata():
     builder = (ROOT / "scripts" / "build-windows-installer.ps1").read_text(encoding="utf-8")
     product = (PACKAGING / "Product.wxs").read_text(encoding="utf-8")
