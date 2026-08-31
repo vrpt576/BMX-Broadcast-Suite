@@ -19,6 +19,27 @@ $Runtime = Join-Path $Payload "runtime"
 $InstallerName = "BMX-Broadcast-Suite-Setup-v$Version.msi"
 $Installer = Join-Path $OutputDirectory $InstallerName
 
+function Resolve-BuildPython {
+    # The offline dependency lock pins cp312 wheels (matching the embedded
+    # 3.12.10 runtime below) -- pip's own wheel-compatibility check is
+    # decided by whichever interpreter runs it, not by --target, so this
+    # must resolve to an actual Python 3.12, not just whatever `python`
+    # happens to be first on PATH. A newer system Python ahead of 3.12 on
+    # PATH silently passes this check and then fails deep inside pip with
+    # a confusing "no matching distribution" for the first compiled
+    # (non-pure-Python) wheel it hits, rather than a clear version error
+    # up front. Prefers the `py` launcher's -3.12 selector, which finds
+    # 3.12 regardless of PATH order; falls back to bare `python` only when
+    # `py` itself isn't installed.
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        $exe = & py -3.12 -c "import sys; print(sys.executable)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $exe) { return $exe.Trim() }
+    }
+    $exe = & python -c "import sys; print(sys.executable) if sys.version_info[:2] == (3, 12) else exit(1)" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $exe) { return $exe.Trim() }
+    throw "This build needs Python 3.12 to resolve the offline dependency lock (it pins cp312 wheels). Neither 'py -3.12' nor a 3.12 'python' on PATH could be found -- install Python 3.12 (https://www.python.org/downloads/) and/or the 'py' launcher, then try again."
+}
+
 function Assert-Hash([string]$Path, [string]$Expected) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing locked dependency: $Path" }
     $Actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
@@ -141,7 +162,8 @@ try {
     Set-Content -LiteralPath $Pth -Value $PthLines -Encoding Ascii
     $SitePackages = Join-Path $Runtime "Lib\site-packages"
     New-Item -ItemType Directory -Force -Path $SitePackages | Out-Null
-    & python -m pip install --no-index --only-binary=:all: --require-hashes --ignore-installed `
+    $BuildPython = Resolve-BuildPython
+    & $BuildPython -m pip install --no-index --only-binary=:all: --require-hashes --ignore-installed `
         --find-links (Join-Path $Dependencies "wheels") --target $SitePackages `
         -r (Join-Path $Packaging "requirements-lock.txt")
     if ($LASTEXITCODE -ne 0) { throw "Offline locked dependency installation failed." }
