@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 1.3.0 - date TBD (not yet published -- see "Verification status" below)
+## 1.3.0 - 2026-08-30
 
 **Verification status, plainly:** the internet-mode Sqorz backend has been
 tested extensively against real, live Sqorz data (a real 2026-08-16 USA BMX
@@ -11,10 +11,14 @@ connected to a real Sqorz installation.** Its request handling, timeout
 behavior, and fallback-when-disconnected behavior are verified against a
 local mock server with *guessed* response shapes (see "resilience, not
 verification" below) -- not against any real track's actual scoring
-computer; treat it as experimental until it has. This release is being
-installed and verified on a real machine before it is published --
-see "Release process" in `CLAUDE.md`; do not treat anything in this
-section as confirmed working in the field until then.
+computer; treat it as experimental until it has. This status is unchanged
+by the rest of this section: this release has been installed and
+gate-tested on a real machine, including the Setup wizard's full command
+surface (the forced-driver-missing flow, a throwaway-login
+create/verify/drop cycle, the `login_name` injection rejection, and
+loopback-only enforcement against a non-loopback request) -- see
+"Release process" in `CLAUDE.md`. The LAN Sqorz backend was not part of
+that gate and remains experimental.
 
 **Install path tested:** 1.3.0 was validated as a clean install -- no
 prior BBS version present on the machine. **The in-place upgrade path
