@@ -5,6 +5,10 @@ mapping that builds the manual's navigation and search index.
 
 from __future__ import annotations
 
+import re
+
+import pytest
+
 from connector.config import APPLICATION_ROOT
 from connector.services import manual_service as svc
 
@@ -183,3 +187,59 @@ def test_search_empty_query_returns_nothing() -> None:
 def test_search_no_match_returns_empty_list_not_an_error() -> None:
     manual = svc.get_manual(APPLICATION_ROOT)
     assert svc.search(manual, "xyzzy-not-a-real-word-anywhere") == []
+
+
+# ---------------------------------------------------------------------------
+# Regression net: every real doc, not just the hand-picked examples above.
+# render_markdown() is deliberately scoped to what today's docs/*.md use,
+# not general Markdown -- its failure mode for anything outside that scope
+# is silent: a future doc uses syntax it doesn't handle, and a track
+# operator sees raw asterisks or a bare [text](url) instead of a link. This
+# renders every file actually in docs/ (not just the ones curated into
+# SECTIONS -- a doc nobody has wired into the manual yet is exactly the
+# kind of "written later, never checked" case this exists to catch) and
+# asserts nothing markdown-shaped survives into the output outside a code
+# block, where literal '*', '`', '|', and '[x](y)' are legitimately just
+# code and not a rendering failure.
+# ---------------------------------------------------------------------------
+
+
+def _strip_code_blocks(html: str) -> str:
+    """Strips both fenced code blocks and inline code spans -- literal
+    '*', '`', '|', or '[x](y)'-shaped text inside either is legitimately
+    just code, not a rendering failure. A fenced block's own <code> is
+    covered by stripping the whole <pre>...</pre> first, so this doesn't
+    double-strip it as "inline"."""
+    without_blocks = re.sub(r"<pre>.*?</pre>", "", html, flags=re.S)
+    return re.sub(r"<code>.*?</code>", "", without_blocks, flags=re.S)
+
+
+def _all_doc_files() -> list:
+    docs_root = APPLICATION_ROOT / "docs"
+    return sorted(docs_root.glob("*.md"))
+
+
+@pytest.mark.parametrize("doc_path", _all_doc_files(), ids=lambda p: p.name)
+def test_every_doc_in_docs_renders_without_leaking_raw_markdown_syntax(doc_path) -> None:
+    source = doc_path.read_text(encoding="utf-8")
+    html = svc.render_markdown(source)
+    prose = _strip_code_blocks(html)
+
+    assert "*" not in prose, f"{doc_path.name}: a '*' survived rendering outside a code block"
+    assert "`" not in prose, f"{doc_path.name}: a '`' survived rendering outside a code block"
+    assert not re.search(r"^\s*\|.*\|\s*$", prose, re.M), (
+        f"{doc_path.name}: a raw '|...|' table line survived rendering"
+    )
+    assert not re.search(r"\[[^\]]+\]\([^)]+\)", prose), (
+        f"{doc_path.name}: a raw [text](url) link survived rendering"
+    )
+
+
+def test_every_doc_renders_at_least_one_heading() -> None:
+    """A doc that renders to zero headings almost certainly failed to
+    parse at all (wrong line endings, an encoding issue) rather than
+    genuinely having no headings -- every doc in this project's docs/
+    starts with a top-level title."""
+    for doc_path in _all_doc_files():
+        html = svc.render_markdown(doc_path.read_text(encoding="utf-8"))
+        assert re.search(r"<h1>", html), f"{doc_path.name}: rendered with no <h1> at all"
