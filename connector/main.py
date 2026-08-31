@@ -13,7 +13,7 @@ from database.racemanager import RaceManagerDatabaseError
 from connector.config import get_settings
 from connector.dependencies import get_results_roll_service
 from connector.security import evaluate_http_access
-from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, manual, mode, motos, results, setup, sqorz_match_report, sqorz_status, sqorz_timing, status as status_route, themes
+from connector.routes import breaks, broadcast_ws, configuration, current, diagnostics, director, event, health, lineup, logs, manual, mode, motos, results, setup, sqorz_director, sqorz_match_report, sqorz_status, sqorz_timing, status as status_route, themes
 from connector.services.logging_service import configure_logging
 
 settings = get_settings()
@@ -64,6 +64,7 @@ app.include_router(sqorz_timing.router, prefix=settings.api_prefix)
 app.include_router(sqorz_match_report.router, prefix=settings.api_prefix)
 app.include_router(sqorz_status.router, prefix=settings.api_prefix)
 app.include_router(mode.router, prefix=settings.api_prefix)
+app.include_router(sqorz_director.router, prefix=settings.api_prefix)
 app.include_router(setup.router, prefix=settings.api_prefix)
 app.include_router(manual.api_router, prefix=settings.api_prefix)
 app.include_router(manual.router)
