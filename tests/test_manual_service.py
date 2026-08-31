@@ -148,6 +148,13 @@ def test_get_manual_loads_real_doc_content_not_a_placeholder() -> None:
     assert "db_datareader" in topic.html
 
 
+def test_get_manual_includes_sqorz_only_mode_with_real_content() -> None:
+    manual = svc.get_manual(APPLICATION_ROOT)
+    topic = manual.topics["sqorz-only-mode"]
+    assert "Jump to Most Recent Activity" in topic.html
+    assert "Re-check" in topic.html
+
+
 def test_get_manual_every_topic_has_non_empty_rendered_html() -> None:
     manual = svc.get_manual(APPLICATION_ROOT)
     for slug, topic in manual.topics.items():

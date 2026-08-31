@@ -54,6 +54,7 @@ SECTIONS: list[tuple[str, list[tuple[str, str]]]] = [
     ]),
     ("Sqorz live timing", [
         ("sqorz-live-timing", "Sqorz Live Timing"),
+        ("sqorz-only-mode", "Sqorz-Only Mode"),
         ("sqorz-on-site-runbook", "Sqorz On-Site Runbook"),
     ]),
     ("User guide", [

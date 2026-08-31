@@ -9,11 +9,17 @@ at the bottom.)
 If your track uses [Sqorz](https://our.sqorz.com) for timing, BBS can show riders'
 live times (and finish positions, once a moto is done) right on your broadcast
 overlays — the same lineup graphic your viewers already see, with a time column
-added, or a standalone timing graphic if you don't run RaceManager at all.
+added, or a standalone timing graphic (`/overlay/sqorz-timing`) if you don't run
+RaceManager at all.
 
 It's entirely optional and off by default. If you don't set it up, or if Sqorz is
 briefly unreachable, everything else in BBS keeps working exactly as before —
 overlays just show no times, never a wrong one.
+
+**Don't run RaceManager at all, and want BBS's full Race Director — not just
+an overlay — to work directly from Sqorz?** See [Sqorz-Only
+Mode](sqorz-only-mode.md) instead; everything on this page assumes RaceManager
+is present.
 
 **Two important limits, by design:**
 - BBS only ever shows a time when it's *confident* it belongs to the right rider.
