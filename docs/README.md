@@ -1,5 +1,10 @@
 # BBS Documentation
 
+**Already running BBS?** This same documentation is browsable inside the
+app itself at `/manual` (linked from the tray) -- no need to find this
+repository. This index is for browsing the source on GitHub, or before
+BBS is installed.
+
 - [The Setup Wizard](setup-wizard.md)
 - [Prepare the USA BMX RaceManager PC for BBS](racemanager-pc-setup.md)
 - [Windows Installation](installation-windows.md)

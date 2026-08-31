@@ -1,6 +1,6 @@
 # Windows MSI Installer
 
-BBS 1.3.0 uses `BMX-Broadcast-Suite-Setup-v1.3.0.msi`, built by WiX Toolset v4. It retains the native MSI and Windows-service architecture introduced in v1.2.11.
+BBS 1.3.1 uses `BMX-Broadcast-Suite-Setup-v1.3.1.msi`, built by WiX Toolset v4. It retains the native MSI and Windows-service architecture introduced in v1.2.11.
 
 The MSI contains an offline Python 3.12.10 runtime and hash-locked wheels. It does not run VBScript or PowerShell, change execution policy, download packages, or create a Scheduled Task. Windows Installer owns Apps & Features, files, shortcuts, upgrades, and uninstall. WinSW 2.12.0, pinned to the official release SHA-256, hosts the automatic `BMXBroadcastSuite` service.
 
@@ -25,7 +25,7 @@ same build is idempotent and does not rewrite the file.
 Use **Settings → Apps → Installed apps**. Operator data remains in ProgramData. To explicitly purge that data:
 
 ```powershell
-msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.3.0.msi PURGEUSERDATA=1
+msiexec.exe /x BMX-Broadcast-Suite-Setup-v1.3.1.msi PURGEUSERDATA=1
 ```
 
 Normal uninstall stops and removes only the `BMXBroadcastSuite` service, then
@@ -47,7 +47,7 @@ its SHA-256 against the value published alongside it on the
 before installing --
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\BMX-Broadcast-Suite-Setup-v1.3.0.msi
+Get-FileHash -Algorithm SHA256 .\BMX-Broadcast-Suite-Setup-v1.3.1.msi
 ```
 
 -- and confirm it matches exactly. See
@@ -70,7 +70,7 @@ and published with, not a local-testing-only mode. Either way, scan the
 exact final file with current Defender definitions before publishing:
 
 ```powershell
-.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.3.0.msi -AllowUnsigned
+.\scripts\test-windows-release-artifact.ps1 -Path .\dist\BMX-Broadcast-Suite-Setup-v1.3.1.msi -AllowUnsigned
 ```
 
 (Drop `-AllowUnsigned` once builds are signed.) If Defender detects it, do not upload it; submit that exact artifact to Microsoft Security Intelligence. Outputs include the MSI, SHA-256 file, manifest, and CycloneDX SBOM.

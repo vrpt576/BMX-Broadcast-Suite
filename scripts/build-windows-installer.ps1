@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$Version = "1.3.0"
+$Version = "1.3.1"
 $Root = (Resolve-Path "$PSScriptRoot\..").Path
 $Packaging = Join-Path $Root "packaging\windows"
 $Dependencies = Join-Path $Packaging "dependencies"
@@ -119,7 +119,7 @@ try {
     & git -C $Root checkout-index --all --force --prefix=$Prefix
     if ($LASTEXITCODE -ne 0) { throw "Git could not materialize the indexed source." }
 
-    foreach ($Name in @("connector", "database", "themes", "overlay", "assets", "controller", "exporter")) {
+    foreach ($Name in @("connector", "database", "themes", "overlay", "assets", "controller", "exporter", "docs")) {
         $Source = Join-Path $Indexed $Name
         if (Test-Path $Source) { Copy-Item $Source $Payload -Recurse -Force }
     }

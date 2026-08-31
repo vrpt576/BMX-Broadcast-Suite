@@ -216,6 +216,78 @@ def test_instances_prefers_a_detected_instance(monkeypatch: pytest.MonkeyPatch) 
 
 
 # ---------------------------------------------------------------------------
+# POST /api/setup/sql/discover -- "Find it for me"
+# ---------------------------------------------------------------------------
+
+
+def test_discover_requires_a_host() -> None:
+    response = client.post("/api/setup/sql/discover", json={})
+    assert response.status_code == 400
+
+
+def test_discover_returns_the_browser_service_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        sql_setup,
+        "discover_via_browser_service",
+        lambda host, timeout=2.0: [{"instance": "USABMX", "port": 49947, "version": "15.0.2000.5"}],
+    )
+
+    response = client.post("/api/setup/sql/discover", json={"host": "100.69.100.33"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["found"] is True
+    assert body["via"] == "browser"
+    assert body["selected"] == {"instance": "USABMX", "port": 49947, "version": "15.0.2000.5"}
+
+
+def test_discover_prefers_the_common_racemanager_instance_among_several(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sql_setup,
+        "discover_via_browser_service",
+        lambda host, timeout=2.0: [
+            {"instance": "SQLEXPRESS", "port": 1433, "version": "15.0"},
+            {"instance": "USABMX", "port": 49947, "version": "15.0"},
+        ],
+    )
+
+    response = client.post("/api/setup/sql/discover", json={"host": "somehost"})
+
+    assert response.json()["selected"]["instance"] == "USABMX"
+
+
+def test_discover_falls_back_to_the_default_port_probe_when_browser_is_silent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sql_setup, "discover_via_browser_service", lambda host, timeout=2.0: [])
+    monkeypatch.setattr(sql_setup, "probe_default_sql_port", lambda host, timeout=2.0: True)
+
+    response = client.post("/api/setup/sql/discover", json={"host": "somehost"})
+
+    body = response.json()
+    assert body["found"] is True
+    assert body["via"] == "fallback"
+    assert body["selected"]["port"] == 1433
+    assert "didn't respond" in body["message"]
+
+
+def test_discover_reports_plainly_when_nothing_answers_at_all(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sql_setup, "discover_via_browser_service", lambda host, timeout=2.0: [])
+    monkeypatch.setattr(sql_setup, "probe_default_sql_port", lambda host, timeout=2.0: False)
+
+    response = client.post("/api/setup/sql/discover", json={"host": "somehost"})
+
+    body = response.json()
+    assert body["found"] is False
+    assert body["selected"] is None
+    assert "didn't respond" in body["message"]
+
+
+# ---------------------------------------------------------------------------
 # POST /api/setup/sql/auto-setup -- option 1, tried first: free, no fields
 # ---------------------------------------------------------------------------
 
@@ -792,6 +864,14 @@ def test_the_page_never_echoes_a_password_placeholder_in_a_way_thats_pre_filled(
     for field_id in ("admin-password", "verify-password"):
         section = response.text.split(f'id="{field_id}"')[1].split(">")[0]
         assert "value=" not in section
+
+
+def test_the_page_offers_find_it_for_me_beside_both_host_fields() -> None:
+    response = client.get("/setup")
+    body = response.text
+    assert 'id="admin-discover-btn"' in body
+    assert 'id="verify-discover-btn"' in body
+    assert "Find it for me" in body
 
 
 def test_the_page_offers_all_four_paths_least_typing_first() -> None:

@@ -612,3 +612,153 @@ def test_verify_login_reports_a_custom_login_name() -> None:
     connection = FakeConnection(script=[(1, "some", "race", "row")])
     result = svc.verify_login(connection, login_name="bbs_connector_test")
     assert result["login"] == "bbs_connector_test"
+
+
+# ---------------------------------------------------------------------------
+# _parse_browser_response -- the SSRP (SQL Server Browser, UDP 1434) wire
+# format, a real one captured against a real SQL Server Express instance
+# ---------------------------------------------------------------------------
+
+
+def _svr_resp(text: str) -> bytes:
+    payload = text.encode("ascii")
+    return bytes([0x05]) + len(payload).to_bytes(2, "little") + payload
+
+
+def test_parse_browser_response_one_instance() -> None:
+    data = _svr_resp(
+        "ServerName;HOSTNAME;InstanceName;USABMX;IsClustered;No;"
+        "Version;15.0.2000.5;tcp;49947;;"
+    )
+    instances = svc._parse_browser_response(data)
+    assert instances == [{"instance": "USABMX", "port": 49947, "version": "15.0.2000.5"}]
+
+
+def test_parse_browser_response_multiple_instances() -> None:
+    data = _svr_resp(
+        "ServerName;HOSTNAME;InstanceName;USABMX;IsClustered;No;"
+        "Version;15.0.2000.5;tcp;49947;;"
+        "ServerName;HOSTNAME;InstanceName;SQLEXPRESS;IsClustered;No;"
+        "Version;15.0.2000.5;tcp;1433;;"
+    )
+    instances = svc._parse_browser_response(data)
+    assert [i["instance"] for i in instances] == ["USABMX", "SQLEXPRESS"]
+
+
+def test_parse_browser_response_instance_with_no_tcp_endpoint_reports_no_port() -> None:
+    data = _svr_resp("ServerName;HOSTNAME;InstanceName;USABMX;IsClustered;No;Version;15.0.2000.5;np;\\\\HOSTNAME\\pipe\\x;;")
+    instances = svc._parse_browser_response(data)
+    assert instances == [{"instance": "USABMX", "port": None, "version": "15.0.2000.5"}]
+
+
+def test_parse_browser_response_rejects_the_wrong_response_type_byte() -> None:
+    assert svc._parse_browser_response(b"\x02garbage") == []
+
+
+def test_parse_browser_response_handles_truncated_data_without_raising() -> None:
+    assert svc._parse_browser_response(b"\x05") == []
+    assert svc._parse_browser_response(b"") == []
+
+
+# ---------------------------------------------------------------------------
+# discover_via_browser_service -- the real UDP call, isolated behind a fake
+# socket
+# ---------------------------------------------------------------------------
+
+
+class FakeUdpSocket:
+    def __init__(self, response: bytes | None, raise_on_send: bool = False) -> None:
+        self._response = response
+        self._raise_on_send = raise_on_send
+        self.sent: list[tuple[bytes, tuple]] = []
+
+    def __enter__(self) -> "FakeUdpSocket":
+        return self
+
+    def __exit__(self, *exc) -> bool:
+        return False
+
+    def settimeout(self, _value: float) -> None:
+        pass
+
+    def sendto(self, data: bytes, addr: tuple) -> None:
+        if self._raise_on_send:
+            raise OSError("network unreachable")
+        self.sent.append((data, addr))
+
+    def recvfrom(self, _bufsize: int) -> tuple[bytes, tuple]:
+        if self._response is None:
+            raise TimeoutError("timed out")
+        return self._response, ("host", 1434)
+
+
+def test_discover_via_browser_service_returns_parsed_instances(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = _svr_resp("ServerName;H;InstanceName;USABMX;IsClustered;No;Version;15.0.2000.5;tcp;49947;;")
+    fake_socket = FakeUdpSocket(response)
+    monkeypatch.setattr(svc.socket, "socket", lambda *a, **k: fake_socket)
+
+    instances = svc.discover_via_browser_service("100.69.100.33")
+
+    assert instances == [{"instance": "USABMX", "port": 49947, "version": "15.0.2000.5"}]
+    assert fake_socket.sent == [(b"\x03", ("100.69.100.33", 1434))]
+
+
+def test_discover_via_browser_service_sends_the_correct_request_byte(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLNT_UCAST_EX (0x03): "list every instance on this one host" -- not
+    CLNT_BCAST_EX (0x02), which broadcasts across a subnet and is not
+    what a single typed-in host address should trigger."""
+    fake_socket = FakeUdpSocket(None)
+    monkeypatch.setattr(svc.socket, "socket", lambda *a, **k: fake_socket)
+
+    svc.discover_via_browser_service("some-host")
+
+    assert fake_socket.sent[0][0] == b"\x03"
+
+
+def test_discover_via_browser_service_returns_empty_list_when_nothing_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(svc.socket, "socket", lambda *a, **k: FakeUdpSocket(None))
+    assert svc.discover_via_browser_service("unreachable-host") == []
+
+
+def test_discover_via_browser_service_never_raises_for_a_bad_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(svc.socket, "socket", lambda *a, **k: FakeUdpSocket(None, raise_on_send=True))
+    assert svc.discover_via_browser_service("not-a-real-host") == []
+
+
+# ---------------------------------------------------------------------------
+# probe_default_sql_port -- the one justified fallback, not a port scan
+# ---------------------------------------------------------------------------
+
+
+def test_probe_default_sql_port_true_when_something_is_listening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    seen = []
+    monkeypatch.setattr(
+        svc.socket, "create_connection", lambda addr, timeout=2.0: (seen.append(addr), FakeConn())[1]
+    )
+    assert svc.probe_default_sql_port("some-host") is True
+    assert seen == [("some-host", 1433)]
+
+
+def test_probe_default_sql_port_false_when_nothing_is_listening(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(addr, timeout=2.0):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(svc.socket, "create_connection", boom)
+    assert svc.probe_default_sql_port("some-host") is False
