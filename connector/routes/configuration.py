@@ -83,11 +83,13 @@ CONFIG_HTML = r'''<!doctype html>
     <label>Replay file path (file mode)<input id="sqorz_file_path" placeholder="e.g. C:\demo-event.json"></label>
     <label>Poll interval (seconds)<input id="sqorz_poll_seconds" type="number" placeholder="blank = 10 internet / 2 LAN"></label>
     <label>Timeout (seconds)<input id="sqorz_timeout_seconds" type="number" step="0.1"></label>
+    <label><input id="force_sqorz_only_mode" type="checkbox"> Force Sqorz-only mode even when RaceManager is also reachable</label>
+    <p class="muted">Leave unchecked for most tracks -- BBS switches to Sqorz-only automatically whenever RaceManager isn't configured or reachable, with Sqorz enabled above. Only check this if RaceManager is also set up here but you want BBS to ignore it anyway.</p>
   </section>
 </div>
 <button id="save">Save configuration</button> <span id="status" class="muted"></span>
 </main><script>
-const fields=['track_name','default_theme','app_host','app_port','public_base_url','cors_origins','remote_control_enabled','control_token','remote_admin_enabled','admin_token','sql_host','sql_instance','sql_port','sql_database','sql_user','sql_password','sql_driver','sql_encrypt','sql_trust_server_certificate','sqorz_enabled','sqorz_mode','sqorz_event_id','sqorz_org_code','sqorz_host','sqorz_port','sqorz_file_path','sqorz_poll_seconds','sqorz_timeout_seconds'];
+const fields=['track_name','default_theme','app_host','app_port','public_base_url','cors_origins','remote_control_enabled','control_token','remote_admin_enabled','admin_token','sql_host','sql_instance','sql_port','sql_database','sql_user','sql_password','sql_driver','sql_encrypt','sql_trust_server_certificate','sqorz_enabled','sqorz_mode','sqorz_event_id','sqorz_org_code','sqorz_host','sqorz_port','sqorz_file_path','sqorz_poll_seconds','sqorz_timeout_seconds','force_sqorz_only_mode'];
 const sessionToken=document.querySelector('#session_admin_token');
 function adminHeaders(extra={}){const headers=new Headers(extra);const token=sessionToken.value.trim();if(token)headers.set('X-BBS-Admin-Token',token);return headers}
 async function load(){const status=document.querySelector('#status');status.textContent='Loading…';const response=await fetch('/api/configuration',{cache:'no-store',headers:adminHeaders()});const data=await response.json();if(!response.ok){status.textContent=data.detail||'Configuration unavailable';status.className='error';return}for(const field of fields){const element=document.getElementById(field);if(element.type==='checkbox')element.checked=!!data[field];else element.value=data[field]??''}status.textContent='Configuration loaded.';status.className='ok'}
