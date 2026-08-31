@@ -10,6 +10,70 @@ actually changed, not the version number alone.
 
 ## Unreleased
 
+## 1.3.2 - date TBD (not yet published)
+
+**Verification status, plainly:** internet and file mode are tested against
+real captured Sqorz data throughout (`tests/fixtures/sqorz/`), including a
+real bug caught and fixed this way -- a class running a Semi Final before
+its Main sorted backwards until the ordering table was corrected against
+what the real payload actually contained. **LAN mode's race ordering
+(`getPhaseSummaries`) remains unverified** -- no real payload has ever been
+captured for it, the same status LAN mode's rider-time parsing has carried
+since 1.3.0. It is built the same defensive way (a guessed shape with a
+tree-search fallback, degrading to "no verified ordering" rather than
+raising) and flagged as such in code and docs; treat it as experimental
+until a real LAN payload is captured on site.
+
+- Added **Sqorz-only mode**: for a track running no RaceManager at all, BBS
+  can now run its full Race Director, on-air graphics, and rider lineup
+  directly from Sqorz -- not just a time column added to a RaceManager
+  lineup (that feature, Sqorz Live Timing, is unchanged). See
+  [docs/sqorz-only-mode.md](docs/sqorz-only-mode.md).
+  - **Automatic mode detection**, never an operator prompt: a reachable
+    RaceManager always wins; otherwise, an enabled Sqorz falls through to
+    Sqorz-only; otherwise BBS says plainly that neither is usable yet. An
+    explicit override (`BBS_FORCE_SQORZ_ONLY_MODE`, a checkbox in
+    `/configuration`) is available for a track with both configured that
+    wants Sqorz-only anyway.
+  - Mode is **cached, not re-evaluated per request** -- a transient
+    RaceManager network blip mid-event can't silently swap the operator's
+    navigation model out from under them. Both `/director` and `/setup`
+    show the current mode and reason, with an explicit, operator-triggered
+    **Re-check** button (never a timer) that reports the decision before
+    and after.
+  - **Navigation** is genuinely different by Sqorz mode, not one model with
+    a flag threaded through it: LAN mode gets a full-event catalog ordered
+    by Sqorz's own documented running-order source; internet and file mode
+    have no such source, so they get a class picker, Previous/Next scoped
+    to the selected class only, and a "jump to most recent activity" action
+    instead of inventing a cross-class order that can't be defended.
+  - An **internet-mode event picker** (Change 3) lists events from
+    `/json/org/{orgCode}` when an org code is configured; hidden in LAN and
+    file mode, which have no equivalent list.
+  - **Full Director control mapping**: Previous/Next Moto repurposed to
+    Sqorz navigation; the RaceManager event picker, main-program boundary,
+    round buttons, jump-to-moto, and class-name field hidden (not
+    applicable); "Show current results" disabled with a reason; the entire
+    Results Roll cluster hidden (results always come from RaceManager, and
+    there is no Sqorz-only results feature); on-air graphic buttons, break
+    buttons, remote control token, and the navigation-confirm modal
+    unchanged, since none of them depend on RaceManager.
+  - Sqorz's own phase name (e.g. "Moto 1", "Semi Final", "Main") is shown
+    as the round label directly in this mode -- there is no RaceManager
+    finalization method to defer to, unlike mixed mode, where Sqorz still
+    never sets a round label.
+  - **Provably isolated from RaceManager**: a dedicated end-to-end test
+    exercises a full operator session (check mode, list classes, select
+    one, jump to recent activity, step through races, read the lineup)
+    against the real production dependency graph wired to RaceManager
+    services that raise if ever called, proving the whole path never
+    touches RaceManagerDatabase. The one deliberate exception, the lineup
+    endpoint (OBS points at a single fixed overlay URL regardless of mode),
+    is a single named, reviewed dispatcher function.
+  - **An existing RaceManager-only install sees no behavior change** --
+    pinned by a dedicated test loading configuration shaped exactly like a
+    real pre-1.3.2 install (mentioning none of the new settings at all).
+
 ## 1.3.1 - date TBD (not yet published)
 
 - Added an in-app manual (`/manual`, linked from the tray) so BBS's own
