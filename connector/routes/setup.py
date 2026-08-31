@@ -559,11 +559,23 @@ pre{white-space:pre-wrap;word-break:break-word;background:#0d131a;border:1px sol
 a{color:#f5b821}
 details summary{cursor:pointer;font-weight:700;padding:4px 0}
 .trouble dt{font-weight:800;margin-top:10px;color:#ffc5aa}.trouble dd{margin:2px 0 0;color:#cfd8e3}
+.card.skipped{opacity:.5}
+.card.skipped::before{content:"Not required for Sqorz-only mode";display:block;color:#9fd6b0;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
 </style></head><body><main class="wrap">
 <h1>BBS Setup</h1>
 <p class="muted">Everything BBS needs before it can read RaceManager -- fixed here, once.</p>
 
-<div class="card" id="overview"><h2>Status</h2><div id="overview-body">Checking...</div></div>
+<div class="card" id="mode-card">
+  <div class="row" style="justify-content:space-between">
+    <div>Mode: <b id="mode-value">—</b> <span id="mode-reason" class="muted"></span></div>
+    <button id="mode-recheck" class="secondary">Re-check</button>
+  </div>
+  <p class="fieldhelp" id="mode-recheck-detail"></p>
+</div>
+
+<div class="card" id="overview"><h2>Status</h2><div id="overview-body">Checking...</div>
+  <p class="muted" style="margin-top:10px">Don't use RaceManager at this track? <a href="#" id="skip-to-sqorz">Skip straight to Sqorz live timing</a> -- the SQL Server driver and RaceManager connection below aren't required for Sqorz-only operation.</p>
+</div>
 
 <div class="card" id="odbc-card"><a id="odbc"></a><h2>1. SQL Server driver</h2>
   <div id="odbc-body">Checking...</div>
@@ -689,8 +701,8 @@ details summary{cursor:pointer;font-weight:700;padding:4px 0}
   </div>
 </div>
 
-<div class="card"><h2>3. Sqorz live timing (optional)</h2>
-  <p class="muted">Not required. <a href="/configuration">Configure it</a> if your track uses Sqorz.
+<div class="card" id="sqorz-card"><h2>3. Sqorz live timing<span id="sqorz-optional-label"> (optional)</span></h2>
+  <p class="muted" id="sqorz-card-intro">Not required. <a href="/configuration">Configure it</a> if your track uses Sqorz.
   See <a href="/sqorz-status">Sqorz status</a> once it's set up.</p>
 </div>
 
@@ -866,8 +878,44 @@ async function loadCleanup(){
   document.querySelector('#sql-cleanup-text').textContent=d.sql;
 }
 
+const modeLabels={racemanager:'RaceManager',sqorz_only:'Sqorz-only',unavailable:'Unavailable'};
+function renderModeBanner(decision){
+  document.querySelector('#mode-value').textContent=modeLabels[decision.mode]||decision.mode;
+  document.querySelector('#mode-reason').textContent=decision.reason;
+}
+async function loadMode(){
+  try{
+    const r=await fetch('/api/mode',{cache:'no-store'});
+    if(!r.ok)throw new Error();
+    renderModeBanner(await r.json());
+  }catch(e){document.querySelector('#mode-reason').textContent='Mode unavailable.'}
+}
+document.querySelector('#mode-recheck').addEventListener('click', async ()=>{
+  const button=document.querySelector('#mode-recheck');
+  const detail=document.querySelector('#mode-recheck-detail');
+  button.disabled=true;
+  try{
+    const r=await fetch('/api/mode/recheck',{method:'POST'});
+    if(!r.ok)throw new Error('Request failed: '+r.status);
+    const d=await r.json();
+    renderModeBanner(d.after);
+    detail.textContent='Before: '+(modeLabels[d.before.mode]||d.before.mode)+' ('+d.before.reason+') -- After: '+(modeLabels[d.after.mode]||d.after.mode)+' ('+d.after.reason+')';
+  }catch(e){detail.textContent=String(e.message||e)}
+  finally{button.disabled=false}
+});
+
+document.querySelector('#skip-to-sqorz').addEventListener('click', (event)=>{
+  event.preventDefault();
+  document.querySelector('#odbc-card').classList.add('skipped');
+  document.querySelector('#sql-card').classList.add('skipped');
+  document.querySelector('#sqorz-optional-label').remove();
+  document.querySelector('#sqorz-card-intro').textContent='This is the only setup this track needs -- RaceManager\'s SQL Server driver and connection above can stay unconfigured. Configure Sqorz below, then use Re-check above to confirm BBS switched to Sqorz-only mode.';
+  document.querySelector('#sqorz-card').scrollIntoView({behavior:'smooth'});
+});
+
 loadStatus();
 loadInstances();
 loadCleanup();
+loadMode();
 </script>
 </body></html>'''
