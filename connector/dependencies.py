@@ -17,6 +17,7 @@ from connector.services.race_program_service import RaceProgramService
 from connector.services.race_program_export_service import RaceProgramExportService
 from connector.services.results_roll_service import ResultsRollService
 from connector.services.sqorz_class_alias_service import SqorzClassAliasStore
+from connector.services.sqorz_current_race_service import SqorzCurrentRaceService
 from connector.services.sqorz_service import SqorzService
 
 
@@ -102,6 +103,11 @@ def get_operating_mode() -> ModeDecision:
 @lru_cache
 def get_sqorz_class_alias_store() -> SqorzClassAliasStore:
     return SqorzClassAliasStore(get_settings().sqorz_class_alias_file)
+
+
+@lru_cache
+def get_sqorz_current_race_service() -> SqorzCurrentRaceService:
+    return SqorzCurrentRaceService(get_settings().sqorz_current_race_state_file)
 
 
 def get_current_lineup_service() -> CurrentLineupService:
