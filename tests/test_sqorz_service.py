@@ -11,6 +11,7 @@ from connector.services.sqorz_service import (
     parse_event_payload,
     parse_lan_by_searching_the_tree,
     parse_lan_phase_rank_detail,
+    parse_lan_phase_summaries_order,
     plausible_finish,
 )
 
@@ -514,6 +515,91 @@ def test_lan_raw_response_save_is_best_effort_never_fatal(tmp_path) -> None:
 
     assert result.reachable is True
     assert result.riders == []
+
+
+# ---------------------------------------------------------------------------
+# parse_lan_phase_summaries_order -- UNVERIFIED shape guess for getPhaseSummaries,
+# the LAN-mode running-order source connector/services/sqorz_navigation_service.py
+# treats as primary. Pure function tests only; wiring into _fetch_lan() is
+# covered separately below.
+# ---------------------------------------------------------------------------
+
+
+def test_parse_phase_summaries_order_reads_the_guessed_container_key() -> None:
+    payload = {
+        "phaseSummaries": [
+            {"classCode": "C1", "phaseCode": "M1"},
+            {"classCode": "C1", "phaseCode": "M2"},
+            {"classCode": "C2", "phaseCode": "M1"},
+        ]
+    }
+    assert parse_lan_phase_summaries_order(payload) == [
+        ("C1", "M1"),
+        ("C1", "M2"),
+        ("C2", "M1"),
+    ]
+
+
+def test_parse_phase_summaries_order_falls_back_to_tree_search() -> None:
+    """A shape that doesn't match the guessed container key at all -- the
+    same tree-search resilience getPhaseBlockSummaries's own fallback uses."""
+    payload = {
+        "wrapper": {"races": [{"classCode": "C1", "phaseBlockCode": "1F"}]}
+    }
+    assert parse_lan_phase_summaries_order(payload) == [("C1", "1F")]
+
+
+def test_parse_phase_summaries_order_deduplicates_repeated_entries() -> None:
+    payload = {"phaseSummaries": [{"classCode": "C1", "phaseCode": "M1"}] * 3}
+    assert parse_lan_phase_summaries_order(payload) == [("C1", "M1")]
+
+
+def test_parse_phase_summaries_order_returns_empty_for_unrecognisable_shape() -> None:
+    assert parse_lan_phase_summaries_order({"totallyUnexpected": True}) == []
+    assert parse_lan_phase_summaries_order(None) == []
+    assert parse_lan_phase_summaries_order([1, 2, 3]) == []
+
+
+def test_fetch_lan_populates_the_ordering_from_get_phase_summaries(tmp_path) -> None:
+    service = SqorzService(
+        enabled=True, mode="lan", host="scoring", raw_response_file=tmp_path / "raw.json", clock=Clock()
+    )
+
+    def fake_call_lan(func: str, args: list) -> object:
+        if func == "getPhaseSummaries":
+            return {"phaseSummaries": [{"classCode": "C1", "phaseCode": "M1"}]}
+        if func == "getPhaseBlockSummaries":
+            return {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1", "className": "Test"}]}
+        return {"competitors": [{"plate": "1", "lastName": "OK", "competitorRankDetails": [{"phaseCode": "M1", "time": "40.0"}]}]}
+
+    service._call_lan = fake_call_lan
+    service.get_riders()
+
+    assert service.last_phase_summaries_order == [("C1", "M1")]
+
+
+def test_fetch_lan_ordering_failure_does_not_break_rider_time_fetching(tmp_path) -> None:
+    """The whole point of isolating the getPhaseSummaries call in its own
+    try/except: an older Sqorz install without it (or any other failure)
+    must degrade ordering to "unverified this poll", never take rider times
+    down with it."""
+    service = SqorzService(
+        enabled=True, mode="lan", host="scoring", raw_response_file=tmp_path / "raw.json", clock=Clock()
+    )
+
+    def fake_call_lan(func: str, args: list) -> object:
+        if func == "getPhaseSummaries":
+            raise ValueError("HTTP 404 -- function does not exist on this Sqorz version")
+        if func == "getPhaseBlockSummaries":
+            return {"phaseBlockSummaries": [{"classCode": "C1", "phaseBlockCode": "M1", "className": "Test"}]}
+        return {"competitors": [{"plate": "1", "lastName": "OK", "competitorRankDetails": [{"phaseCode": "M1", "time": "40.0"}]}]}
+
+    service._call_lan = fake_call_lan
+    result = service.get_riders()
+
+    assert result.reachable is True
+    assert len(result.riders) == 1
+    assert service.last_phase_summaries_order == []
 
 
 # ---------------------------------------------------------------------------

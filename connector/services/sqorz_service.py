@@ -375,6 +375,51 @@ def parse_lan_by_searching_the_tree(
     return deduped
 
 
+def parse_lan_phase_summaries_order(payload: Any) -> list[tuple[str | None, str | None]]:
+    """UNVERIFIED, like the rest of LAN parsing: Sqorz's own API docs
+    describe getPhaseSummaries as listing races in running order, but no
+    real payload has ever been captured to confirm the response shape (see
+    scripts/sqorz_probe.py -- it asks the question; nothing has sent an
+    answer back yet). Assumes the response is, or contains, a list of
+    entries in that order, each carrying a classCode and a
+    phaseCode/phaseBlockCode -- tries a guessed container key first, then
+    falls back to searching the whole tree for anything phase-block-shaped,
+    exactly like getPhaseBlockSummaries's own fallback above.
+
+    Returns [] rather than raising when nothing recognisable is found --
+    connector/services/sqorz_navigation_service.py treats an empty order as
+    "no verified ordering available" and falls back to a deterministic
+    (alphabetical class, canonical phase) ordering instead of inventing one.
+    An empty result here is not proof the ordering guess is wrong, only that
+    this specific response didn't match it -- same caveat as everywhere else
+    in LAN parsing.
+    """
+    entries = _first_list(payload, "phaseSummaries", "summaries", "data")
+    if not entries:
+        entries = [item for item in _walk_dicts(payload) if _looks_like_a_phase_block(item)]
+
+    order: list[tuple[str | None, str | None]] = []
+    seen: set[tuple[str | None, str | None]] = set()
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        class_code = item.get("classCode") or _tree_search_find(item, "class_code")
+        phase_code = (
+            item.get("phaseCode")
+            or item.get("phaseBlockCode")
+            or _tree_search_find(item, "phase_code")
+            or _tree_search_find(item, "phase_block_code")
+        )
+        if class_code is None and phase_code is None:
+            continue
+        key = (class_code, phase_code)
+        if key in seen:
+            continue
+        seen.add(key)
+        order.append(key)
+    return order
+
+
 def _has_any_content(raw_responses: dict[str, Any]) -> bool:
     return any(value not in (None, {}, []) for value in raw_responses.values())
 
@@ -502,6 +547,14 @@ class SqorzService:
         # Set only when LAN responded but nothing recognisable was found in
         # it -- never set for "reachable, genuinely nothing racing yet".
         self.last_lan_parse_warning: str | None = None
+        # LAN mode only -- getPhaseSummaries's guessed running order, as
+        # (classCode, phaseCode) pairs. Empty means "no verified ordering
+        # available this poll" (getPhaseSummaries failed, or its shape
+        # didn't match) -- see parse_lan_phase_summaries_order() and
+        # connector/services/sqorz_navigation_service.py, which falls back
+        # to a deterministic ordering when this is empty rather than
+        # treating an empty list as "no races".
+        self.last_phase_summaries_order: list[tuple[str | None, str | None]] = []
 
     def get_riders(self) -> SqorzFetchResult:
         if not self.enabled:
@@ -573,6 +626,20 @@ class SqorzService:
         # resilience path when that finds nothing -- see
         # parse_lan_phase_rank_detail/parse_lan_by_searching_the_tree above.
         raw_responses: dict[str, Any] = {}
+
+        # Ordering only -- deliberately its own try/except, isolated from
+        # the rider-time fetch below. getPhaseSummaries is a second,
+        # separate LAN call; an older Sqorz version without it, or a shape
+        # this parser doesn't recognise, must degrade to "no verified
+        # ordering this poll" and nothing more -- it must never take rider
+        # times down with it.
+        try:
+            summaries_response = self._call_lan("getPhaseSummaries", [])
+            raw_responses["getPhaseSummaries"] = summaries_response
+            self.last_phase_summaries_order = parse_lan_phase_summaries_order(summaries_response)
+        except Exception:  # noqa: BLE001 - ordering is best-effort, never fatal
+            self.last_phase_summaries_order = []
+
         blocks_response = self._call_lan("getPhaseBlockSummaries", [])
         raw_responses["getPhaseBlockSummaries"] = blocks_response
         blocks = _first_list(blocks_response, "phaseBlockSummaries", "blocks", "data")
