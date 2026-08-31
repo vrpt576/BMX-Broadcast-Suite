@@ -4,9 +4,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from connector.dependencies import get_current_lineup_service
+from connector.dependencies import (
+    get_current_lineup_service,
+    get_operating_mode,
+    get_sqorz_current_race_service,
+    get_sqorz_service,
+)
 from connector.models import CurrentLineup
 from connector.services.current_lineup_service import CurrentLineupService
+from connector.services.lineup_dispatch import resolve_current_lineup
+from connector.services.operating_mode_service import ModeDecision
+from connector.services.sqorz_current_race_service import SqorzCurrentRaceService
+from connector.services.sqorz_service import SqorzService
 
 router = APIRouter(tags=["lineup"])
 
@@ -16,8 +25,18 @@ def current_lineup(
     demo: bool = Query(False, description="Use bundled fictional 7 Intermediate sample data."),
     motoboard_id: UUID | None = Query(None),
     service: CurrentLineupService = Depends(get_current_lineup_service),
+    mode: ModeDecision = Depends(get_operating_mode),
+    sqorz_current_race: SqorzCurrentRaceService = Depends(get_sqorz_current_race_service),
+    sqorz: SqorzService = Depends(get_sqorz_service),
 ) -> CurrentLineup:
-    return service.get(demo=demo, motoboard_id=motoboard_id)
+    return resolve_current_lineup(
+        mode=mode,
+        racemanager_lineup=service,
+        sqorz_current_race=sqorz_current_race,
+        sqorz=sqorz,
+        demo=demo,
+        motoboard_id=motoboard_id,
+    )
 
 
 def rider_lineup_overlay() -> str:
