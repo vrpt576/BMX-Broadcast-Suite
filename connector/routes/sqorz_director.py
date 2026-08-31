@@ -91,6 +91,20 @@ def get_state(
     return _state(sqorz, sqorz_current_race)
 
 
+@router.get("/events")
+def get_events(sqorz: SqorzService = Depends(get_sqorz_service)) -> list[dict[str, Any]]:
+    """Internet mode's event picker (Change 3) -- switching which Sqorz
+    event BBS polls is a configuration change (BBS_SQORZ_EVENT_ID), saved
+    through the existing /api/configuration endpoint like any other
+    setting, not a new write endpoint here. This route only lists what's
+    available to pick from. Harmless in LAN/file mode or without an org
+    code configured: fetch_org_events() returns [] rather than an error."""
+    return [
+        {"event_id": event.event_id, "event_name": event.event_name, "event_date": event.event_date}
+        for event in sqorz.fetch_org_events()
+    ]
+
+
 @router.post("/select-class/{class_code}")
 def select_class(
     class_code: str,
